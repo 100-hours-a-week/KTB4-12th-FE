@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+exports/
+test-results/
+playwright-report/
+package-lock.json
+mobile-runtime.lock.json

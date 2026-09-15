@@ -1,0 +1,3 @@
+cd prototype
+npx --no-install lint-staged
+npm run build
