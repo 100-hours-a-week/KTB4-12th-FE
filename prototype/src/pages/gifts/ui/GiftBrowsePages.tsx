@@ -1,0 +1,201 @@
+import {
+  BoxIcon,
+  ChevronRightIcon,
+  MagnifyingGlassIcon,
+  MinusIcon,
+  MixerHorizontalIcon,
+  PlusIcon,
+} from '@radix-ui/react-icons';
+import { useCallback, useState } from 'react';
+
+import { fetchProducts, type Product, PRODUCT_IMAGE } from '../../../entities/product';
+import { KeyboardInput } from '../../../mobile';
+import { useCursorList } from '../../../shared/lib/useCursorList';
+import { InfiniteCursor, ScreenHeader, SettingRow } from '../../../shared/ui';
+
+export function GiftsPage({
+  filterCount,
+  onFilter,
+  onProduct,
+}: {
+  filterCount: number;
+  onFilter: () => void;
+  onProduct: (product: Product) => void;
+}) {
+  const [sort, setSort] = useState('AI 추천순');
+  const [search, setSearch] = useState('');
+  const loader = useCallback(
+    (cursor: string | null) => fetchProducts(cursor, search, sort),
+    [search, sort],
+  );
+  const list = useCursorList(loader, `${search}:${sort}`);
+
+  return (
+    <section className="page gifts-page">
+      <ScreenHeader title="선물 탐색" />
+      <div className="gift-search-row">
+        <div className="inline-search">
+          <MagnifyingGlassIcon />
+          <KeyboardInput
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="상품명을 입력해 주세요."
+          />
+        </div>
+        <button
+          type="button"
+          className="filter-button"
+          aria-label={filterCount ? `필터, ${filterCount}개 선택됨` : '필터'}
+          onClick={onFilter}
+        >
+          <MixerHorizontalIcon /> 필터{filterCount ? <b>{filterCount}</b> : null}
+        </button>
+      </div>
+      <div className="sort-row" role="radiogroup" aria-label="상품 정렬">
+        <span>정렬</span>
+        {['AI 추천순', '인기순', '구매순'].map((option) => (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={sort === option}
+            key={option}
+            onClick={() => setSort(option)}
+          >
+            <span className={sort === option ? 'radio active' : 'radio'} />
+            {option}
+          </button>
+        ))}
+      </div>
+      <div className="product-grid">
+        {list.items.map((product) => (
+          <button
+            type="button"
+            className="product-card"
+            onClick={() => onProduct(product)}
+            key={product.productId}
+          >
+            <img
+              src={product.thumbnailUrl || PRODUCT_IMAGE}
+              alt={product.productName}
+              draggable={false}
+            />
+            <span>
+              {product.brandName} <ChevronRightIcon />
+            </span>
+            <strong>{product.productName}</strong>
+            <small>{product.price.toLocaleString()}원</small>
+          </button>
+        ))}
+      </div>
+      <InfiniteCursor
+        {...list}
+        itemCount={list.items.length}
+        emptyLabel="일치하는 상품이 없어요"
+        onLoadMore={list.loadMore}
+        onRetry={list.retry}
+      />
+    </section>
+  );
+}
+
+type ProductPageProps = {
+  product: Product;
+  quantity: number;
+  onDecrease: () => void;
+  onIncrease: () => void;
+  onBack: () => void;
+  onGift: () => void;
+};
+
+export function ProductPage({
+  product,
+  quantity,
+  onDecrease,
+  onIncrease,
+  onBack,
+  onGift,
+}: ProductPageProps) {
+  return (
+    <section className="page product-detail">
+      <ScreenHeader title="상품 상세" onBack={onBack} />
+      <img
+        className="product-hero"
+        src={product.thumbnailUrl || PRODUCT_IMAGE}
+        alt={`${product.brandName} ${product.productName}`}
+        draggable={false}
+      />
+      <article className="detail-card">
+        <small>{product.brandName}</small>
+        <strong>{product.productName}</strong>
+      </article>
+      <article className="detail-card">
+        <small>상품 설명</small>
+        <p>마음을 담아 선물하기 좋은 추천 상품이에요.</p>
+      </article>
+      <SettingRow label="상품 금액" value={`${product.price.toLocaleString()}원`} />
+      <div className="quantity-row">
+        <span>수량</span>
+        <div>
+          <button type="button" aria-label="수량 줄이기" onClick={onDecrease}>
+            <MinusIcon />
+          </button>
+          <strong>{quantity}</strong>
+          <button type="button" aria-label="수량 늘리기" onClick={onIncrease}>
+            <PlusIcon />
+          </button>
+        </div>
+      </div>
+      <button type="button" className="primary product-cta" onClick={onGift}>
+        <BoxIcon /> 선물하기 <span>{(product.price * quantity).toLocaleString()}원</span>
+      </button>
+    </section>
+  );
+}
+
+export function CompletePage({
+  product,
+  quantity,
+  onFriends,
+  onReceived,
+}: {
+  product: Product;
+  quantity: number;
+  onFriends: () => void;
+  onReceived: () => void;
+}) {
+  return (
+    <section className="page complete-page">
+      <ScreenHeader title="완료" />
+      <img
+        className="complete-image"
+        src={product.thumbnailUrl || PRODUCT_IMAGE}
+        alt={`선물한 ${product.productName}`}
+        draggable={false}
+      />
+      <p className="delivery-message">
+        <strong>
+          {product.brandName} {product.productName}
+        </strong>{' '}
+        선물이 전달됐어요
+      </p>
+      <article className="summary-card">
+        <dl>
+          <dt>받는 분</dt>
+          <dd>김민지</dd>
+          <dt>수량</dt>
+          <dd>{quantity}개</dd>
+          <dt>최종 결제 금액</dt>
+          <dd>{(product.price * quantity).toLocaleString()}원</dd>
+        </dl>
+      </article>
+      <div className="complete-actions">
+        <button type="button" className="primary" onClick={onFriends}>
+          친구 화면으로
+        </button>
+        <button type="button" className="secondary" onClick={onReceived}>
+          받은 선물 보기
+        </button>
+      </div>
+    </section>
+  );
+}
