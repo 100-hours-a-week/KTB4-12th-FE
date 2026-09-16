@@ -1,0 +1,19 @@
+.runtime-demo {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  background: #ffffff;
+  color: #151515;
+  text-align: center;
+}
+
+.runtime-demo strong {
+  font-size: 32px;
+}
+
+.runtime-demo span {
+  color: #6f6e69;
+  font-size: 14px;
+}
