@@ -8,3 +8,9 @@ coverage
 test-results
 playwright-report
 *.log
+exports
+audit
+.DS_Store
+npm-debug.log*
+design-qa.md
+!public/**/*.png
