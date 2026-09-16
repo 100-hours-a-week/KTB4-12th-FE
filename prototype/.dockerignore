@@ -1,0 +1,13 @@
+node_modules
+dist
+exports
+audit
+test-results
+playwright-report
+coverage
+.git
+.DS_Store
+npm-debug.log*
+design-qa.md
+*.png
+!public/**/*.png
