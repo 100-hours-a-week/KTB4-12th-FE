@@ -1,6 +1,7 @@
 import { CalendarIcon, EyeOpenIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 
+import { checkEmailAvailability } from '../../../entities/auth';
 import { BottomSheet, KeyboardInput } from '../../../mobile';
 import { BirthdayFields, FormField } from '../../../shared/ui';
 
@@ -15,7 +16,7 @@ export type SignupDraft = {
 
 type SignupPageProps = {
   draft: SignupDraft;
-  onDraftChange: (draft: SignupDraft) => void;
+  onDraftChange: (updater: SignupDraft | ((current: SignupDraft) => SignupDraft)) => void;
   onComplete: () => void;
 };
 
@@ -23,12 +24,34 @@ export function SignupPage({ draft, onDraftChange, onComplete }: SignupPageProps
   const [visible, setVisible] = useState(false);
   const [birthdayPickerOpen, setBirthdayPickerOpen] = useState(false);
   const [pendingBirthday, setPendingBirthday] = useState(draft.birthday || '2000.01.01');
+  const [emailChecking, setEmailChecking] = useState(false);
+  const [emailError, setEmailError] = useState('');
   const update = <Key extends keyof SignupDraft>(field: Key, value: SignupDraft[Key]) =>
-    onDraftChange({ ...draft, [field]: value });
+    onDraftChange((current) => ({ ...current, [field]: value }));
   const passwordMatches =
     draft.password.length >= 8 && draft.password === draft.passwordConfirmation;
   const ready =
     draft.name.length > 1 && Boolean(draft.birthday) && draft.emailVerified && passwordMatches;
+
+  const checkEmail = async () => {
+    if (emailChecking) return;
+    setEmailChecking(true);
+    setEmailError('');
+    try {
+      const available = await checkEmailAvailability(draft.email.trim());
+      if (!available) {
+        setEmailError('이미 사용 중인 이메일입니다.');
+        update('emailVerified', false);
+        return;
+      }
+      update('emailVerified', true);
+    } catch (reason) {
+      setEmailError(reason instanceof Error ? reason.message : '중복 확인에 실패했습니다.');
+      update('emailVerified', false);
+    } finally {
+      setEmailChecking(false);
+    }
+  };
 
   return (
     <section className="page signup-page">
@@ -59,20 +82,29 @@ export function SignupPage({ draft, onDraftChange, onComplete }: SignupPageProps
         <KeyboardInput
           value={draft.email}
           onChange={(event) =>
-            onDraftChange({ ...draft, email: event.target.value, emailVerified: false })
+            onDraftChange((current) => ({
+              ...current,
+              email: event.target.value,
+              emailVerified: false,
+            }))
           }
           placeholder="email@email.com"
         />
         <button
           type="button"
           className="duplicate-check"
-          disabled={!draft.email.includes('@')}
-          onClick={() => update('emailVerified', true)}
+          disabled={!draft.email.includes('@') || emailChecking}
+          onClick={checkEmail}
         >
-          {draft.emailVerified ? '확인 완료' : '중복확인'}
+          {draft.emailVerified ? '확인 완료' : emailChecking ? '확인 중' : '중복확인'}
         </button>
         {draft.emailVerified ? (
           <small className="field-success">사용할 수 있는 이메일입니다.</small>
+        ) : null}
+        {emailError ? (
+          <small className="field-error" role="alert">
+            {emailError}
+          </small>
         ) : null}
       </FormField>
       <FormField label="비밀번호">

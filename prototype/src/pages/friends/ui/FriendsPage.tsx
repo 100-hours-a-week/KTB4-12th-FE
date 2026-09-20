@@ -1,17 +1,25 @@
 import { Cross1Icon, MagnifyingGlassIcon, PlusIcon } from '@radix-ui/react-icons';
 import { useCallback, useState } from 'react';
 
-import { fetchFriends } from '../../../entities/friend';
+import { fetchFriends, type Friend } from '../../../entities/friend';
 import { KeyboardInput, useKeyboard } from '../../../mobile';
 import { useCursorList } from '../../../shared/lib/useCursorList';
 import { InfiniteCursor, ScreenHeader } from '../../../shared/ui';
 
-export function FriendsPage({ onAdd, onGift }: { onAdd: () => void; onGift: () => void }) {
+export function FriendsPage({
+  refreshKey,
+  onAdd,
+  onGift,
+}: {
+  refreshKey: number;
+  onAdd: () => void;
+  onGift: (friend: Friend) => void;
+}) {
   const [search, setSearch] = useState('');
   const [searchEditing, setSearchEditing] = useState(false);
   const keyboard = useKeyboard();
   const loader = useCallback((cursor: string | null) => fetchFriends(cursor, search), [search]);
-  const list = useCursorList(loader, search);
+  const list = useCursorList(loader, `${search}:${refreshKey}`);
 
   return (
     <section className="page">
@@ -70,7 +78,7 @@ export function FriendsPage({ onAdd, onGift }: { onAdd: () => void; onGift: () =
               </small>
               <span>{friend.email}</span>
             </div>
-            <button type="button" className="pill-button" onClick={onGift}>
+            <button type="button" className="pill-button" onClick={() => onGift(friend)}>
               선물하기
             </button>
           </article>

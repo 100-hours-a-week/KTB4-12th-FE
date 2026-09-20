@@ -11,4 +11,3 @@ export {
   updateGiftReview,
 } from './api';
 export type { GiftPreflight, GiftReview, ReceivedGift, SentGift, SentGiftResult } from './model';
-export { mockReceivedGifts } from './model';
