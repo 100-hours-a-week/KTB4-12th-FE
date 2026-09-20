@@ -7,6 +7,11 @@ coverage/
 test-results/
 playwright-report/
 
+# 로컬에서 생성되는 산출물 (npm run export:html, UI 감사 캡처)
+exports/
+audit/
+capture-ui-audit.mjs
+
 .env
 .env.*
 !.env.example
