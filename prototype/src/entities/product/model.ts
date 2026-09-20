@@ -10,6 +10,22 @@ export type Product = {
   thumbnailUrl: string;
 };
 
+export type ProductDetail = {
+  productId: number;
+  brandName: string;
+  productName: string;
+  description: string | null;
+  unitPrice: number;
+  images: Array<{ imageId: number; imageUrl: string; displayOrder: number }>;
+  stockQuantity: number;
+};
+
+export type ProductCategory = {
+  categoryId: number;
+  name: string;
+  children: Array<{ categoryId: number; name: string }>;
+};
+
 export const mockProducts: Product[] = Array.from({ length: 44 }, (_, index) => ({
   productId: index + 101,
   brandName: index % 3 === 0 ? '이니스프리' : index % 3 === 1 ? '오설록' : '선잘알 셀렉트',

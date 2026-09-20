@@ -10,6 +10,50 @@ export type ReceivedGift = {
   totalPrice: number;
 };
 
+export type SentGift = {
+  giftId: number;
+  sentAt: string;
+  recipient: { userId: number; name: string };
+  product: { productId: number; name: string; brand: string; thumbnailUrl: string };
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+};
+
+export type GiftPreflight = {
+  recipient: { userId: number; name: string };
+  product: {
+    productId: number;
+    unitPrice: number;
+    quantity: number;
+    totalPrice: number;
+    maxOrderQuantity: number;
+  };
+  preferenceWarning: { categoryId: number; categoryName: string } | null;
+};
+
+export type SentGiftResult = {
+  giftId: number;
+  sentAt: string;
+  recipientName: string;
+  product: {
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    imageUrl: string;
+  };
+};
+
+export type GiftReview = {
+  reviewId: number;
+  giftId: number;
+  rating: number;
+  content: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export const mockReceivedGifts: ReceivedGift[] = Array.from({ length: 43 }, (_, index) => ({
   giftId: 410 + index,
   receivedAt: new Date(2026, 7, 31 - (index % 28), 9, 10).toISOString(),

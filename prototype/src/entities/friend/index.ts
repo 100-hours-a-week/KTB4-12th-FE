@@ -1,3 +1,3 @@
-export { fetchFriends } from './api';
+export { addFriend, fetchFriends } from './api';
 export type { Friend } from './model';
-export { searchFriends } from './model';
+export { mockFriends, searchFriends } from './model';

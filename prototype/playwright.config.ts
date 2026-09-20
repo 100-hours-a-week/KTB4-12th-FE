@@ -14,5 +14,9 @@ export default defineConfig({
     command: `npm run dev -- --port ${testPort}`,
     url: `http://127.0.0.1:${testPort}/tests/runtime-fixture.html`,
     reuseExistingServer: process.env.MOBILE_RUNTIME_TEST_PORT == null,
+    env: {
+      ...process.env,
+      VITE_USE_MOCK_API: 'true',
+    },
   },
 });
