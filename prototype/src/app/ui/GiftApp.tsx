@@ -1,6 +1,19 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
-import { mockProducts, type Product } from '../../entities/product';
+import {
+  login as apiLogin,
+  logout as apiLogout,
+  signup as apiSignup,
+  type SignupTermConsent,
+} from '../../entities/auth';
+import { fetchProductCategories, mockProducts, type Product } from '../../entities/product';
+import {
+  completeOnboarding,
+  fetchMe,
+  type MyProfile,
+  type SearchedUser,
+  updateMe,
+} from '../../entities/user';
 import { AddFriendSheet } from '../../features/add-friend';
 import { EditBirthdaySheet } from '../../features/edit-birthday';
 import { ProductFilterSheet } from '../../features/filter-products';
@@ -8,14 +21,15 @@ import { MobileScroll, useKeyboard, useScreenPortal } from '../../mobile';
 import { FriendsPage } from '../../pages/friends';
 import { ReceivedGiftsPage, SentGiftsPage } from '../../pages/gift-history';
 import { CompletePage, GiftsPage, ProductPage } from '../../pages/gifts';
-import { LoginPage, TEST_ACCOUNT } from '../../pages/login';
+import { LoginPage } from '../../pages/login';
 import { AccountPage, MyPage, PreferencesPage } from '../../pages/profile';
 import { type SignupDraft, SignupPage, TermsAgreementPage } from '../../pages/signup';
+import { AUTH_FLAG_KEY, clearSession, saveSession } from '../../shared/api/session';
 import type { MainTabRoute, Route } from '../../shared/model/navigation';
 import { AppDialog } from '../../shared/ui';
 import { BottomNavigation } from '../../widgets/bottom-navigation';
 
-type DialogKind = 'birthdayConsent' | 'logout' | null;
+type DialogKind = 'birthdayConsent' | 'logout' | 'onboarding' | 'selectRecipient' | null;
 
 const emptySignupDraft: SignupDraft = {
   name: '',
@@ -30,31 +44,31 @@ export function GiftApp() {
   const keyboard = useKeyboard();
   const { screenRef } = useScreenPortal();
   const [route, setRoute] = useState<Route>(() =>
-    window.localStorage.getItem('prototype-auth') === 'signed-out' ? 'login' : 'friends',
+    window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' ? 'login' : 'friends',
   );
   const [history, setHistory] = useState<Route[]>([]);
   const [friendSheetOpen, setFriendSheetOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [birthdaySheetOpen, setBirthdaySheetOpen] = useState(false);
   const [dialog, setDialog] = useState<DialogKind>(null);
-  const [friendSearchEditing, setFriendSearchEditing] = useState(false);
-  const [addedFriends, setAddedFriends] = useState<string[]>(['김민주']);
-  const [query, setQuery] = useState('');
+  const [friendsRefreshKey, setFriendsRefreshKey] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<Product>(mockProducts[0]);
-  const [birthday, setBirthday] = useState('2000.01.01');
-  const [birthdayPublic, setBirthdayPublic] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState(['뷰티', '카페/디저트', '생활']);
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [saved, setSaved] = useState(false);
+  const [giftRecipient, setGiftRecipient] = useState<SearchedUser | null>(null);
+  const [profile, setProfile] = useState<MyProfile | null>(null);
+  const [filterOptions, setFilterOptions] = useState<Array<{ categoryId: number; name: string }>>(
+    [],
+  );
+  const [activeFilterIds, setActiveFilterIds] = useState<number[]>([]);
+  const [pendingOnboarding, setPendingOnboarding] = useState(false);
   const [signupDraft, setSignupDraft] = useState<SignupDraft>(emptySignupDraft);
 
-  const dismissKeyboard = () => {
+  const dismissKeyboard = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     keyboard.hide();
     screenRef.current?.scrollTo({ top: 0, left: 0 });
     window.requestAnimationFrame(() => screenRef.current?.scrollTo({ top: 0, left: 0 }));
-  };
+  }, [keyboard, screenRef]);
 
   const navigate = (next: Route) => {
     dismissKeyboard();
@@ -72,35 +86,123 @@ export function GiftApp() {
     dismissKeyboard();
     setHistory([]);
     setRoute(next);
+    setGiftRecipient(null);
+    if (next === 'mypage') void refreshProfile();
+    if (pendingOnboarding) {
+      setPendingOnboarding(false);
+      void completeOnboarding().catch(() => undefined);
+    }
   };
 
-  const handleFriendSheetChange = (open: boolean) => {
-    setFriendSearchEditing(false);
-    if (!open) dismissKeyboard();
-    setFriendSheetOpen(open);
-  };
+  const refreshProfile = useCallback(() => {
+    fetchMe()
+      .then(setProfile)
+      .catch(() => undefined);
+  }, []);
 
-  const login = (email: string, password: string) => {
-    if (email !== TEST_ACCOUNT.email || password !== TEST_ACCOUNT.password) return false;
-    window.localStorage.setItem('prototype-auth', 'signed-in');
-    window.localStorage.setItem('accessToken', 'prototype-test-token');
+  useEffect(() => {
+    const handleExpired = () => {
+      setHistory([]);
+      setRoute('login');
+    };
+    window.addEventListener('prototype:session-expired', handleExpired);
+    return () => window.removeEventListener('prototype:session-expired', handleExpired);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchProductCategories()
+      .then((tree) => {
+        if (cancelled) return;
+        const leaves = tree.flatMap((category) =>
+          category.children.length
+            ? category.children.map((child) => ({
+                categoryId: child.categoryId,
+                name: child.name,
+              }))
+            : [{ categoryId: category.categoryId, name: category.name }],
+        );
+        setFilterOptions(leaves);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const enterApp = (isFirstLogin: boolean) => {
+    if (isFirstLogin) setDialog('onboarding');
     setTab('friends');
-    return true;
+  };
+
+  const login = async (email: string, password: string) => {
+    const result = await apiLogin(email, password);
+    saveSession({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      expiresIn: result.expiresIn,
+      user: result.user,
+    });
+    enterApp(result.isFirstLogin);
   };
 
   const logout = () => {
     dismissKeyboard();
-    window.localStorage.setItem('prototype-auth', 'signed-out');
-    window.localStorage.removeItem('accessToken');
-    setHistory([]);
-    setRoute('login');
     setDialog(null);
+    void apiLogout()
+      .catch(() => undefined)
+      .finally(() => {
+        clearSession();
+        setHistory([]);
+        setRoute('login');
+      });
+  };
+
+  const completeSignup = async (consents: SignupTermConsent[]) => {
+    const draft = signupDraft;
+    await apiSignup({
+      name: draft.name.trim(),
+      birth: draft.birthday.replaceAll('.', '-'),
+      email: draft.email.trim(),
+      password: draft.password,
+      termConsents: consents,
+    });
+    setSignupDraft(emptySignupDraft);
+    const result = await apiLogin(draft.email.trim(), draft.password);
+    saveSession({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      expiresIn: result.expiresIn,
+      user: result.user,
+    });
+    enterApp(result.isFirstLogin);
+  };
+
+  const setBirthdayPublic = (isBirthdayPublic: boolean) => {
+    setProfile((current) => (current ? { ...current, isBirthdayPublic } : current));
+    void updateMe({ isBirthdayPublic }).catch(() => refreshProfile());
+  };
+
+  const saveBirthday = (birthday: string) => {
+    dismissKeyboard();
+    setBirthdaySheetOpen(false);
+    setProfile((current) =>
+      current ? { ...current, birth: birthday.replaceAll('.', '-') } : current,
+    );
+    void updateMe({ birth: birthday.replaceAll('.', '-') }).catch(() => refreshProfile());
   };
 
   const renderPage = () => {
     if (route === 'friends')
       return (
-        <FriendsPage onAdd={() => handleFriendSheetChange(true)} onGift={() => navigate('gifts')} />
+        <FriendsPage
+          refreshKey={friendsRefreshKey}
+          onAdd={() => setFriendSheetOpen(true)}
+          onGift={(friend) => {
+            setGiftRecipient(friend);
+            navigate('gifts');
+          }}
+        />
       );
     if (route === 'login') return <LoginPage onLogin={login} onSignup={() => navigate('signup')} />;
     if (route === 'signup')
@@ -112,21 +214,12 @@ export function GiftApp() {
         />
       );
     if (route === 'terms')
-      return (
-        <TermsAgreementPage
-          onBack={goBack}
-          onComplete={() => {
-            window.localStorage.setItem('prototype-auth', 'signed-in');
-            window.localStorage.setItem('accessToken', 'prototype-test-token');
-            setSignupDraft(emptySignupDraft);
-            setTab('friends');
-          }}
-        />
-      );
+      return <TermsAgreementPage onBack={goBack} onComplete={completeSignup} />;
     if (route === 'gifts')
       return (
         <GiftsPage
-          filterCount={activeFilters.length}
+          filterCount={activeFilterIds.length}
+          filterCategoryIds={activeFilterIds}
           onFilter={() => setFilterSheetOpen(true)}
           onProduct={(product) => {
             setSelectedProduct(product);
@@ -138,6 +231,7 @@ export function GiftApp() {
     if (route === 'mypage')
       return (
         <MyPage
+          profile={profile}
           onAccount={() => navigate('account')}
           onSent={() => navigate('sent')}
           onReceived={() => navigate('received')}
@@ -152,7 +246,13 @@ export function GiftApp() {
           onDecrease={() => setQuantity((value) => Math.max(1, value - 1))}
           onIncrease={() => setQuantity((value) => value + 1)}
           onBack={goBack}
-          onGift={() => navigate('complete')}
+          onGift={() => {
+            if (!giftRecipient) {
+              setDialog('selectRecipient');
+              return;
+            }
+            navigate('complete');
+          }}
         />
       );
     if (route === 'complete')
@@ -160,40 +260,23 @@ export function GiftApp() {
         <CompletePage
           product={selectedProduct}
           quantity={quantity}
+          recipient={giftRecipient}
           onFriends={() => setTab('friends')}
           onReceived={() => navigate('received')}
         />
       );
     if (route === 'sent') return <SentGiftsPage onBack={goBack} />;
     if (route === 'received') return <ReceivedGiftsPage onBack={goBack} />;
-    if (route === 'preferences')
-      return (
-        <PreferencesPage
-          selected={selectedCategories}
-          saved={saved}
-          onBack={goBack}
-          onToggle={(name) => {
-            setSaved(false);
-            setSelectedCategories((current) =>
-              current.includes(name)
-                ? current.filter((item) => item !== name)
-                : current.length < 5
-                  ? [...current, name]
-                  : current,
-            );
-          }}
-          onSave={() => setSaved(true)}
-        />
-      );
+    if (route === 'preferences') return <PreferencesPage onBack={goBack} />;
     return (
       <AccountPage
-        birthday={birthday}
-        birthdayPublic={birthdayPublic}
+        profile={profile}
         onBack={goBack}
         onBirthday={() => setBirthdaySheetOpen(true)}
-        onBirthdayPublic={() =>
-          birthdayPublic ? setBirthdayPublic(false) : setDialog('birthdayConsent')
-        }
+        onBirthdayPublic={() => {
+          if (profile?.isBirthdayPublic) setBirthdayPublic(false);
+          else setDialog('birthdayConsent');
+        }}
         onLogout={() => setDialog('logout')}
       />
     );
@@ -210,38 +293,31 @@ export function GiftApp() {
 
       <AddFriendSheet
         open={friendSheetOpen}
-        editing={friendSearchEditing}
-        query={query}
-        addedFriends={addedFriends}
-        onOpenChange={handleFriendSheetChange}
-        onStartEditing={() => setFriendSearchEditing(true)}
-        onQueryChange={setQuery}
-        onToggleFriend={(name) =>
-          setAddedFriends((current) =>
-            current.includes(name) ? current.filter((item) => item !== name) : [...current, name],
-          )
-        }
+        onOpenChange={(open) => {
+          if (!open) dismissKeyboard();
+          setFriendSheetOpen(open);
+        }}
+        onAdded={() => setFriendsRefreshKey((value) => value + 1)}
       />
       <ProductFilterSheet
         open={filterSheetOpen}
-        selected={activeFilters}
-        onToggle={(name) =>
-          setActiveFilters((current) =>
-            current.includes(name) ? current.filter((item) => item !== name) : [...current, name],
+        options={filterOptions}
+        selected={activeFilterIds}
+        onToggle={(categoryId) =>
+          setActiveFilterIds((current) =>
+            current.includes(categoryId)
+              ? current.filter((item) => item !== categoryId)
+              : [...current, categoryId],
           )
         }
-        onClear={() => setActiveFilters([])}
+        onClear={() => setActiveFilterIds([])}
         onOpenChange={setFilterSheetOpen}
       />
       <EditBirthdaySheet
         open={birthdaySheetOpen}
-        birthday={birthday}
+        birthday={(profile?.birth ?? '2000-01-01').replaceAll('-', '.')}
         onOpenChange={setBirthdaySheetOpen}
-        onBirthdayChange={setBirthday}
-        onSave={() => {
-          dismissKeyboard();
-          setBirthdaySheetOpen(false);
-        }}
+        onSave={saveBirthday}
       />
 
       {dialog === 'birthdayConsent' ? (
@@ -272,6 +348,40 @@ export function GiftApp() {
           danger
           onCancel={() => setDialog(null)}
           onConfirm={logout}
+        />
+      ) : null}
+      {dialog === 'selectRecipient' ? (
+        <AppDialog
+          title="받는 사람을 선택해 주세요"
+          body="친구 목록에서 선물할 친구를 먼저 선택해 주세요."
+          confirmLabel="친구 보기"
+          onCancel={() => setDialog(null)}
+          onConfirm={() => {
+            setDialog(null);
+            setTab('friends');
+          }}
+        />
+      ) : null}
+      {dialog === 'onboarding' ? (
+        <AppDialog
+          title="처음 오셨네요"
+          body={
+            <>
+              생일 공개와 비선호 카테고리를 설정하면
+              <br />
+              친구가 더 마음에 맞는 선물을 볼 수 있어요.
+            </>
+          }
+          confirmLabel="설정하고 시작"
+          onCancel={() => {
+            setDialog(null);
+            void completeOnboarding().catch(() => undefined);
+          }}
+          onConfirm={() => {
+            setDialog(null);
+            setPendingOnboarding(true);
+            navigate('preferences');
+          }}
         />
       ) : null}
     </div>

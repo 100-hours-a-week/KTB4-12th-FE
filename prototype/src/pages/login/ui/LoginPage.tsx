@@ -1,27 +1,36 @@
 import { useState } from 'react';
 
+import { TEST_ACCOUNT } from '../../../entities/auth';
 import { KeyboardInput } from '../../../mobile';
 import { FormField } from '../../../shared/ui';
 
-export const TEST_ACCOUNT = {
-  email: 'test@gift.local',
-  password: 'Test1234!',
-} as const;
+export { TEST_ACCOUNT };
 
 export function LoginPage({
   onLogin,
   onSignup,
 }: {
-  onLogin: (email: string, password: string) => boolean;
+  onLogin: (email: string, password: string) => Promise<void>;
   onSignup: () => void;
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = () => {
-    if (onLogin(email, password)) return;
-    setError('이메일 또는 비밀번호를 확인해 주세요.');
+  const submit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await onLogin(email, password);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : '로그인에 실패했습니다. 다시 시도해 주세요.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -61,8 +70,13 @@ export function LoginPage({
           {error}
         </p>
       ) : null}
-      <button type="button" className="primary signup-submit" onClick={submit}>
-        로그인
+      <button
+        type="button"
+        className="primary signup-submit"
+        disabled={submitting}
+        onClick={submit}
+      >
+        {submitting ? '로그인 중' : '로그인'}
       </button>
       <p className="login-help">
         테스트 계정

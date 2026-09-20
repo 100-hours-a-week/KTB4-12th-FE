@@ -1,6 +1,7 @@
-export type { RequiredTermId, SignupTermId } from './ui/SignupTermsAgreement';
+export type { AgreementTerm, SignupTermId } from './ui/SignupTermsAgreement';
 export {
-  REQUIRED_TERM_IDS,
+  AI_REVIEW_TERM_ID,
   SignupTermsAgreement,
   TermsDetailSheet,
+  toAgreementTerms,
 } from './ui/SignupTermsAgreement';
