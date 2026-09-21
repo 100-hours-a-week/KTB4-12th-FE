@@ -28,7 +28,8 @@ export type SignupRequest = {
 
 export type LoginResult = {
   accessToken: string;
-  refreshToken: string;
+  // 백엔드는 refresh token을 HttpOnly 쿠키로 내려주므로 응답 body에는 없을 수 있다.
+  refreshToken?: string;
   expiresIn: number;
   user: {
     userId: number;
