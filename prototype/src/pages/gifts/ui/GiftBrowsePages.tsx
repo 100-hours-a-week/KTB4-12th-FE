@@ -192,7 +192,6 @@ type CompletePageProps = {
   quantity: number;
   recipient: SearchedUser | null;
   onFriends: () => void;
-  onReceived: () => void;
 };
 
 type CompleteState =
@@ -204,13 +203,7 @@ type CompleteState =
     }
   | { status: 'error'; message: string };
 
-export function CompletePage({
-  product,
-  quantity,
-  recipient,
-  onFriends,
-  onReceived,
-}: CompletePageProps) {
+export function CompletePage({ product, quantity, recipient, onFriends }: CompletePageProps) {
   const [state, setState] = useState<CompleteState>({ status: 'sending' });
   const idempotencyKey = useRef<string | null>(null);
 
@@ -313,9 +306,6 @@ export function CompletePage({
       <div className="complete-actions">
         <button type="button" className="primary" onClick={onFriends}>
           친구 화면으로
-        </button>
-        <button type="button" className="secondary" onClick={onReceived}>
-          받은 선물 보기
         </button>
       </div>
     </section>

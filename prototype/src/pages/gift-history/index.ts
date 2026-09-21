@@ -1,1 +1,1 @@
-export { ReceivedGiftsPage, SentGiftsPage } from './ui/GiftHistoryPages';
+export { ReceivedGiftsPage } from './ui/GiftHistoryPages';

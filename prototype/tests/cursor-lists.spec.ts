@@ -155,16 +155,13 @@ test('상품 필터와 마이페이지의 하위 설정 화면을 연다', async
   await page.getByRole('button', { name: '동의하고 공개' }).click();
 });
 
-test('보낸 선물과 받은 선물은 v1 범위에서 목록만 제공한다', async ({ page }) => {
+test('받은 선물은 v1 범위에서 목록만 제공한다', async ({ page }) => {
   await page.goto('/');
   await page
     .getByRole('navigation', { name: '하단 메뉴' })
     .getByRole('button', { name: '마이' })
     .click();
-  await page.getByRole('button', { name: '보낸 선물 12건' }).click();
-  await expect(page.getByRole('heading', { name: '보낸 선물' })).toBeVisible();
-  await expect(page.locator('article.received-card')).toHaveCount(12);
-  await page.getByRole('button', { name: '뒤로 가기' }).click();
+  await expect(page.getByRole('button', { name: /보낸 선물/ })).toHaveCount(0);
   await page.getByRole('button', { name: '받은 선물 8건' }).click();
   await expect(page.getByRole('heading', { name: '받은 선물' })).toBeVisible();
   await expect(page.locator('article.received-card').first()).toBeVisible();

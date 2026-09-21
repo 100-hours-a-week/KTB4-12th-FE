@@ -6,7 +6,7 @@ import {
   signup as apiSignup,
   type SignupTermConsent,
 } from '../../entities/auth';
-import { fetchProductCategories, mockProducts, type Product } from '../../entities/product';
+import { fetchProductCategories, type Product } from '../../entities/product';
 import {
   completeOnboarding,
   fetchMe,
@@ -19,7 +19,7 @@ import { EditBirthdaySheet } from '../../features/edit-birthday';
 import { ProductFilterSheet } from '../../features/filter-products';
 import { MobileScroll, useKeyboard, useScreenPortal } from '../../mobile';
 import { FriendsPage } from '../../pages/friends';
-import { ReceivedGiftsPage, SentGiftsPage } from '../../pages/gift-history';
+import { ReceivedGiftsPage } from '../../pages/gift-history';
 import { CompletePage, GiftsPage, ProductPage } from '../../pages/gifts';
 import { LoginPage } from '../../pages/login';
 import { AccountPage, MyPage, PreferencesPage } from '../../pages/profile';
@@ -53,7 +53,7 @@ export function GiftApp() {
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [friendsRefreshKey, setFriendsRefreshKey] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [selectedProduct, setSelectedProduct] = useState<Product>(mockProducts[0]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [giftRecipient, setGiftRecipient] = useState<SearchedUser | null>(null);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [filterOptions, setFilterOptions] = useState<Array<{ categoryId: number; name: string }>>(
@@ -233,12 +233,12 @@ export function GiftApp() {
         <MyPage
           profile={profile}
           onAccount={() => navigate('account')}
-          onSent={() => navigate('sent')}
           onReceived={() => navigate('received')}
           onPreferences={() => navigate('preferences')}
         />
       );
-    if (route === 'product')
+    if ((route === 'product' || route === 'complete') && !selectedProduct) return null;
+    if (route === 'product' && selectedProduct)
       return (
         <ProductPage
           product={selectedProduct}
@@ -255,17 +255,15 @@ export function GiftApp() {
           }}
         />
       );
-    if (route === 'complete')
+    if (route === 'complete' && selectedProduct)
       return (
         <CompletePage
           product={selectedProduct}
           quantity={quantity}
           recipient={giftRecipient}
           onFriends={() => setTab('friends')}
-          onReceived={() => navigate('received')}
         />
       );
-    if (route === 'sent') return <SentGiftsPage onBack={goBack} />;
     if (route === 'received') return <ReceivedGiftsPage onBack={goBack} />;
     if (route === 'preferences') return <PreferencesPage onBack={goBack} />;
     return (
