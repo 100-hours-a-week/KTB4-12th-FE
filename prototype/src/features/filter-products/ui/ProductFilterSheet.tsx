@@ -1,23 +1,28 @@
-import { CheckIcon, Cross1Icon } from '@radix-ui/react-icons';
+import { ArchiveIcon, CheckIcon, Cross1Icon } from '@radix-ui/react-icons';
 
-import { categories } from '../../../entities/category';
+import { categories as categoryIcons } from '../../../entities/category';
 import { BottomSheet } from '../../../mobile';
 
 type ProductFilterSheetProps = {
   open: boolean;
-  selected: string[];
-  onToggle: (name: string) => void;
+  options: Array<{ categoryId: number; name: string }>;
+  selected: number[];
+  onToggle: (categoryId: number) => void;
   onClear: () => void;
   onOpenChange: (open: boolean) => void;
 };
 
 export function ProductFilterSheet({
   open,
+  options,
   selected,
   onToggle,
   onClear,
   onOpenChange,
 }: ProductFilterSheetProps) {
+  const iconFor = (name: string) =>
+    categoryIcons.find((category) => category.name === name)?.Icon ?? ArchiveIcon;
+
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange} title="카테고리 필터" snap={0.75}>
       <button
@@ -40,15 +45,16 @@ export function ProductFilterSheet({
             {selected.length === 0 ? <CheckIcon /> : null}
           </span>
         </button>
-        {categories.map(({ name, Icon }) => {
-          const active = selected.includes(name);
+        {options.map(({ categoryId, name }) => {
+          const active = selected.includes(categoryId);
+          const Icon = iconFor(name);
           return (
             <button
               type="button"
               className="category-row"
               aria-pressed={active}
-              onClick={() => onToggle(name)}
-              key={name}
+              onClick={() => onToggle(categoryId)}
+              key={categoryId}
             >
               <span>
                 <Icon />

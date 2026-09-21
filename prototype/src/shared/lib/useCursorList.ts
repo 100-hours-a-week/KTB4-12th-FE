@@ -41,8 +41,11 @@ export function useCursorList<T>(
     setCursor(null);
     setHasNext(true);
     setError(null);
+    // 디바운스 대기 중에도 로딩 상태로 두어, 하단 센티널이 loadMore를 먼저 호출해
+    // 같은 첫 페이지를 중복 요청하지 않게 한다.
+    setLoading(true);
     const timer = window.setTimeout(async () => {
-      setLoading(true);
+      if (currentRequest !== requestId.current) return;
       try {
         const page = await loader(null);
         if (currentRequest !== requestId.current) return;

@@ -29,10 +29,3 @@ export const mockFriends: Friend[] = Array.from({ length: 46 }, (_, index) => ({
       ? null
       : `2000-${String((index % 12) + 1).padStart(2, '0')}-${String((index % 27) + 1).padStart(2, '0')}`,
 }));
-
-export const searchFriends = [
-  { name: '김민정', email: 'kakaa@kakao.co.kr' },
-  { name: '김민주', email: 'kakaminjoo@kakao.co.kr' },
-  { name: '박민지', email: 'kakapark@kakao.co.kr' },
-  { name: '김우주', email: 'kakawoojoo@kakao.co.kr' },
-];

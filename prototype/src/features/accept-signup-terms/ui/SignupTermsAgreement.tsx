@@ -1,28 +1,45 @@
 import { CheckIcon, ChevronRightIcon, Cross1Icon } from '@radix-ui/react-icons';
 
+import type { SignupTerm } from '../../../entities/auth';
 import { BottomSheet } from '../../../mobile';
 
-export const REQUIRED_TERM_IDS = ['privacy', 'giftHistory'] as const;
-export type RequiredTermId = (typeof REQUIRED_TERM_IDS)[number];
-export type SignupTermId = RequiredTermId | 'aiReview';
+export type SignupTermId = string;
 
-const terms: Array<{ id: SignupTermId; label: string; detail?: 'privacy' | 'giftHistory' }> = [
-  { id: 'privacy', label: '(필수) 개인정보 수집 및 이용 동의서', detail: 'privacy' },
-  {
-    id: 'giftHistory',
-    label: '(필수) 선물 송수신 이력 정보 수집 및 이용 동의서',
-    detail: 'giftHistory',
-  },
-  { id: 'aiReview', label: '(선택) 리뷰·별점 AI 개선 동의' },
-];
+export type AgreementTerm = {
+  id: SignupTermId;
+  label: string;
+  required: boolean;
+  detail?: 'privacy' | 'giftHistory';
+};
+
+export const AI_REVIEW_TERM_ID = 'AI_REVIEW_IMPROVEMENT';
+
+export function toAgreementTerms(signupTerms: SignupTerm[]): AgreementTerm[] {
+  const detailByCode: Record<string, 'privacy' | 'giftHistory'> = {
+    PRIVACY_COLLECTION_USE: 'privacy',
+    GIFT_HISTORY_DATA_USE: 'giftHistory',
+  };
+  const required = signupTerms.map((term) => ({
+    id: term.termCode,
+    label: `(필수) ${term.title}`,
+    required: true,
+    detail: detailByCode[term.termCode],
+  }));
+  return [
+    ...required,
+    { id: AI_REVIEW_TERM_ID, label: '(선택) 리뷰·별점 AI 개선 동의', required: false },
+  ];
+}
 
 type SignupTermsAgreementProps = {
+  terms: AgreementTerm[];
   selected: SignupTermId[];
   onChange: (selected: SignupTermId[]) => void;
   onOpenDetail: (detail: 'privacy' | 'giftHistory') => void;
 };
 
 export function SignupTermsAgreement({
+  terms,
   selected,
   onChange,
   onOpenDetail,

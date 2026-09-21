@@ -46,9 +46,13 @@ export function saveSession(data: {
   window.localStorage.setItem(AUTH_FLAG_KEY, 'signed-in');
 }
 
-export function updateSessionTokens(accessToken: string, refreshToken: string, expiresIn: number) {
+export function updateSessionTokens(
+  accessToken: string,
+  refreshToken: string | undefined,
+  expiresIn: number,
+) {
   window.localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-  window.localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  if (refreshToken) window.localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
   window.localStorage.setItem(EXPIRES_AT_KEY, String(Date.now() + expiresIn * 1000));
 }
 

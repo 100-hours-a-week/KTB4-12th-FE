@@ -54,15 +54,18 @@ async function parseBody<T>(response: Response): Promise<ApiResponse<T>> {
   }
 }
 
+// refresh token은 HttpOnly 쿠키(Path=/auth)로만 오가므로 credentials를 포함해 호출한다.
+// 응답 body에 refreshToken이 오는 서버라면 함께 갱신한다.
 async function refreshAccessToken(): Promise<string | null> {
   const session = loadSession();
-  if (!session?.refreshToken) return null;
+  if (!session) return null;
   const response = await fetch(buildUrl('/auth/refresh'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: session.refreshToken }),
+    credentials: 'include',
+    body: JSON.stringify(session.refreshToken ? { refreshToken: session.refreshToken } : {}),
   });
-  const body = await parseBody<{ accessToken: string; refreshToken: string; expiresIn: number }>(
+  const body = await parseBody<{ accessToken: string; refreshToken?: string; expiresIn: number }>(
     response,
   );
   if (!response.ok || !body.data) return null;
@@ -86,16 +89,12 @@ async function request<T>(
   const response = await fetch(buildUrl(path, params), {
     method,
     headers,
+    credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const responseBody = await parseBody<T>(response);
 
-  if (
-    response.status === 401 &&
-    allowRefresh &&
-    session?.refreshToken &&
-    isSessionExpired(session)
-  ) {
+  if (response.status === 401 && allowRefresh && session && isSessionExpired(session)) {
     const newToken = await refreshAccessToken();
     if (newToken) return request<T>(method, path, body, params, extraHeaders, false);
     clearSession();
