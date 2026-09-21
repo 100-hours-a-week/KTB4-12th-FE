@@ -24,7 +24,8 @@ import { CompletePage, GiftsPage, ProductPage } from '../../pages/gifts';
 import { LoginPage } from '../../pages/login';
 import { AccountPage, MyPage, PreferencesPage } from '../../pages/profile';
 import { type SignupDraft, SignupPage, TermsAgreementPage } from '../../pages/signup';
-import { AUTH_FLAG_KEY, clearSession, saveSession } from '../../shared/api/session';
+import { USE_MOCK_API } from '../../shared/api/client';
+import { AUTH_FLAG_KEY, clearSession, loadSession, saveSession } from '../../shared/api/session';
 import type { MainTabRoute, Route } from '../../shared/model/navigation';
 import { AppDialog } from '../../shared/ui';
 import { BottomNavigation } from '../../widgets/bottom-navigation';
@@ -44,7 +45,9 @@ export function GiftApp() {
   const keyboard = useKeyboard();
   const { screenRef } = useScreenPortal();
   const [route, setRoute] = useState<Route>(() =>
-    window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' ? 'login' : 'friends',
+    window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' || (!USE_MOCK_API && !loadSession())
+      ? 'login'
+      : 'friends',
   );
   const [history, setHistory] = useState<Route[]>([]);
   const [friendSheetOpen, setFriendSheetOpen] = useState(false);
@@ -139,7 +142,7 @@ export function GiftApp() {
     const result = await apiLogin(email, password);
     saveSession({
       accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
+      refreshToken: result.refreshToken ?? '',
       expiresIn: result.expiresIn,
       user: result.user,
     });
@@ -171,7 +174,7 @@ export function GiftApp() {
     const result = await apiLogin(draft.email.trim(), draft.password);
     saveSession({
       accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
+      refreshToken: result.refreshToken ?? '',
       expiresIn: result.expiresIn,
       user: result.user,
     });
