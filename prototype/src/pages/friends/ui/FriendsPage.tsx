@@ -73,7 +73,7 @@ export function FriendsPage({
               <strong>{friend.name}</strong>
               <small>
                 {friend.birth
-                  ? `생일 ${friend.birth.slice(5).replace('-', '월 ')}일`
+                  ? `생일 ${friend.birth.slice(-5).replace('-', '월 ')}일`
                   : '생일 비공개'}
               </small>
               <span>{friend.email}</span>

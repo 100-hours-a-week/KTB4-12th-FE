@@ -15,11 +15,11 @@ export async function fetchFriends(
     return mockPage(filtered, cursor);
   }
   const path = query.trim() ? '/friends/search' : '/friends';
-  const data = await apiGet<{ friends: Friend[]; pagination: Pagination }>(path, {
+  const data = await apiGet<{ items: Friend[]; pagination: Pagination }>(path, {
     query: query.trim() || undefined,
     cursor: cursor ?? undefined,
   });
-  return { items: data.friends, pagination: data.pagination };
+  return { items: data.items, pagination: data.pagination };
 }
 
 export async function addFriend(
