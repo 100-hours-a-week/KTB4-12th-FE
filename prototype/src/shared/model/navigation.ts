@@ -6,7 +6,6 @@ export type Route =
   | 'terms'
   | 'product'
   | 'complete'
-  | 'sent'
   | 'received'
   | 'preferences'
   | 'account';

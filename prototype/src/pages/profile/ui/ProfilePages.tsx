@@ -18,13 +18,11 @@ function formatBirthdayLabel(birth: string) {
 export function MyPage({
   profile,
   onAccount,
-  onSent,
   onReceived,
   onPreferences,
 }: {
   profile: MyProfile | null;
   onAccount: () => void;
-  onSent: () => void;
   onReceived: () => void;
   onPreferences: () => void;
 }) {
@@ -42,11 +40,6 @@ export function MyPage({
         </button>
       </article>
       <div className="settings-list">
-        <SettingRow
-          label="보낸 선물"
-          value={profile ? `${profile.giftSummary.sentCount}건` : '-건'}
-          onClick={onSent}
-        />
         <SettingRow
           label="받은 선물"
           value={profile ? `${profile.giftSummary.receivedCount}건` : '-건'}
