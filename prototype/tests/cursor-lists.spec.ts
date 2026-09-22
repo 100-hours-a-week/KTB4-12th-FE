@@ -56,7 +56,7 @@ test('하단 탭은 모바일 화면의 하단 안전 영역 위에 고정된다
   expect(geometry.navTop).toBeGreaterThan(geometry.screenTop);
 });
 
-test('친구 추가 시 검색을 누르기 전에는 키보드를 열지 않고 화면 전환은 상단에서 시작한다', async ({
+test('친구 추가 시에도 시뮬레이션 키보드를 열지 않고 화면 전환은 상단에서 시작한다', async ({
   page,
 }) => {
   await page.goto('/');
@@ -99,8 +99,12 @@ test('친구 추가 시 검색을 누르기 전에는 키보드를 열지 않고
   ).toBeLessThanOrEqual(1);
 
   await page.getByRole('button', { name: '친구 이메일 검색' }).click();
-  await expect(keyboard).toHaveAttribute('data-visible', 'true');
-  await expect(keyboard).toBeVisible();
+  const searchInput = page.getByRole('textbox', { name: '친구 이메일 검색' });
+  await expect(searchInput).toBeFocused();
+  await expect(keyboard).toHaveAttribute('data-visible', 'false');
+  await expect(keyboard).toBeHidden();
+  await page.keyboard.type('friend1@kakao.co.kr');
+  await expect(searchInput).toHaveValue('friend1@kakao.co.kr');
   await page.getByRole('button', { name: '친구 추가 닫기' }).click();
   await expect(keyboard).toHaveAttribute('data-visible', 'false');
 
