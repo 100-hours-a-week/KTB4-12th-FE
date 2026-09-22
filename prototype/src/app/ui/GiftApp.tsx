@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 
 import {
   login as apiLogin,
@@ -18,17 +18,40 @@ import { AddFriendSheet } from '../../features/add-friend';
 import { EditBirthdaySheet } from '../../features/edit-birthday';
 import { ProductFilterSheet } from '../../features/filter-products';
 import { MobileScroll, useKeyboard, useScreenPortal } from '../../mobile';
-import { FriendsPage } from '../../pages/friends';
-import { ReceivedGiftsPage } from '../../pages/gift-history';
-import { CompletePage, GiftsPage, ProductPage } from '../../pages/gifts';
-import { LoginPage } from '../../pages/login';
-import { AccountPage, MyPage, PreferencesPage } from '../../pages/profile';
-import { type SignupDraft, SignupPage, TermsAgreementPage } from '../../pages/signup';
+import type { SignupDraft } from '../../pages/signup';
 import { USE_MOCK_API } from '../../shared/api/client';
 import { AUTH_FLAG_KEY, clearSession, loadSession, saveSession } from '../../shared/api/session';
 import type { MainTabRoute, Route } from '../../shared/model/navigation';
 import { AppDialog } from '../../shared/ui';
 import { BottomNavigation } from '../../widgets/bottom-navigation';
+
+const FriendsPage = lazy(() =>
+  import('../../pages/friends').then((m) => ({ default: m.FriendsPage })),
+);
+const ReceivedGiftsPage = lazy(() =>
+  import('../../pages/gift-history').then((m) => ({ default: m.ReceivedGiftsPage })),
+);
+const CompletePage = lazy(() =>
+  import('../../pages/gifts').then((m) => ({ default: m.CompletePage })),
+);
+const GiftsPage = lazy(() => import('../../pages/gifts').then((m) => ({ default: m.GiftsPage })));
+const ProductPage = lazy(() =>
+  import('../../pages/gifts').then((m) => ({ default: m.ProductPage })),
+);
+const LoginPage = lazy(() => import('../../pages/login').then((m) => ({ default: m.LoginPage })));
+const AccountPage = lazy(() =>
+  import('../../pages/profile').then((m) => ({ default: m.AccountPage })),
+);
+const MyPage = lazy(() => import('../../pages/profile').then((m) => ({ default: m.MyPage })));
+const PreferencesPage = lazy(() =>
+  import('../../pages/profile').then((m) => ({ default: m.PreferencesPage })),
+);
+const SignupPage = lazy(() =>
+  import('../../pages/signup').then((m) => ({ default: m.SignupPage })),
+);
+const TermsAgreementPage = lazy(() =>
+  import('../../pages/signup').then((m) => ({ default: m.TermsAgreementPage })),
+);
 
 type DialogKind = 'birthdayConsent' | 'logout' | 'onboarding' | 'selectRecipient' | null;
 
@@ -288,7 +311,18 @@ export function GiftApp() {
   return (
     <div className="gift-app" data-testid="gift-app" data-route={route}>
       <MobileScroll key={route} className="app-screen">
-        <div className={`screen-body ${showBottomNav ? 'has-bottom-nav' : ''}`}>{renderPage()}</div>
+        <div className={`screen-body ${showBottomNav ? 'has-bottom-nav' : ''}`}>
+          <Suspense
+            fallback={
+              <div className="cursor-status">
+                <span className="loading-dot" />
+                불러오는 중
+              </div>
+            }
+          >
+            {renderPage()}
+          </Suspense>
+        </div>
       </MobileScroll>
       {showBottomNav ? <BottomNavigation route={route} onSelect={setTab} /> : null}
 
