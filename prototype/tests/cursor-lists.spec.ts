@@ -1,5 +1,19 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  // 세션이 없으면 로그인 화면부터 시작하므로, 로그인 이후 화면을 다루는
+  // 테스트가 매번 UI로 로그인하지 않도록 세션을 미리 심어 둔다.
+  await page.addInitScript(() => {
+    window.localStorage.setItem('accessToken', 'playwright-test-access-token');
+    window.localStorage.setItem('refreshToken', 'playwright-test-refresh-token');
+    window.localStorage.setItem('accessTokenExpiresAt', String(Date.now() + 60 * 60 * 1000));
+    window.localStorage.setItem(
+      'authUser',
+      JSON.stringify({ userId: 1, name: '테스트', email: 'test@gift.local' }),
+    );
+  });
+});
+
 async function loadAllPages(page: Page, cards: Locator, expectedCounts: number[]) {
   const scroll = page.getByTestId('mobile-scroll');
   for (const count of expectedCounts) {
