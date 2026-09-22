@@ -24,7 +24,6 @@ import { CompletePage, GiftsPage, ProductPage } from '../../pages/gifts';
 import { LoginPage } from '../../pages/login';
 import { AccountPage, MyPage, PreferencesPage } from '../../pages/profile';
 import { type SignupDraft, SignupPage, TermsAgreementPage } from '../../pages/signup';
-import { USE_MOCK_API } from '../../shared/api/client';
 import { AUTH_FLAG_KEY, clearSession, loadSession, saveSession } from '../../shared/api/session';
 import type { MainTabRoute, Route } from '../../shared/model/navigation';
 import { AppDialog } from '../../shared/ui';
@@ -45,7 +44,7 @@ export function GiftApp() {
   const keyboard = useKeyboard();
   const { screenRef } = useScreenPortal();
   const [route, setRoute] = useState<Route>(() =>
-    window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' || (!USE_MOCK_API && !loadSession())
+    window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' || !loadSession()
       ? 'login'
       : 'friends',
   );
