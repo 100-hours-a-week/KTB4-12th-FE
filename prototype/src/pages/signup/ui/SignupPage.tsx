@@ -1,4 +1,4 @@
-import { CalendarIcon, EyeOpenIcon } from '@radix-ui/react-icons';
+import { ArrowLeftIcon, CalendarIcon, EyeOpenIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 
 import { checkEmailAvailability } from '../../../entities/auth';
@@ -17,10 +17,11 @@ export type SignupDraft = {
 type SignupPageProps = {
   draft: SignupDraft;
   onDraftChange: (updater: SignupDraft | ((current: SignupDraft) => SignupDraft)) => void;
+  onBack: () => void;
   onComplete: () => void;
 };
 
-export function SignupPage({ draft, onDraftChange, onComplete }: SignupPageProps) {
+export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupPageProps) {
   const [visible, setVisible] = useState(false);
   const [birthdayPickerOpen, setBirthdayPickerOpen] = useState(false);
   const [pendingBirthday, setPendingBirthday] = useState(draft.birthday || '2000.01.01');
@@ -55,7 +56,12 @@ export function SignupPage({ draft, onDraftChange, onComplete }: SignupPageProps
 
   return (
     <section className="page signup-page">
-      <p className="brand-title">선잘알</p>
+      <header className="terms-navigation">
+        <button type="button" aria-label="뒤로 가기" onClick={onBack}>
+          <ArrowLeftIcon />
+        </button>
+        <strong>선잘알</strong>
+      </header>
       <FormField label="이름">
         <KeyboardInput
           value={draft.name}
