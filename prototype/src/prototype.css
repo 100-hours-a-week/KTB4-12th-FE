@@ -199,15 +199,6 @@ textarea:focus-visible,
   margin: 0 0 22px;
   font-size: 22px;
 }
-.login-help {
-  margin: 14px 0 0 !important;
-  padding: 12px;
-  border-radius: 10px;
-  background: var(--surface);
-  text-align: center;
-  font-size: 12px !important;
-  line-height: 1.55 !important;
-}
 .login-error {
   margin: 0 !important;
   color: #c32727;
@@ -1416,7 +1407,6 @@ textarea:focus-visible,
   font-size: 20px;
 }
 
-.login-help,
 .dialog-copy,
 .terms-intro {
   background: #fff2f0;
