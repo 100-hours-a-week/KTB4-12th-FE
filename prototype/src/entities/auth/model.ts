@@ -1,8 +1,3 @@
-export const TEST_ACCOUNT = {
-  email: 'test@gift.local',
-  password: 'Test1234!',
-} as const;
-
 export type SignupTerm = {
   termId: number;
   termCode: string;

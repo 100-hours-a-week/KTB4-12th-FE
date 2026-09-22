@@ -1,1 +1,1 @@
-export { LoginPage, TEST_ACCOUNT } from './ui/LoginPage';
+export { LoginPage } from './ui/LoginPage';

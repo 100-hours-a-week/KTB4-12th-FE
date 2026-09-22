@@ -1,10 +1,7 @@
 import { useState } from 'react';
 
-import { TEST_ACCOUNT } from '../../../entities/auth';
 import { KeyboardInput } from '../../../mobile';
 import { FormField } from '../../../shared/ui';
-
-export { TEST_ACCOUNT };
 
 export function LoginPage({
   onLogin,
@@ -78,13 +75,6 @@ export function LoginPage({
       >
         {submitting ? '로그인 중' : '로그인'}
       </button>
-      <p className="login-help">
-        테스트 계정
-        <br />
-        <strong>{TEST_ACCOUNT.email}</strong>
-        <br />
-        <strong>{TEST_ACCOUNT.password}</strong>
-      </p>
       <button type="button" className="text-action" onClick={onSignup}>
         회원가입
       </button>
