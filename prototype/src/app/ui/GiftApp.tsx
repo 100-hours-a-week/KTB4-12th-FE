@@ -58,6 +58,7 @@ export function GiftApp() {
   const [quantity, setQuantity] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [giftRecipient, setGiftRecipient] = useState<SearchedUser | null>(null);
+  const [pendingRecipientSelection, setPendingRecipientSelection] = useState(false);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [filterOptions, setFilterOptions] = useState<Array<{ categoryId: number; name: string }>>(
     [],
@@ -90,6 +91,7 @@ export function GiftApp() {
     setHistory([]);
     setRoute(next);
     setGiftRecipient(null);
+    setPendingRecipientSelection(false);
     if (next === 'mypage') void refreshProfile();
     if (pendingOnboarding) {
       setPendingOnboarding(false);
@@ -203,6 +205,11 @@ export function GiftApp() {
           onAdd={() => setFriendSheetOpen(true)}
           onGift={(friend) => {
             setGiftRecipient(friend);
+            if (pendingRecipientSelection) {
+              setPendingRecipientSelection(false);
+              navigate('complete');
+              return;
+            }
             navigate('gifts');
           }}
         />
@@ -359,7 +366,8 @@ export function GiftApp() {
           onCancel={() => setDialog(null)}
           onConfirm={() => {
             setDialog(null);
-            setTab('friends');
+            setPendingRecipientSelection(true);
+            navigate('friends');
           }}
         />
       ) : null}
