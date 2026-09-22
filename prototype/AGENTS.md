@@ -62,6 +62,10 @@ When a composer, search surface, or other keyboard-attached component closes, ca
 
 When any text-entry control loses focus, dismiss the simulated keyboard. If the control is custom or does not use the runtime's keyboard-aware fields, handle its blur event and call `keyboard.hide()` explicitly. Keep the keyboard open only when focus is moving directly to another text-entry control that should share the same keyboard session.
 
+## Prototype Decisions
+
+- Simulated keyboard disabled: `src/Prototype.tsx` calls `setSimulatedKeyboardEnabled(false)`, so focusing an input never opens the on-screen keyboard. Text entry still uses `KeyboardInput`, `KeyboardTextarea`, or `MobileTextField`; native focus, blur dismissal, and safe-area insets stay intact. Keep this opt-out unless a phone-keyboard demo is explicitly requested.
+
 ## Interaction Rules
 
 - The v1 scope includes sent-gift and received-gift lists, but excludes their detail screens and review edit/delete flows. Keep list cards non-interactive until that scope changes explicitly.

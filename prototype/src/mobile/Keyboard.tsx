@@ -35,6 +35,14 @@ type KeyboardInputProps = InputHTMLAttributes<HTMLInputElement> & {
 
 const KeyboardContext = createContext<KeyboardContextValue | null>(null);
 
+let simulatedKeyboardEnabled = true;
+
+// Lets a prototype opt out of the simulated keyboard. Focus and blur behavior
+// stay intact; only the on-screen keyboard UI is suppressed.
+export function setSimulatedKeyboardEnabled(enabled: boolean) {
+  simulatedKeyboardEnabled = enabled;
+}
+
 export function KeyboardProvider({ children }: PropsWithChildren) {
   const { device } = useMobileDevice();
   const [visible, setVisible] = useState(false);
@@ -61,7 +69,9 @@ export function KeyboardProvider({ children }: PropsWithChildren) {
         setRawDragOffset(0);
         setDragging(false);
         setFocusedElement(element ?? null);
-        setVisible(true);
+        if (simulatedKeyboardEnabled) {
+          setVisible(true);
+        }
       },
       hide: () => {
         focusedElement?.blur();

@@ -15,6 +15,7 @@ export {
   KeyboardInput,
   KeyboardProvider,
   KeyboardTextarea,
+  setSimulatedKeyboardEnabled,
   useKeyboard,
   useKeyboardInsets,
 } from './Keyboard';
