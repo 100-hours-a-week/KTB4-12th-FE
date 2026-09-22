@@ -45,15 +45,6 @@ export type SentGiftResult = {
   };
 };
 
-export type GiftReview = {
-  reviewId: number;
-  giftId: number;
-  rating: number;
-  content: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
 export const mockReceivedGifts: ReceivedGift[] = Array.from({ length: 43 }, (_, index) => ({
   giftId: 410 + index,
   receivedAt: new Date(2026, 7, 31 - (index % 28), 9, 10).toISOString(),
