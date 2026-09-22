@@ -1,15 +1,7 @@
-import {
-  apiDelete,
-  apiGet,
-  apiPatch,
-  apiPost,
-  apiPostWithHeaders,
-  USE_MOCK_API,
-} from '../../shared/api/client';
+import { apiGet, apiPost, apiPostWithHeaders, USE_MOCK_API } from '../../shared/api/client';
 import { type CursorPage, mockPage, type Pagination } from '../../shared/api/pagination';
 import {
   type GiftPreflight,
-  type GiftReview,
   mockReceivedGifts,
   type ReceivedGift,
   type SentGift,
@@ -104,70 +96,6 @@ export async function sendGift(
     };
   }
   return apiPostWithHeaders<SentGiftResult>('/gifts', input, { 'Idempotency-Key': idempotencyKey });
-}
-
-export async function fetchGiftReview(giftId: number): Promise<GiftReview> {
-  if (USE_MOCK_API) {
-    await new Promise((resolve) => window.setTimeout(resolve, 200));
-    return {
-      reviewId: 71,
-      giftId,
-      rating: 5,
-      content: '정말 만족스러운 선물이었어요.',
-      createdAt: '2026-07-03T15:20:30+09:00',
-      updatedAt: '2026-07-03T15:20:30+09:00',
-    };
-  }
-  const data = await apiGet<{ review: GiftReview }>(`/gifts/${giftId}/review`);
-  return data.review;
-}
-
-export async function createGiftReview(
-  giftId: number,
-  input: { rating: number; content?: string | null },
-): Promise<GiftReview> {
-  if (USE_MOCK_API) {
-    await new Promise((resolve) => window.setTimeout(resolve, 300));
-    return {
-      reviewId: 71,
-      giftId,
-      rating: input.rating,
-      content: input.content ?? null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-  }
-  const data = await apiPost<{ review: GiftReview }>(`/gifts/${giftId}/review`, input);
-  return data.review;
-}
-
-export async function updateGiftReview(
-  giftId: number,
-  input: { rating?: number; content?: string | null },
-): Promise<GiftReview> {
-  if (USE_MOCK_API) {
-    await new Promise((resolve) => window.setTimeout(resolve, 300));
-    return {
-      reviewId: 71,
-      giftId,
-      rating: input.rating ?? 5,
-      content: input.content !== undefined ? input.content : '정말 만족스러운 선물이었어요.',
-      createdAt: '2026-07-03T15:20:30+09:00',
-      updatedAt: new Date().toISOString(),
-    };
-  }
-  const data = await apiPatch<{ review: GiftReview }>(`/gifts/${giftId}/review`, input);
-  return data.review;
-}
-
-export async function deleteGiftReview(
-  giftId: number,
-): Promise<{ giftId: number; reviewStatus: 'NOT_WRITTEN' }> {
-  if (USE_MOCK_API) {
-    await new Promise((resolve) => window.setTimeout(resolve, 300));
-    return { giftId, reviewStatus: 'NOT_WRITTEN' };
-  }
-  return apiDelete(`/gifts/${giftId}/review`);
 }
 
 function mockProductPrice(productId: number) {
