@@ -235,6 +235,7 @@ export function GiftApp() {
         <SignupPage
           draft={signupDraft}
           onDraftChange={setSignupDraft}
+          onBack={goBack}
           onComplete={() => navigate('terms')}
         />
       );
