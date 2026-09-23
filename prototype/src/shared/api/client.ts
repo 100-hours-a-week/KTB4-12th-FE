@@ -73,6 +73,15 @@ async function refreshAccessToken(): Promise<string | null> {
   return body.data.accessToken;
 }
 
+// refreshToken 쿠키는 HttpOnly라 JS에서 지울 수 없다. 서버가 Set-Cookie로
+// 만료시켜주는 /auth/logout을 호출해야 실제로 브라우저에서 사라진다.
+function clearRefreshCookie() {
+  fetch(buildUrl('/auth/logout'), {
+    method: 'POST',
+    credentials: 'include',
+  }).catch(() => undefined);
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -102,6 +111,7 @@ async function request<T>(
       if (newToken) return request<T>(method, path, body, params, extraHeaders, false);
     }
     clearSession();
+    clearRefreshCookie();
     window.dispatchEvent(new Event('prototype:session-expired'));
   }
 
