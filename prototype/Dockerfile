@@ -1,5 +1,14 @@
 FROM node:24.19.0-alpine3.23 AS build
 
+ARG VITE_USE_MOCK_API
+ARG VITE_API_BASE_URL
+
+ENV VITE_USE_MOCK_API=${VITE_USE_MOCK_API}
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
+RUN test "${VITE_USE_MOCK_API}" = "false" \
+    && test -n "${VITE_API_BASE_URL}"
+
 WORKDIR /app
 
 COPY package.json package-lock.json .npmrc ./

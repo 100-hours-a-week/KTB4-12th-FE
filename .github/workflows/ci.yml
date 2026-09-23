@@ -25,6 +25,8 @@ concurrency:
 
 env:
   IMAGE_NAME: peterj0117/seonjalal-fe
+  VITE_USE_MOCK_API: 'false'
+  VITE_API_BASE_URL: /api
 
 jobs:
   validate:
@@ -72,7 +74,12 @@ jobs:
         run: npm run test:sites
 
       - name: Build Docker image
-        run: docker build --tag seonjalal-fe:ci .
+        run: >-
+          docker build
+          --build-arg VITE_USE_MOCK_API="${VITE_USE_MOCK_API}"
+          --build-arg VITE_API_BASE_URL="${VITE_API_BASE_URL}"
+          --tag seonjalal-fe:ci
+          .
 
       - name: Run container and smoke test
         shell: bash
@@ -181,6 +188,9 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.value }}
+          build-args: |
+            VITE_USE_MOCK_API=${{ env.VITE_USE_MOCK_API }}
+            VITE_API_BASE_URL=${{ env.VITE_API_BASE_URL }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
