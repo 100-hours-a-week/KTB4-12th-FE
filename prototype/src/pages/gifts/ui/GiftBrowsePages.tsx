@@ -1,6 +1,5 @@
 import {
   BoxIcon,
-  ChevronRightIcon,
   MagnifyingGlassIcon,
   MinusIcon,
   MixerHorizontalIcon,
@@ -88,9 +87,7 @@ export function GiftsPage({
               alt={product.productName}
               draggable={false}
             />
-            <span>
-              {product.brandName} <ChevronRightIcon />
-            </span>
+            <span>{product.brandName}</span>
             <strong>{product.productName}</strong>
             <small>{product.price.toLocaleString()}원</small>
           </button>
