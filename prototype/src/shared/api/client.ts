@@ -94,9 +94,13 @@ async function request<T>(
   });
   const responseBody = await parseBody<T>(response);
 
-  if (response.status === 401 && allowRefresh && session && isSessionExpired(session)) {
-    const newToken = await refreshAccessToken();
-    if (newToken) return request<T>(method, path, body, params, extraHeaders, false);
+  // UNAUTHORIZED는 "로그인이 필요합니다" (세션이 아예 없거나 서버가 인증을 거부한 경우) 전용 코드다.
+  // 로그인 실패(INVALID_CREDENTIALS) 등 다른 401은 호출부에서 직접 처리하므로 여기서 건드리지 않는다.
+  if (response.status === 401 && responseBody.error?.code === 'UNAUTHORIZED') {
+    if (allowRefresh && session && isSessionExpired(session)) {
+      const newToken = await refreshAccessToken();
+      if (newToken) return request<T>(method, path, body, params, extraHeaders, false);
+    }
     clearSession();
     window.dispatchEvent(new Event('prototype:session-expired'));
   }
