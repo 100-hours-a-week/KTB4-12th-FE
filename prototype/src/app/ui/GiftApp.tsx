@@ -307,6 +307,7 @@ export function GiftApp() {
           quantity={quantity}
           recipient={giftRecipient}
           onFriends={() => setTab('friends')}
+          onBack={goBack}
         />
       );
     if (route === 'received') return <ReceivedGiftsPage onBack={goBack} />;
