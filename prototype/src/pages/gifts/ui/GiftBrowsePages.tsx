@@ -19,6 +19,15 @@ import { KeyboardInput } from '../../../mobile';
 import { useCursorList } from '../../../shared/lib/useCursorList';
 import { InfiniteCursor, ScreenHeader, SettingRow } from '../../../shared/ui';
 
+// crypto.randomUUID 미지원 환경(구형 브라우저 등)에서도 백엔드가 요구하는 UUID 형식을 지키기 위한 폴백.
+function generateUuidFallback() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const random = (Math.random() * 16) | 0;
+    const value = char === 'x' ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
+}
+
 export function GiftsPage({
   filterCount,
   filterCategoryIds,
@@ -30,7 +39,7 @@ export function GiftsPage({
   onFilter: () => void;
   onProduct: (product: Product) => void;
 }) {
-  const [sort, setSort] = useState('AI 추천순');
+  const [sort, setSort] = useState('인기순');
   const [search, setSearch] = useState('');
   const loader = useCallback(
     (cursor: string | null) => fetchProducts(cursor, search, sort, filterCategoryIds),
@@ -61,7 +70,7 @@ export function GiftsPage({
       </div>
       <div className="sort-row" role="radiogroup" aria-label="상품 정렬">
         <span>정렬</span>
-        {['AI 추천순', '인기순', '구매순'].map((option) => (
+        {['인기순', 'AI 추천순', '구매순'].map((option) => (
           <button
             type="button"
             role="radio"
@@ -210,7 +219,7 @@ export function CompletePage({ product, quantity, recipient, onFriends }: Comple
       idempotencyKey.current =
         typeof crypto !== 'undefined' && 'randomUUID' in crypto
           ? crypto.randomUUID()
-          : `gift-${Date.now()}`;
+          : generateUuidFallback();
     }
     setState({ status: 'sending' });
     try {
