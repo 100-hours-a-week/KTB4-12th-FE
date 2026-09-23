@@ -65,9 +65,16 @@ npm run test:runtime
 
 ```bash
 cd prototype
-docker build -t ktb4-12th-fe .
+docker build \
+  --build-arg VITE_USE_MOCK_API=false \
+  --build-arg VITE_API_BASE_URL=/api \
+  -t ktb4-12th-fe .
 docker run --rm -p 8080:80 ktb4-12th-fe
 ```
+
+Docker 이미지는 Vite 환경 변수를 정적 번들에 포함하므로 두 build argument를
+반드시 전달해야 합니다. 운영 환경에서는 `/api` 요청을 같은 origin의 Backend
+proxy로 전달합니다.
 
 빌드는 `node:24.19.0-alpine3.24`, 런타임은
 `nginx:stable-alpine3.24`를 사용합니다. 모바일 프로토타입 런타임의 Vite
