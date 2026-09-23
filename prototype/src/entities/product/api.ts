@@ -18,10 +18,12 @@ export async function fetchProducts(
       : mockProducts;
     return mockPage(filtered, cursor);
   }
-  const sortMap: Record<string, string> = {
-    'AI 추천순': 'AI_RECOMMENDED',
+  // 백엔드 ProductSort enum은 POPULAR / MOST_GIFTED / NEWEST만 허용한다.
+  // 대응하는 값이 없는 옵션은 sort를 생략해 백엔드 기본 정렬(POPULAR)에 위임한다.
+  const sortMap: Record<string, string | undefined> = {
+    'AI 추천순': undefined,
     인기순: 'POPULAR',
-    구매순: 'PURCHASED',
+    구매순: 'MOST_GIFTED',
   };
   const data = await apiGet<{
     products: Product[];

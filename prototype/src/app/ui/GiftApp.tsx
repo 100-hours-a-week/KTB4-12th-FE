@@ -6,6 +6,7 @@ import {
   signup as apiSignup,
   type SignupTermConsent,
 } from '../../entities/auth';
+import { MAX_GIFT_QUANTITY } from '../../entities/gift';
 import { fetchProductCategories, type Product } from '../../entities/product';
 import {
   completeOnboarding,
@@ -277,7 +278,7 @@ export function GiftApp() {
           product={selectedProduct}
           quantity={quantity}
           onDecrease={() => setQuantity((value) => Math.max(1, value - 1))}
-          onIncrease={() => setQuantity((value) => value + 1)}
+          onIncrease={() => setQuantity((value) => Math.min(MAX_GIFT_QUANTITY, value + 1))}
           onBack={goBack}
           onGift={() => {
             if (!giftRecipient) {
