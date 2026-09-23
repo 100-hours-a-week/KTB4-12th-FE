@@ -32,9 +32,6 @@ test('필수 약관만 동의한 신규 사용자가 회원가입을 완료한�
 
   await expect(page.getByRole('heading', { name: '약관 동의' })).toBeVisible();
   await expect(page.getByRole('button', { name: '동의하고 회원가입' })).toBeDisabled();
-  await expect(
-    page.getByRole('checkbox', { name: '(선택) 리뷰·별점 AI 개선 동의', exact: true }),
-  ).not.toBeChecked();
 
   await page
     .getByRole('checkbox', { name: '(필수) 개인정보 수집 및 이용 동의서', exact: true })
@@ -62,7 +59,7 @@ test('약관 화면에서 돌아오면 작성한 회원정보를 유지한다', 
   await expect(page.getByLabel('비밀번호', { exact: true })).toHaveValue('Test1234!');
 });
 
-test('전체 동의는 필수 약관과 선택 약관을 모두 선택한다', async ({ page }) => {
+test('전체 동의는 모든 필수 약관을 선택한다', async ({ page }) => {
   await fillSignupForm(page);
   await page.getByRole('button', { name: '다음', exact: true }).click();
   await page.getByLabel('전체 동의').check();
@@ -75,8 +72,5 @@ test('전체 동의는 필수 약관과 선택 약관을 모두 선택한다', a
       name: '(필수) 선물 송수신 이력 정보 수집 및 이용 동의서',
       exact: true,
     }),
-  ).toBeChecked();
-  await expect(
-    page.getByRole('checkbox', { name: '(선택) 리뷰·별점 AI 개선 동의', exact: true }),
   ).toBeChecked();
 });
