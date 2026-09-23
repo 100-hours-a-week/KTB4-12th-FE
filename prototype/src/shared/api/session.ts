@@ -57,9 +57,9 @@ export function updateSessionTokens(
 }
 
 export function clearSession() {
-  window.localStorage.removeItem(ACCESS_TOKEN_KEY);
-  window.localStorage.removeItem(REFRESH_TOKEN_KEY);
-  window.localStorage.removeItem(EXPIRES_AT_KEY);
-  window.localStorage.removeItem(USER_KEY);
+  // 세션이 아니어도 남아있던 프로토타입 캐시(선호도, mock 프로필 등)까지
+  // 다음 로그인 사용자에게 새어나가지 않도록 스토리지를 전부 비운다.
+  window.localStorage.clear();
+  window.sessionStorage.clear();
   window.localStorage.setItem(AUTH_FLAG_KEY, 'signed-out');
 }
