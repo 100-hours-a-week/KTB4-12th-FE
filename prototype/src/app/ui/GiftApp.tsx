@@ -22,7 +22,7 @@ import { MobileScroll, useKeyboard, useScreenPortal } from '../../mobile';
 import type { SignupDraft } from '../../pages/signup';
 import { AUTH_FLAG_KEY, clearSession, loadSession, saveSession } from '../../shared/api/session';
 import type { MainTabRoute, Route } from '../../shared/model/navigation';
-import { AppDialog } from '../../shared/ui';
+import { AppDialog, Toast } from '../../shared/ui';
 import { BottomNavigation } from '../../widgets/bottom-navigation';
 
 const FriendsPage = lazy(() =>
@@ -89,6 +89,7 @@ export function GiftApp() {
   const [activeFilterIds, setActiveFilterIds] = useState<number[]>([]);
   const [pendingOnboarding, setPendingOnboarding] = useState(false);
   const [signupDraft, setSignupDraft] = useState<SignupDraft>(emptySignupDraft);
+  const [toast, setToast] = useState<string | null>(null);
 
   const dismissKeyboard = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -129,13 +130,23 @@ export function GiftApp() {
   }, []);
 
   useEffect(() => {
-    const handleExpired = () => {
+    const handleExpired = (event: Event) => {
       setHistory([]);
       setRoute('login');
+      const hadSession = (event as CustomEvent<{ hadSession: boolean }>).detail?.hadSession;
+      if (hadSession) {
+        setToast('세션이 만료됐어요. 다시 로그인해 주세요.');
+      }
     };
     window.addEventListener('prototype:session-expired', handleExpired);
     return () => window.removeEventListener('prototype:session-expired', handleExpired);
   }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 2500);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     let cancelled = false;
@@ -333,6 +344,8 @@ export function GiftApp() {
         </div>
       </MobileScroll>
       {showBottomNav ? <BottomNavigation route={route} onSelect={setTab} /> : null}
+
+      <Toast message={toast} container={screenRef.current} />
 
       <AddFriendSheet
         open={friendSheetOpen}

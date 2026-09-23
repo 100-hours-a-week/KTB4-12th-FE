@@ -110,9 +110,13 @@ async function request<T>(
       const newToken = await refreshAccessToken();
       if (newToken) return request<T>(method, path, body, params, extraHeaders, false);
     }
+    // 원래 세션이 있었을 때만 "만료됨" 토스트를 띄운다. 애초에 로그인한 적이 없는
+    // 상태(예: 로그인 화면에서 인증이 필요한 백그라운드 요청이 401을 받는 경우)까지
+    // "세션이 만료됐다"고 안내하면 잘못된 메시지가 된다.
+    const hadSession = Boolean(session?.accessToken);
     clearSession();
     clearRefreshCookie();
-    window.dispatchEvent(new Event('prototype:session-expired'));
+    window.dispatchEvent(new CustomEvent('prototype:session-expired', { detail: { hadSession } }));
   }
 
   if (!response.ok) {
