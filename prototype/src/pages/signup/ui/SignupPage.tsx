@@ -62,103 +62,105 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
         </button>
         <strong>선잘알</strong>
       </header>
-      <FormField label="이름">
-        <KeyboardInput
-          value={draft.name}
-          onChange={(event) => update('name', event.target.value)}
-          placeholder="성이름"
-        />
-      </FormField>
-      <div className="form-field">
-        <span>생년월일</span>
+      <div className="signup-form-body">
+        <FormField label="이름">
+          <KeyboardInput
+            value={draft.name}
+            onChange={(event) => update('name', event.target.value)}
+            placeholder="성이름"
+          />
+        </FormField>
+        <div className="form-field">
+          <span>생년월일</span>
+          <button
+            type="button"
+            className={`birthday-trigger ${draft.birthday ? 'has-value' : ''}`}
+            aria-label="생년월일 선택"
+            onClick={() => {
+              setPendingBirthday(draft.birthday || '2000.01.01');
+              setBirthdayPickerOpen(true);
+            }}
+          >
+            <span>{draft.birthday || 'YYYY.MM.DD'}</span>
+            <CalendarIcon />
+          </button>
+        </div>
+        <FormField label="이메일">
+          <KeyboardInput
+            value={draft.email}
+            onChange={(event) =>
+              onDraftChange((current) => ({
+                ...current,
+                email: event.target.value,
+                emailVerified: false,
+              }))
+            }
+            placeholder="email@email.com"
+          />
+          <button
+            type="button"
+            className="duplicate-check"
+            disabled={!draft.email.includes('@') || emailChecking}
+            onClick={checkEmail}
+          >
+            {draft.emailVerified ? '확인 완료' : emailChecking ? '확인 중' : '중복확인'}
+          </button>
+          {draft.emailVerified ? (
+            <small className="field-success">사용할 수 있는 이메일입니다.</small>
+          ) : null}
+          {emailError ? (
+            <small className="field-error" role="alert">
+              {emailError}
+            </small>
+          ) : null}
+        </FormField>
+        <FormField label="비밀번호">
+          <div className="input-with-icon">
+            <KeyboardInput
+              type={visible ? 'text' : 'password'}
+              value={draft.password}
+              onChange={(event) => update('password', event.target.value)}
+              placeholder="대문자, 특수문자 포함 8자 이상"
+            />
+            <button
+              type="button"
+              aria-label="비밀번호 보기"
+              onClick={() => setVisible((value) => !value)}
+            >
+              <EyeOpenIcon />
+            </button>
+          </div>
+        </FormField>
+        <FormField label="비밀번호 확인">
+          <div className="input-with-icon">
+            <KeyboardInput
+              aria-label="비밀번호 확인"
+              type={visible ? 'text' : 'password'}
+              value={draft.passwordConfirmation}
+              onChange={(event) => update('passwordConfirmation', event.target.value)}
+              placeholder="비밀번호를 다시 입력해 주세요"
+            />
+            <button
+              type="button"
+              aria-label="비밀번호 확인 보기"
+              onClick={() => setVisible((value) => !value)}
+            >
+              <EyeOpenIcon />
+            </button>
+          </div>
+          {draft.passwordConfirmation && !passwordMatches ? (
+            <small className="field-error">비밀번호가 일치하지 않습니다.</small>
+          ) : null}
+        </FormField>
         <button
           type="button"
-          className={`birthday-trigger ${draft.birthday ? 'has-value' : ''}`}
-          aria-label="생년월일 선택"
-          onClick={() => {
-            setPendingBirthday(draft.birthday || '2000.01.01');
-            setBirthdayPickerOpen(true);
-          }}
+          className="primary signup-submit"
+          disabled={!ready}
+          onClick={onComplete}
         >
-          <span>{draft.birthday || 'YYYY.MM.DD'}</span>
-          <CalendarIcon />
+          다음
         </button>
       </div>
-      <FormField label="이메일">
-        <KeyboardInput
-          value={draft.email}
-          onChange={(event) =>
-            onDraftChange((current) => ({
-              ...current,
-              email: event.target.value,
-              emailVerified: false,
-            }))
-          }
-          placeholder="email@email.com"
-        />
-        <button
-          type="button"
-          className="duplicate-check"
-          disabled={!draft.email.includes('@') || emailChecking}
-          onClick={checkEmail}
-        >
-          {draft.emailVerified ? '확인 완료' : emailChecking ? '확인 중' : '중복확인'}
-        </button>
-        {draft.emailVerified ? (
-          <small className="field-success">사용할 수 있는 이메일입니다.</small>
-        ) : null}
-        {emailError ? (
-          <small className="field-error" role="alert">
-            {emailError}
-          </small>
-        ) : null}
-      </FormField>
-      <FormField label="비밀번호">
-        <div className="input-with-icon">
-          <KeyboardInput
-            type={visible ? 'text' : 'password'}
-            value={draft.password}
-            onChange={(event) => update('password', event.target.value)}
-            placeholder="대문자, 특수문자 포함 8자 이상"
-          />
-          <button
-            type="button"
-            aria-label="비밀번호 보기"
-            onClick={() => setVisible((value) => !value)}
-          >
-            <EyeOpenIcon />
-          </button>
-        </div>
-      </FormField>
-      <FormField label="비밀번호 확인">
-        <div className="input-with-icon">
-          <KeyboardInput
-            aria-label="비밀번호 확인"
-            type={visible ? 'text' : 'password'}
-            value={draft.passwordConfirmation}
-            onChange={(event) => update('passwordConfirmation', event.target.value)}
-            placeholder="비밀번호를 다시 입력해 주세요"
-          />
-          <button
-            type="button"
-            aria-label="비밀번호 확인 보기"
-            onClick={() => setVisible((value) => !value)}
-          >
-            <EyeOpenIcon />
-          </button>
-        </div>
-        {draft.passwordConfirmation && !passwordMatches ? (
-          <small className="field-error">비밀번호가 일치하지 않습니다.</small>
-        ) : null}
-      </FormField>
-      <button
-        type="button"
-        className="primary signup-submit"
-        disabled={!ready}
-        onClick={onComplete}
-      >
-        다음
-      </button>
       <BottomSheet
         open={birthdayPickerOpen}
         onOpenChange={setBirthdayPickerOpen}
