@@ -6,8 +6,14 @@ import {
   PlusIcon,
 } from '@radix-ui/react-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
-import { preflightGift, sendGift, type SentGiftResult } from '../../../entities/gift';
+import {
+  type GiftPreflight,
+  preflightGift,
+  sendGift,
+  type SentGiftResult,
+} from '../../../entities/gift';
 import {
   fetchProductDetail,
   fetchProducts,
@@ -15,9 +21,9 @@ import {
   PRODUCT_IMAGE,
 } from '../../../entities/product';
 import type { SearchedUser } from '../../../entities/user';
-import { KeyboardInput } from '../../../mobile';
+import { KeyboardInput, useScreenPortal } from '../../../mobile';
 import { useCursorList } from '../../../shared/lib/useCursorList';
-import { InfiniteCursor, ScreenHeader, SettingRow } from '../../../shared/ui';
+import { AppDialog, InfiniteCursor, ScreenHeader, SettingRow } from '../../../shared/ui';
 
 // crypto.randomUUID 미지원 환경(구형 브라우저 등)에서도 백엔드가 요구하는 UUID 형식을 지키기 위한 폴백.
 function generateUuidFallback() {
@@ -198,10 +204,12 @@ type CompletePageProps = {
   quantity: number;
   recipient: SearchedUser | null;
   onFriends: () => void;
+  onBack: () => void;
 };
 
 type CompleteState =
   | { status: 'sending' }
+  | { status: 'confirming'; preflight: GiftPreflight }
   | {
       status: 'done';
       result: SentGiftResult;
@@ -209,9 +217,41 @@ type CompleteState =
     }
   | { status: 'error'; message: string };
 
-export function CompletePage({ product, quantity, recipient, onFriends }: CompletePageProps) {
+export function CompletePage({
+  product,
+  quantity,
+  recipient,
+  onFriends,
+  onBack,
+}: CompletePageProps) {
   const [state, setState] = useState<CompleteState>({ status: 'sending' });
   const idempotencyKey = useRef<string | null>(null);
+  const { screenRef } = useScreenPortal();
+
+  const finalizeGift = useCallback(
+    async (preflight: GiftPreflight) => {
+      if (!recipient || !idempotencyKey.current) return;
+      setState({ status: 'sending' });
+      try {
+        const result = await sendGift(
+          {
+            productId: product.productId,
+            recipientUserId: recipient.userId,
+            quantity,
+            expectedUnitPrice: preflight.product.unitPrice,
+          },
+          idempotencyKey.current,
+        );
+        setState({ status: 'done', result, warning: preflight.preferenceWarning });
+      } catch (reason) {
+        setState({
+          status: 'error',
+          message: reason instanceof Error ? reason.message : '선물 전송에 실패했습니다.',
+        });
+      }
+    },
+    [product.productId, quantity, recipient],
+  );
 
   const deliver = useCallback(async () => {
     if (!recipient) return;
@@ -228,23 +268,18 @@ export function CompletePage({ product, quantity, recipient, onFriends }: Comple
         recipientUserId: recipient.userId,
         quantity,
       });
-      const result = await sendGift(
-        {
-          productId: product.productId,
-          recipientUserId: recipient.userId,
-          quantity,
-          expectedUnitPrice: preflight.product.unitPrice,
-        },
-        idempotencyKey.current,
-      );
-      setState({ status: 'done', result, warning: preflight.preferenceWarning });
+      if (preflight.preferenceWarning) {
+        setState({ status: 'confirming', preflight });
+        return;
+      }
+      await finalizeGift(preflight);
     } catch (reason) {
       setState({
         status: 'error',
         message: reason instanceof Error ? reason.message : '선물 전송에 실패했습니다.',
       });
     }
-  }, [product.productId, quantity, recipient]);
+  }, [product.productId, quantity, recipient, finalizeGift]);
 
   useEffect(() => {
     void deliver();
@@ -258,6 +293,29 @@ export function CompletePage({ product, quantity, recipient, onFriends }: Comple
           <span className="loading-dot" />
           선물을 전달하는 중
         </div>
+      </section>
+    );
+  }
+
+  if (state.status === 'confirming') {
+    const { preflight } = state;
+    const warning = preflight.preferenceWarning;
+    return (
+      <section className="page complete-page">
+        <ScreenHeader title="완료" />
+        <p className="cursor-status">선물 전송 전 확인해 주세요</p>
+        {warning
+          ? createPortal(
+              <AppDialog
+                title="정말 보내시겠어요?"
+                body={`${recipient?.name ?? '받는 분'}님이 ${warning.categoryName} 카테고리를 선호하지 않을 수 있어요.`}
+                confirmLabel="그래도 보낼게요"
+                onCancel={onBack}
+                onConfirm={() => void finalizeGift(preflight)}
+              />,
+              screenRef.current ?? document.body,
+            )
+          : null}
       </section>
     );
   }
