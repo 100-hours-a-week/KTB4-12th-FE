@@ -49,6 +49,13 @@ textarea:focus-visible,
 .device-screen:has(.keyboard-dock[data-visible='false']) .bottom-sheet {
   bottom: 0 !important;
 }
+/* mobile-scroll-content is MobileScroll's internal content wrapper (auto-height by
+   design, so it can grow past the viewport). Without a min-height hook here,
+   .screen-body/.page's own `min-height: 100%` has no definite ancestor to resolve
+   against, so vertical-centering utilities on short pages silently no-op. */
+.mobile-scroll-content {
+  min-height: 100%;
+}
 .screen-body {
   min-height: 100%;
 }
@@ -190,10 +197,21 @@ textarea:focus-visible,
   letter-spacing: -3px;
 }
 .signup-page {
+  display: flex;
+  flex-direction: column;
   padding-top: 44px;
 }
 .login-page {
+  justify-content: center;
   padding-top: 64px;
+}
+/* 회원가입 화면의 뒤로가기/타이틀 헤더는 상단에 고정하고,
+   그 아래 폼 영역만 남은 공간에서 중앙정렬한다. */
+.signup-form-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
 }
 .login-title {
   margin: 0 0 22px;
