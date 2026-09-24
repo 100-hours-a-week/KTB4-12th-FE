@@ -1,35 +1,7 @@
 import { CheckIcon, ChevronRightIcon, Cross1Icon } from '@radix-ui/react-icons';
 
-import type { SignupTerm } from '../../../entities/auth';
 import { BottomSheet } from '../../../mobile';
-
-export type SignupTermId = string;
-
-export type AgreementTerm = {
-  id: SignupTermId;
-  label: string;
-  required: boolean;
-  detail?: 'privacy' | 'giftHistory';
-};
-
-export const AI_REVIEW_TERM_ID = 'AI_REVIEW_IMPROVEMENT';
-
-export function toAgreementTerms(signupTerms: SignupTerm[]): AgreementTerm[] {
-  const detailByCode: Record<string, 'privacy' | 'giftHistory'> = {
-    PRIVACY_COLLECTION_USE: 'privacy',
-    GIFT_HISTORY_DATA_USE: 'giftHistory',
-  };
-  const required = signupTerms.map((term) => ({
-    id: term.termCode,
-    label: `(필수) ${term.title}`,
-    required: true,
-    detail: detailByCode[term.termCode],
-  }));
-  return [
-    ...required,
-    { id: AI_REVIEW_TERM_ID, label: '(선택) 리뷰·별점 AI 개선 동의', required: false },
-  ];
-}
+import type { AgreementTerm, SignupTermId } from '../model';
 
 type SignupTermsAgreementProps = {
   terms: AgreementTerm[];

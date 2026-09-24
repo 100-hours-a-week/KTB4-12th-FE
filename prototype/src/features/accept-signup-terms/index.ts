@@ -1,7 +1,3 @@
-export type { AgreementTerm, SignupTermId } from './ui/SignupTermsAgreement';
-export {
-  AI_REVIEW_TERM_ID,
-  SignupTermsAgreement,
-  TermsDetailSheet,
-  toAgreementTerms,
-} from './ui/SignupTermsAgreement';
+export type { AgreementTerm, SignupTermId } from './model';
+export { toAgreementTerms, toSignupTermConsents } from './model';
+export { SignupTermsAgreement, TermsDetailSheet } from './ui/SignupTermsAgreement';
