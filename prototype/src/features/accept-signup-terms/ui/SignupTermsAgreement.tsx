@@ -12,23 +12,17 @@ export type AgreementTerm = {
   detail?: 'privacy' | 'giftHistory';
 };
 
-export const AI_REVIEW_TERM_ID = 'AI_REVIEW_IMPROVEMENT';
-
 export function toAgreementTerms(signupTerms: SignupTerm[]): AgreementTerm[] {
   const detailByCode: Record<string, 'privacy' | 'giftHistory'> = {
     PRIVACY_COLLECTION_USE: 'privacy',
     GIFT_HISTORY_DATA_USE: 'giftHistory',
   };
-  const required = signupTerms.map((term) => ({
+  return signupTerms.map((term) => ({
     id: term.termCode,
-    label: `(필수) ${term.title}`,
-    required: true,
+    label: `(${term.isRequired ? '필수' : '선택'}) ${term.title}`,
+    required: term.isRequired,
     detail: detailByCode[term.termCode],
   }));
-  return [
-    ...required,
-    { id: AI_REVIEW_TERM_ID, label: '(선택) 리뷰·별점 AI 개선 동의', required: false },
-  ];
 }
 
 type SignupTermsAgreementProps = {

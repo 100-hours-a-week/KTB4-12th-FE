@@ -55,7 +55,7 @@ export function TermsAgreementPage({
     setSubmitError('');
     const consents: SignupTermConsent[] = signupTerms.map((term) => ({
       termId: term.termId,
-      version: Number.parseInt(term.version, 10) || 1,
+      version: term.version,
       isAgreed: true,
     }));
     try {

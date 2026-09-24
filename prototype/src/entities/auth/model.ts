@@ -2,7 +2,7 @@ export type SignupTerm = {
   termId: number;
   termCode: string;
   title: string;
-  version: string;
+  version: number;
   isRequired: boolean;
   content: string;
 };
@@ -39,7 +39,7 @@ export const mockSignupTerms: SignupTerm[] = [
     termId: 1,
     termCode: 'PRIVACY_COLLECTION_USE',
     title: '개인정보 수집 및 이용 동의서',
-    version: '3.0.0',
+    version: 3,
     isRequired: true,
     content: '약관 본문',
   },
@@ -47,8 +47,16 @@ export const mockSignupTerms: SignupTerm[] = [
     termId: 2,
     termCode: 'GIFT_HISTORY_DATA_USE',
     title: '선물 송수신 이력 정보 수집 및 이용 동의서',
-    version: '3.0.0',
+    version: 3,
     isRequired: true,
+    content: '약관 본문',
+  },
+  {
+    termId: 3,
+    termCode: 'MARKETING',
+    title: '마케팅 정보 수신 동의서',
+    version: 1,
+    isRequired: false,
     content: '약관 본문',
   },
 ];
