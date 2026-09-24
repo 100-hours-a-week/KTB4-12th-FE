@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { mockSignupTerms, type SignupTerm } from '../src/entities/auth/model';
-import { toAgreementTerms } from '../src/features/accept-signup-terms';
+import { toAgreementTerms, toSignupTermConsents } from '../src/features/accept-signup-terms';
 
 const serverTerms = [
   {
@@ -48,4 +48,18 @@ test('Mock 약관도 정수 버전의 선택 약관을 제공한다', () => {
     isRequired: false,
     content: '약관 본문',
   });
+});
+
+test('선택하지 않은 선택 약관은 미동의 값으로 가입 요청을 만든다', () => {
+  expect(toSignupTermConsents(serverTerms, ['PRIVACY_COLLECTION_USE'])).toEqual([
+    { termId: 1, version: 3, isAgreed: true },
+    { termId: 2, version: 1, isAgreed: false },
+  ]);
+});
+
+test('선택한 선택 약관은 동의 값으로 가입 요청을 만든다', () => {
+  expect(toSignupTermConsents(serverTerms, ['PRIVACY_COLLECTION_USE', 'MARKETING'])).toEqual([
+    { termId: 1, version: 3, isAgreed: true },
+    { termId: 2, version: 1, isAgreed: true },
+  ]);
 });

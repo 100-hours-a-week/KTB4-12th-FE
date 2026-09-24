@@ -7,6 +7,7 @@ import {
   SignupTermsAgreement,
   TermsDetailSheet,
   toAgreementTerms,
+  toSignupTermConsents,
 } from '../../../features/accept-signup-terms';
 
 export function TermsAgreementPage({
@@ -53,11 +54,7 @@ export function TermsAgreementPage({
     if (submitting) return;
     setSubmitting(true);
     setSubmitError('');
-    const consents: SignupTermConsent[] = signupTerms.map((term) => ({
-      termId: term.termId,
-      version: term.version,
-      isAgreed: true,
-    }));
+    const consents: SignupTermConsent[] = toSignupTermConsents(signupTerms, selected);
     try {
       await onComplete(consents);
     } catch (reason) {

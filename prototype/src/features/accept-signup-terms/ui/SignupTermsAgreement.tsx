@@ -1,29 +1,7 @@
 import { CheckIcon, ChevronRightIcon, Cross1Icon } from '@radix-ui/react-icons';
 
-import type { SignupTerm } from '../../../entities/auth';
 import { BottomSheet } from '../../../mobile';
-
-export type SignupTermId = string;
-
-export type AgreementTerm = {
-  id: SignupTermId;
-  label: string;
-  required: boolean;
-  detail?: 'privacy' | 'giftHistory';
-};
-
-export function toAgreementTerms(signupTerms: SignupTerm[]): AgreementTerm[] {
-  const detailByCode: Record<string, 'privacy' | 'giftHistory'> = {
-    PRIVACY_COLLECTION_USE: 'privacy',
-    GIFT_HISTORY_DATA_USE: 'giftHistory',
-  };
-  return signupTerms.map((term) => ({
-    id: term.termCode,
-    label: `(${term.isRequired ? '필수' : '선택'}) ${term.title}`,
-    required: term.isRequired,
-    detail: detailByCode[term.termCode],
-  }));
-}
+import type { AgreementTerm, SignupTermId } from '../model';
 
 type SignupTermsAgreementProps = {
   terms: AgreementTerm[];
