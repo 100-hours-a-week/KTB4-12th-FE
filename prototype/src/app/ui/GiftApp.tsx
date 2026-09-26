@@ -6,7 +6,7 @@ import {
   signup as apiSignup,
   type SignupTermConsent,
 } from '../../entities/auth';
-import { fetchProductCategories, type Product } from '../../entities/product';
+import { fetchProductCategories, type Product, type ProductCategory } from '../../entities/product';
 import {
   completeOnboarding,
   fetchMe,
@@ -82,9 +82,8 @@ export function GiftApp() {
   const [giftRecipient, setGiftRecipient] = useState<SearchedUser | null>(null);
   const [pendingRecipientSelection, setPendingRecipientSelection] = useState(false);
   const [profile, setProfile] = useState<MyProfile | null>(null);
-  const [filterOptions, setFilterOptions] = useState<Array<{ categoryId: number; name: string }>>(
-    [],
-  );
+  const [filterOptions, setFilterOptions] = useState<ProductCategory[]>([]);
+  const [filterError, setFilterError] = useState('');
   const [activeFilterIds, setActiveFilterIds] = useState<number[]>([]);
   const [pendingOnboarding, setPendingOnboarding] = useState(false);
   const [signupDraft, setSignupDraft] = useState<SignupDraft>(emptySignupDraft);
@@ -136,26 +135,16 @@ export function GiftApp() {
     return () => window.removeEventListener('prototype:session-expired', handleExpired);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchProductCategories()
-      .then((tree) => {
-        if (cancelled) return;
-        const leaves = tree.flatMap((category) =>
-          category.children.length
-            ? category.children.map((child) => ({
-                categoryId: child.categoryId,
-                name: child.name,
-              }))
-            : [{ categoryId: category.categoryId, name: category.name }],
-        );
-        setFilterOptions(leaves);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
+  const loadProductCategories = useCallback(() => {
+    setFilterError('');
+    return fetchProductCategories()
+      .then(setFilterOptions)
+      .catch(() => setFilterError('카테고리를 불러오지 못했습니다.'));
   }, []);
+
+  useEffect(() => {
+    void loadProductCategories();
+  }, [loadProductCategories]);
 
   const enterApp = (isFirstLogin: boolean) => {
     if (isFirstLogin) setDialog('onboarding');
@@ -345,14 +334,9 @@ export function GiftApp() {
         open={filterSheetOpen}
         options={filterOptions}
         selected={activeFilterIds}
-        onToggle={(categoryId) =>
-          setActiveFilterIds((current) =>
-            current.includes(categoryId)
-              ? current.filter((item) => item !== categoryId)
-              : [...current, categoryId],
-          )
-        }
-        onClear={() => setActiveFilterIds([])}
+        error={filterError}
+        onApply={setActiveFilterIds}
+        onRetry={() => void loadProductCategories()}
         onOpenChange={setFilterSheetOpen}
       />
       <EditBirthdaySheet

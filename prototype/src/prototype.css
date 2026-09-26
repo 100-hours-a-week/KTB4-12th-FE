@@ -941,6 +941,81 @@ textarea:focus-visible,
   width: 100%;
   margin-top: 12px;
 }
+.category-group {
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--surface);
+}
+.category-all-row,
+.category-parent-row,
+.category-child-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  color: var(--ink);
+  text-align: left;
+}
+.category-all-row,
+.category-parent-row {
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 800;
+}
+.category-parent-row > span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.category-parent-row small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.category-children {
+  display: grid;
+  padding: 4px 10px 10px 36px;
+  border-top: 1px solid rgba(20, 20, 20, 0.06);
+}
+.category-child-row {
+  min-height: 42px;
+  padding: 0 4px;
+  background: transparent;
+  font-size: 13px;
+}
+.select-box {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid #aaa7a1;
+  border-radius: 6px;
+}
+.select-box.active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+.select-box svg {
+  width: 13px;
+  height: 13px;
+}
+.category-filter-state {
+  padding: 20px 14px;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+.category-filter-state p {
+  margin: 0 0 12px;
+}
+.product-filter-actions {
+  margin-top: 12px;
+}
 .birthday-field {
   display: flex;
   align-items: center;
