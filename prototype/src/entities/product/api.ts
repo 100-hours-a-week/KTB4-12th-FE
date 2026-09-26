@@ -1,11 +1,17 @@
 import { apiGet, USE_MOCK_API } from '../../shared/api/client';
 import { type CursorPage, mockPage, type Pagination } from '../../shared/api/pagination';
-import { mockProducts, type Product, type ProductCategory, type ProductDetail } from './model';
+import {
+  mockProducts,
+  type Product,
+  type ProductCategory,
+  type ProductDetail,
+  type ProductSort,
+} from './model';
 
 export async function fetchProducts(
   cursor: string | null,
   query: string,
-  sort: string,
+  sort: ProductSort,
   categoryIds: number[] = [],
 ): Promise<CursorPage<Product>> {
   if (USE_MOCK_API) {
@@ -18,18 +24,13 @@ export async function fetchProducts(
       : mockProducts;
     return mockPage(filtered, cursor);
   }
-  const sortMap: Record<string, string> = {
-    'AI 추천순': 'AI_RECOMMENDED',
-    인기순: 'POPULAR',
-    구매순: 'PURCHASED',
-  };
   const data = await apiGet<{
     products: Product[];
     pagination: Pagination;
-    appliedSort?: string;
+    appliedSort: ProductSort;
   }>('/products', {
     query: query.trim() || undefined,
-    sort: sortMap[sort],
+    sort,
     categoryIds: categoryIds.length ? categoryIds.join(',') : undefined,
     cursor: cursor ?? undefined,
   });

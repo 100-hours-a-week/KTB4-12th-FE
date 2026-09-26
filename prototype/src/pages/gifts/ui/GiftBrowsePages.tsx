@@ -13,11 +13,21 @@ import {
   fetchProducts,
   type Product,
   PRODUCT_IMAGE,
+  type ProductSort,
 } from '../../../entities/product';
 import type { SearchedUser } from '../../../entities/user';
 import { KeyboardInput } from '../../../mobile';
 import { useCursorList } from '../../../shared/lib/useCursorList';
 import { InfiniteCursor, ScreenHeader, SettingRow } from '../../../shared/ui';
+
+const PRODUCT_SORT_OPTIONS: ReadonlyArray<{
+  label: string;
+  value: ProductSort;
+}> = [
+  { label: 'AI 추천순', value: 'AI_RECOMMENDED' },
+  { label: '인기순', value: 'POPULAR' },
+  { label: '구매순', value: 'MOST_GIFTED' },
+];
 
 export function GiftsPage({
   filterCount,
@@ -30,7 +40,7 @@ export function GiftsPage({
   onFilter: () => void;
   onProduct: (product: Product) => void;
 }) {
-  const [sort, setSort] = useState('AI 추천순');
+  const [sort, setSort] = useState<ProductSort>('AI_RECOMMENDED');
   const [search, setSearch] = useState('');
   const loader = useCallback(
     (cursor: string | null) => fetchProducts(cursor, search, sort, filterCategoryIds),
@@ -61,16 +71,16 @@ export function GiftsPage({
       </div>
       <div className="sort-row" role="radiogroup" aria-label="상품 정렬">
         <span>정렬</span>
-        {['AI 추천순', '인기순', '구매순'].map((option) => (
+        {PRODUCT_SORT_OPTIONS.map((option) => (
           <button
             type="button"
             role="radio"
-            aria-checked={sort === option}
-            key={option}
-            onClick={() => setSort(option)}
+            aria-checked={sort === option.value}
+            key={option.value}
+            onClick={() => setSort(option.value)}
           >
-            <span className={sort === option ? 'radio active' : 'radio'} />
-            {option}
+            <span className={sort === option.value ? 'radio active' : 'radio'} />
+            {option.label}
           </button>
         ))}
       </div>
