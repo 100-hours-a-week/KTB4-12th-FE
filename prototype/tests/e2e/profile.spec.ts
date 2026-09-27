@@ -54,6 +54,44 @@ test('사용자가 받은 선물 목록을 조회한다', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /선물 상세/ })).toHaveCount(0);
 });
 
+test('[QA 89, 90, 91] 마이페이지 정보를 확인하고 생년월일을 취소·저장한다', async ({ page }) => {
+  await openMyPage(page);
+  await expect(page.getByText('email@email.com', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '받은 선물 8건' })).toBeVisible();
+  await page.getByRole('button', { name: '내 정보 관리' }).click();
+
+  await page.getByRole('button', { name: /생년월일/ }).click();
+  let sheet = page.getByRole('dialog', { name: '생년월일 수정' });
+  await sheet.getByLabel('출생 연도').selectOption('1999');
+  await sheet.getByRole('button', { name: '취소' }).click();
+  await expect(page.getByRole('button', { name: /2000\.01\.01/ })).toBeVisible();
+
+  await page.getByRole('button', { name: /생년월일/ }).click();
+  sheet = page.getByRole('dialog', { name: '생년월일 수정' });
+  await sheet.getByLabel('출생 연도').selectOption('1999');
+  await sheet.getByRole('button', { name: '저장' }).click();
+  await expect(page.getByRole('button', { name: /1999\.01\.01/ })).toBeVisible();
+});
+
+test('[QA 93, 94, 95] 생일 공개 취소·동의·비공개를 검증한다', async ({ page }) => {
+  await openMyPage(page);
+  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  const birthdaySwitch = page.getByRole('switch', { name: /생일 공개/ });
+
+  await birthdaySwitch.click();
+  let dialog = page.getByRole('dialog', { name: '생일을 공개할까요?' });
+  await dialog.getByRole('button', { name: '취소' }).click();
+  await expect(birthdaySwitch).toHaveAttribute('aria-checked', 'false');
+
+  await birthdaySwitch.click();
+  dialog = page.getByRole('dialog', { name: '생일을 공개할까요?' });
+  await dialog.getByRole('button', { name: '동의하고 공개' }).click();
+  await expect(birthdaySwitch).toHaveAttribute('aria-checked', 'true');
+
+  await birthdaySwitch.click();
+  await expect(birthdaySwitch).toHaveAttribute('aria-checked', 'false');
+});
+
 test('사용자가 로그아웃하면 로그인 화면으로 이동하고 인증 정보가 삭제된다', async ({ page }) => {
   await openMyPage(page);
   await page.getByRole('button', { name: '내 정보 관리' }).click();

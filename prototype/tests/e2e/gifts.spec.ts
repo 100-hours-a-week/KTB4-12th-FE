@@ -8,7 +8,9 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('친구를 먼저 선택한 사용자가 상품 수량을 정하고 선물을 완료한다', async ({ page }) => {
+test('[QA 75, 77, 79, 88] 친구를 먼저 선택해 선물을 완료하고 상태를 초기화한다', async ({
+  page,
+}) => {
   const recipient = page.locator('.friend-card').filter({ hasText: '김민지' }).first();
   await recipient.getByRole('button', { name: '선물하기' }).click();
 
@@ -61,7 +63,8 @@ test('사용자가 카테고리 필터를 적용한다', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: '카테고리 필터' })).toBeVisible();
   await page.getByRole('button', { name: '뷰티' }).click();
-  await page.getByRole('button', { name: '적용하기' }).click();
+  await page.locator('.category-child-row').filter({ hasText: '뷰티' }).click();
+  await page.getByRole('button', { name: '1개 적용하기' }).click();
 
   await expect(page.getByRole('button', { name: '필터, 1개 선택됨' })).toBeVisible();
 });
@@ -87,7 +90,19 @@ test('사용자가 상품 정렬 조건을 변경한다', async ({ page }) => {
   await expect(popularSort).toHaveAttribute('aria-checked', 'false');
 });
 
-test.fixme('상품을 먼저 선택한 사용자가 받는 친구를 선택한 뒤 선물을 완료한다', async () => {
-  // 현재 수신자 미선택 안내 후 친구 화면으로 이동하지만 선택했던 상품 흐름으로 복귀하지 않는다.
-  // 친구 선택 뒤 기존 상품 상세로 돌아오는 흐름이 구현되면 실제 사용자 시나리오로 작성한다.
+test('[QA 76] 상품을 먼저 선택한 뒤 친구를 선택해 선물을 완료한다', async ({ page }) => {
+  await page
+    .getByRole('navigation', { name: '하단 메뉴' })
+    .getByRole('button', { name: '선물' })
+    .click();
+  await page.locator('.product-card').nth(2).click();
+  await page.getByRole('button', { name: /선물하기/ }).click();
+
+  const dialog = page.getByRole('dialog', { name: '받는 사람을 선택해 주세요' });
+  await dialog.getByRole('button', { name: '친구 보기' }).click();
+  const recipient = page.locator('.friend-card').filter({ hasText: '김민지' }).first();
+  await recipient.getByRole('button', { name: '선물하기' }).click();
+
+  await expect(page.getByRole('heading', { name: '완료' })).toBeVisible();
+  await expect(page.locator('.summary-card')).toContainText('김민지');
 });
