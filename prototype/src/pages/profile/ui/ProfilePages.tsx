@@ -1,9 +1,10 @@
 import { CheckIcon, GearIcon } from '@radix-ui/react-icons';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { categories as categoryIcons } from '../../../entities/category';
 import { fetchDislikeCategories, saveDislikeCategories } from '../../../entities/preference';
 import type { MyProfile } from '../../../entities/user';
+import { recoverQaScenario } from '../../../shared/config/qaScenario';
 import { ScreenHeader, SettingRow } from '../../../shared/ui';
 
 function formatBirthday(birth: string) {
@@ -108,32 +109,28 @@ export function PreferencesPage({ onBack }: { onBack: () => void }) {
   const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  const loadCategories = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const result = await fetchDislikeCategories();
+      setMaxSelectableCount(result.maxSelectableCount);
+      setOptions(result.categories);
+      setSelected(
+        result.categories.filter((item) => item.isSelected).map((item) => item.categoryId),
+      );
+    } catch (reason) {
+      setLoadError(reason instanceof Error ? reason.message : '카테고리를 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetchDislikeCategories()
-      .then((result) => {
-        if (cancelled) return;
-        setMaxSelectableCount(result.maxSelectableCount);
-        setOptions(result.categories);
-        setSelected(
-          result.categories.filter((item) => item.isSelected).map((item) => item.categoryId),
-        );
-      })
-      .catch((reason) => {
-        if (!cancelled)
-          setLoadError(
-            reason instanceof Error ? reason.message : '카테고리를 불러오지 못했습니다.',
-          );
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void loadCategories();
+  }, [loadCategories]);
 
   const toggle = (categoryId: number) => {
     setSaved(false);
@@ -150,11 +147,17 @@ export function PreferencesPage({ onBack }: { onBack: () => void }) {
     if (saving) return;
     setSaving(true);
     setSaved(false);
+    setSaveError('');
     try {
       await saveDislikeCategories(selected);
       setSaved(true);
-    } catch {
+    } catch (reason) {
       setSaved(false);
+      setSaveError(
+        reason instanceof Error
+          ? reason.message
+          : '비선호 카테고리를 저장하지 못했습니다. 다시 시도해 주세요.',
+      );
     } finally {
       setSaving(false);
     }
@@ -171,7 +174,13 @@ export function PreferencesPage({ onBack }: { onBack: () => void }) {
       {loadError ? (
         <div className="cursor-status">
           <span>{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()}>
+          <button
+            type="button"
+            onClick={() => {
+              recoverQaScenario('dislike-category-load-error');
+              void loadCategories();
+            }}
+          >
             다시 시도
           </button>
         </div>
@@ -219,6 +228,11 @@ export function PreferencesPage({ onBack }: { onBack: () => void }) {
           '저장하기'
         )}
       </button>
+      {saveError ? (
+        <p className="field-error" role="alert">
+          {saveError}
+        </p>
+      ) : null}
     </section>
   );
 }

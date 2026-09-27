@@ -1,4 +1,5 @@
-import { apiGet, apiPut, USE_MOCK_API } from '../../shared/api/client';
+import { ApiError, apiGet, apiPut, USE_MOCK_API } from '../../shared/api/client';
+import { shouldFailOnce, shouldFailUntilRecovery } from '../../shared/config/qaScenario';
 
 export type DislikeCategory = {
   categoryId: number;
@@ -43,6 +44,11 @@ export async function savePreference(preference: string | null): Promise<string 
 export async function fetchDislikeCategories(): Promise<DislikeCategoryOption> {
   if (USE_MOCK_API) {
     await delay();
+    if (shouldFailUntilRecovery('dislike-category-load-error')) {
+      throw new ApiError('카테고리를 불러오지 못했습니다. 다시 시도해 주세요.', 500, {
+        code: 'INTERNAL_SERVER_ERROR',
+      });
+    }
     const selected = new Set(
       JSON.parse(window.localStorage.getItem(DISLIKE_KEY) ?? '[]') as number[],
     );
@@ -61,6 +67,16 @@ export async function fetchDislikeCategories(): Promise<DislikeCategoryOption> {
 export async function saveDislikeCategories(categoryIds: number[]): Promise<number[]> {
   if (USE_MOCK_API) {
     await delay(300);
+    if (categoryIds.some((categoryId) => categoryId < 1 || categoryId > mockCategoryNames.length)) {
+      throw new ApiError('선택할 수 없는 카테고리입니다.', 422, {
+        code: 'DISLIKE_CATEGORY_NOT_AVAILABLE',
+      });
+    }
+    if (shouldFailOnce('dislike-category-save-error')) {
+      throw new ApiError('비선호 카테고리를 저장하지 못했습니다. 다시 시도해 주세요.', 500, {
+        code: 'INTERNAL_SERVER_ERROR',
+      });
+    }
     window.localStorage.setItem(DISLIKE_KEY, JSON.stringify(categoryIds));
     return categoryIds;
   }

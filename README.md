@@ -61,6 +61,30 @@ npm run test:sites
 npm run test:runtime
 ```
 
+### 로컬 Mock QA 시나리오
+
+`prototype/.env.local`에서 `VITE_USE_MOCK_API=true`로 설정하고 개발 서버를 다시 시작한
+뒤, 주소에 다음 `qa` 값을 붙이면 오류·경계 상태를 재현할 수 있습니다.
+
+| QA                                          | 주소                               |
+| ------------------------------------------- | ---------------------------------- |
+| 친구 목록 첫 조회 실패 후 재시도 성공       | `/?qa=friend-list-error`           |
+| 상품 목록 첫 조회 실패 후 재시도 성공       | `/?qa=product-list-error`          |
+| 상품 이미지 없음                            | `/?qa=product-no-image`            |
+| 상품 상세 조회 실패                         | `/?qa=product-detail-error`        |
+| 품절 상품                                   | `/?qa=product-sold-out`            |
+| 비선호 카테고리 첫 조회 실패 후 재시도 성공 | `/?qa=dislike-category-load-error` |
+| 비선호 카테고리 첫 저장 실패 후 재시도 성공 | `/?qa=dislike-category-save-error` |
+
+선택할 수 없는 카테고리 ID 검증은 개발자 도구 Console에서 다음처럼 호출합니다.
+
+```js
+const { saveDislikeCategories } = await import('/src/entities/preference/api.ts');
+await saveDislikeCategories([999]);
+```
+
+`422 DISLIKE_CATEGORY_NOT_AVAILABLE` 오류가 발생하고 기존 선택값은 유지되어야 합니다.
+
 ## Docker
 
 ```bash

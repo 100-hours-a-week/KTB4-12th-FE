@@ -20,6 +20,7 @@ import { ProductFilterSheet } from '../../features/filter-products';
 import { MobileScroll, useKeyboard, useScreenPortal } from '../../mobile';
 import type { SignupDraft } from '../../pages/signup';
 import { AUTH_FLAG_KEY, clearSession, loadSession, saveSession } from '../../shared/api/session';
+import { getQaInitialRoute } from '../../shared/config/qaScenario';
 import type { MainTabRoute, Route } from '../../shared/model/navigation';
 import { AppDialog } from '../../shared/ui';
 import { BottomNavigation } from '../../widgets/bottom-navigation';
@@ -66,11 +67,11 @@ const emptySignupDraft: SignupDraft = {
 export function GiftApp() {
   const keyboard = useKeyboard();
   const { screenRef } = useScreenPortal();
-  const [route, setRoute] = useState<Route>(() =>
-    window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' || !loadSession()
-      ? 'login'
-      : 'friends',
-  );
+  const [route, setRoute] = useState<Route>(() => {
+    if (window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' || !loadSession())
+      return 'login';
+    return getQaInitialRoute() ?? 'friends';
+  });
   const [history, setHistory] = useState<Route[]>([]);
   const [friendSheetOpen, setFriendSheetOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640" role="img" aria-labelledby="title description">
+  <title id="title">기본 상품 이미지</title>
+  <desc id="description">상품 이미지가 없을 때 표시되는 선물 상자 그림</desc>
+  <rect width="640" height="640" rx="48" fill="#F3F4F6"/>
+  <rect x="174" y="278" width="292" height="214" rx="20" fill="#FFFFFF" stroke="#C9CDD3" stroke-width="12"/>
+  <path d="M158 246c0-13 11-24 24-24h276c13 0 24 11 24 24v58H158v-58Z" fill="#FFFFFF" stroke="#C9CDD3" stroke-width="12"/>
+  <path d="M320 222v270M158 304h324" stroke="#9EA4AD" stroke-width="14"/>
+  <path d="M320 220c-50-2-93-25-93-66 0-25 19-42 43-42 34 0 50 39 50 108Zm0 0c50-2 93-25 93-66 0-25-19-42-43-42-34 0-50 39-50 108Z" fill="#FFFFFF" stroke="#9EA4AD" stroke-width="12" stroke-linejoin="round"/>
+  <text x="320" y="552" text-anchor="middle" font-family="sans-serif" font-size="28" font-weight="600" fill="#777E88">상품 이미지 준비 중</text>
+</svg>

@@ -1,5 +1,6 @@
-import { apiGet, apiPost, USE_MOCK_API } from '../../shared/api/client';
+import { ApiError, apiGet, apiPost, USE_MOCK_API } from '../../shared/api/client';
 import { type CursorPage, mockPage, type Pagination } from '../../shared/api/pagination';
+import { shouldFailUntilRecovery } from '../../shared/config/qaScenario';
 import { type Friend, mockFriends } from './model';
 
 export async function fetchFriends(
@@ -8,6 +9,11 @@ export async function fetchFriends(
 ): Promise<CursorPage<Friend>> {
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 220));
+    if (!query.trim() && shouldFailUntilRecovery('friend-list-error')) {
+      throw new ApiError('친구 목록 조회에 실패했습니다. 다시 시도해 주세요.', 500, {
+        code: 'INTERNAL_SERVER_ERROR',
+      });
+    }
     const normalized = query.trim().toLowerCase();
     const filtered = normalized
       ? mockFriends.filter((friend) => friend.name.toLowerCase().includes(normalized))

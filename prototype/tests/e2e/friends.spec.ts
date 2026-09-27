@@ -53,3 +53,16 @@ test('친구 검색 결과가 없으면 빈 상태를 표시한다', async ({ pa
   await expect(page.locator('.friend-card')).toHaveCount(0);
   await expect(page.getByText('검색 결과가 없어요')).toBeVisible();
 });
+
+test('친구 목록 조회 실패 후 다시 시도하면 목록을 표시한다', async ({ page }) => {
+  await page.goto('/?qa=friend-list-error');
+
+  const errorMessage = page.getByText('친구 목록 조회에 실패했습니다. 다시 시도해 주세요.');
+  await expect(errorMessage).toBeVisible();
+  await expect(page.getByRole('button', { name: '다시 시도' })).toBeVisible();
+
+  await page.getByRole('button', { name: '다시 시도' }).click();
+
+  await expect(errorMessage).toBeHidden();
+  await expect(page.locator('.friend-card')).toHaveCount(20);
+});

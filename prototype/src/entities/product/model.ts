@@ -1,6 +1,6 @@
 import { PRODUCT_IMAGE } from '../../shared/config/assets';
 
-export { PRODUCT_IMAGE } from '../../shared/config/assets';
+export { DEFAULT_PRODUCT_IMAGE, PRODUCT_IMAGE } from '../../shared/config/assets';
 
 export type Product = {
   productId: number;
