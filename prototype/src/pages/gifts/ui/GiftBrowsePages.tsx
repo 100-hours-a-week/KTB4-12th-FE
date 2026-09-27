@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { preflightGift, sendGift, type SentGiftResult } from '../../../entities/gift';
 import {
+  DEFAULT_PRODUCT_IMAGE,
   fetchProductDetail,
   fetchProducts,
   type Product,
@@ -17,6 +18,7 @@ import {
 } from '../../../entities/product';
 import type { SearchedUser } from '../../../entities/user';
 import { KeyboardInput } from '../../../mobile';
+import { recoverQaScenario } from '../../../shared/config/qaScenario';
 import { useCursorList } from '../../../shared/lib/useCursorList';
 import { InfiniteCursor, ScreenHeader, SettingRow } from '../../../shared/ui';
 
@@ -93,7 +95,7 @@ export function GiftsPage({
             key={product.productId}
           >
             <img
-              src={product.thumbnailUrl || PRODUCT_IMAGE}
+              src={product.thumbnailUrl || DEFAULT_PRODUCT_IMAGE}
               alt={product.productName}
               draggable={false}
             />
@@ -108,7 +110,10 @@ export function GiftsPage({
         itemCount={list.items.length}
         emptyLabel="일치하는 상품이 없어요"
         onLoadMore={list.loadMore}
-        onRetry={list.retry}
+        onRetry={() => {
+          recoverQaScenario('product-list-error');
+          list.retry();
+        }}
       />
     </section>
   );
@@ -153,7 +158,9 @@ export function ProductPage({
 
   const price = detail?.unitPrice ?? product.price;
   const soldOut = detail !== null && detail.stockQuantity <= 0;
-  const heroImage = detail?.images[0]?.imageUrl || product.thumbnailUrl || PRODUCT_IMAGE;
+  const heroImage = detail
+    ? detail.images[0]?.imageUrl || DEFAULT_PRODUCT_IMAGE
+    : product.thumbnailUrl || DEFAULT_PRODUCT_IMAGE;
 
   return (
     <section className="page product-detail">
@@ -187,7 +194,12 @@ export function ProductPage({
           </button>
         </div>
       </div>
-      <button type="button" className="primary product-cta" disabled={soldOut} onClick={onGift}>
+      <button
+        type="button"
+        className="primary product-cta"
+        disabled={soldOut || detail === null || Boolean(detailError)}
+        onClick={onGift}
+      >
         <BoxIcon /> 선물하기 <span>{(price * quantity).toLocaleString()}원</span>
       </button>
     </section>
