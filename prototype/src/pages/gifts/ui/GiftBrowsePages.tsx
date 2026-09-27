@@ -83,7 +83,8 @@ export function GiftsPage({
           aria-label={filterCount ? `필터, ${filterCount}개 선택됨` : '필터'}
           onClick={onFilter}
         >
-          <MixerHorizontalIcon /> 필터{filterCount ? <b>{filterCount}</b> : null}
+          <MixerHorizontalIcon />
+          {filterCount ? <b>{filterCount}</b> : null}
         </button>
       </div>
       <div className="sort-row" role="radiogroup" aria-label="상품 정렬">
