@@ -1,3 +1,7 @@
-export type { AgreementTerm, SignupTermId } from './model';
-export { toAgreementTerms, toSignupTermConsents } from './model';
-export { SignupTermsAgreement, TermsDetailSheet } from './ui/SignupTermsAgreement';
+export { toSignupTermConsents } from './model';
+export type { AgreementTerm, SignupTermId, TermDetail } from './ui/SignupTermsAgreement';
+export {
+  SignupTermsAgreement,
+  TermsDetailSheet,
+  toAgreementTerms,
+} from './ui/SignupTermsAgreement';

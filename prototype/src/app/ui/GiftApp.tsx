@@ -6,6 +6,7 @@ import {
   signup as apiSignup,
   type SignupTermConsent,
 } from '../../entities/auth';
+import { MAX_GIFT_QUANTITY } from '../../entities/gift';
 import { fetchProductCategories, type Product, type ProductCategory } from '../../entities/product';
 import {
   completeOnboarding,
@@ -22,7 +23,7 @@ import type { SignupDraft } from '../../pages/signup';
 import { AUTH_FLAG_KEY, clearSession, loadSession, saveSession } from '../../shared/api/session';
 import { getQaInitialRoute } from '../../shared/config/qaScenario';
 import type { MainTabRoute, Route } from '../../shared/model/navigation';
-import { AppDialog } from '../../shared/ui';
+import { AppDialog, Toast } from '../../shared/ui';
 import { BottomNavigation } from '../../widgets/bottom-navigation';
 
 const FriendsPage = lazy(() =>
@@ -88,6 +89,7 @@ export function GiftApp() {
   const [activeFilterIds, setActiveFilterIds] = useState<number[]>([]);
   const [pendingOnboarding, setPendingOnboarding] = useState(false);
   const [signupDraft, setSignupDraft] = useState<SignupDraft>(emptySignupDraft);
+  const [toast, setToast] = useState<string | null>(null);
 
   const dismissKeyboard = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -128,13 +130,23 @@ export function GiftApp() {
   }, []);
 
   useEffect(() => {
-    const handleExpired = () => {
+    const handleExpired = (event: Event) => {
       setHistory([]);
       setRoute('login');
+      const hadSession = (event as CustomEvent<{ hadSession: boolean }>).detail?.hadSession;
+      if (hadSession) {
+        setToast('세션이 만료됐어요. 다시 로그인해 주세요.');
+      }
     };
     window.addEventListener('prototype:session-expired', handleExpired);
     return () => window.removeEventListener('prototype:session-expired', handleExpired);
   }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 2500);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   const loadProductCategories = useCallback(() => {
     setFilterError('');
@@ -267,7 +279,7 @@ export function GiftApp() {
           product={selectedProduct}
           quantity={quantity}
           onDecrease={() => setQuantity((value) => Math.max(1, value - 1))}
-          onIncrease={() => setQuantity((value) => value + 1)}
+          onIncrease={() => setQuantity((value) => Math.min(MAX_GIFT_QUANTITY, value + 1))}
           onBack={goBack}
           onGift={() => {
             if (!giftRecipient) {
@@ -285,6 +297,7 @@ export function GiftApp() {
           quantity={quantity}
           recipient={giftRecipient}
           onFriends={() => setTab('friends')}
+          onBack={goBack}
         />
       );
     if (route === 'received') return <ReceivedGiftsPage onBack={goBack} />;
@@ -322,6 +335,8 @@ export function GiftApp() {
         </div>
       </MobileScroll>
       {showBottomNav ? <BottomNavigation route={route} onSelect={setTab} /> : null}
+
+      <Toast message={toast} container={screenRef.current} />
 
       <AddFriendSheet
         open={friendSheetOpen}

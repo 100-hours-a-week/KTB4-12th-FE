@@ -76,15 +76,15 @@ test('사용자가 상품 정렬 조건을 변경한다', async ({ page }) => {
   const popularSort = page.getByRole('radio', { name: '인기순' });
   const purchasedSort = page.getByRole('radio', { name: '구매순' });
 
-  await expect(aiSort).toHaveAttribute('aria-checked', 'true');
-
-  await popularSort.click();
   await expect(popularSort).toHaveAttribute('aria-checked', 'true');
-  await expect(aiSort).toHaveAttribute('aria-checked', 'false');
+
+  await aiSort.click();
+  await expect(aiSort).toHaveAttribute('aria-checked', 'true');
+  await expect(popularSort).toHaveAttribute('aria-checked', 'false');
 
   await purchasedSort.click();
   await expect(purchasedSort).toHaveAttribute('aria-checked', 'true');
-  await expect(popularSort).toHaveAttribute('aria-checked', 'false');
+  await expect(aiSort).toHaveAttribute('aria-checked', 'false');
 });
 
 test.fixme('상품을 먼저 선택한 사용자가 받는 친구를 선택한 뒤 선물을 완료한다', async () => {
