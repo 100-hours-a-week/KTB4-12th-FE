@@ -10,6 +10,8 @@ export type Product = {
   thumbnailUrl: string;
 };
 
+export type ProductSort = 'AI_RECOMMENDED' | 'POPULAR' | 'MOST_GIFTED' | 'NEWEST';
+
 export type ProductDetail = {
   productId: number;
   brandName: string;

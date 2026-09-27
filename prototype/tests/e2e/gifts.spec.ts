@@ -66,6 +66,27 @@ test('사용자가 카테고리 필터를 적용한다', async ({ page }) => {
   await expect(page.getByRole('button', { name: '필터, 1개 선택됨' })).toBeVisible();
 });
 
+test('사용자가 상품 정렬 조건을 변경한다', async ({ page }) => {
+  await page
+    .getByRole('navigation', { name: '하단 메뉴' })
+    .getByRole('button', { name: '선물' })
+    .click();
+
+  const aiSort = page.getByRole('radio', { name: 'AI 추천순' });
+  const popularSort = page.getByRole('radio', { name: '인기순' });
+  const purchasedSort = page.getByRole('radio', { name: '구매순' });
+
+  await expect(aiSort).toHaveAttribute('aria-checked', 'true');
+
+  await popularSort.click();
+  await expect(popularSort).toHaveAttribute('aria-checked', 'true');
+  await expect(aiSort).toHaveAttribute('aria-checked', 'false');
+
+  await purchasedSort.click();
+  await expect(purchasedSort).toHaveAttribute('aria-checked', 'true');
+  await expect(popularSort).toHaveAttribute('aria-checked', 'false');
+});
+
 test.fixme('상품을 먼저 선택한 사용자가 받는 친구를 선택한 뒤 선물을 완료한다', async () => {
   // 현재 수신자 미선택 안내 후 친구 화면으로 이동하지만 선택했던 상품 흐름으로 복귀하지 않는다.
   // 친구 선택 뒤 기존 상품 상세로 돌아오는 흐름이 구현되면 실제 사용자 시나리오로 작성한다.
