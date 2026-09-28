@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 
 import { fetchFriends, type Friend } from '../../../entities/friend';
 import { KeyboardInput, useKeyboard } from '../../../mobile';
+import { recoverQaScenario } from '../../../shared/config/qaScenario';
 import { useCursorList } from '../../../shared/lib/useCursorList';
 import { InfiniteCursor, ScreenHeader } from '../../../shared/ui';
 
@@ -89,7 +90,10 @@ export function FriendsPage({
         itemCount={list.items.length}
         emptyLabel={search ? '검색 결과가 없어요' : '등록된 친구가 없어요'}
         onLoadMore={list.loadMore}
-        onRetry={list.retry}
+        onRetry={() => {
+          recoverQaScenario('friend-list-error');
+          list.retry();
+        }}
       />
     </section>
   );

@@ -95,7 +95,10 @@ export async function sendGift(
       },
     };
   }
-  return apiPostWithHeaders<SentGiftResult>('/gifts', input, { 'Idempotency-Key': idempotencyKey });
+  const data = await apiPostWithHeaders<{ gift: SentGiftResult }>('/gifts', input, {
+    'Idempotency-Key': idempotencyKey,
+  });
+  return data.gift;
 }
 
 function mockProductPrice(productId: number) {

@@ -33,7 +33,7 @@ test('필수 약관만 동의한 신규 사용자가 회원가입을 완료한�
   await expect(page.getByRole('heading', { name: '약관 동의' })).toBeVisible();
   await expect(page.getByRole('button', { name: '동의하고 회원가입' })).toBeDisabled();
   await expect(
-    page.getByRole('checkbox', { name: '(선택) 리뷰·별점 AI 개선 동의', exact: true }),
+    page.getByRole('checkbox', { name: '(선택) 마케팅 정보 수신 동의서', exact: true }),
   ).not.toBeChecked();
 
   await page
@@ -77,6 +77,6 @@ test('전체 동의는 필수 약관과 선택 약관을 모두 선택한다', a
     }),
   ).toBeChecked();
   await expect(
-    page.getByRole('checkbox', { name: '(선택) 리뷰·별점 AI 개선 동의', exact: true }),
+    page.getByRole('checkbox', { name: '(선택) 마케팅 정보 수신 동의서', exact: true }),
   ).toBeChecked();
 });

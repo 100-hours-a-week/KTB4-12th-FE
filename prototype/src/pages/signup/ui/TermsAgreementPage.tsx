@@ -5,8 +5,10 @@ import { fetchSignupTerms, type SignupTerm, type SignupTermConsent } from '../..
 import {
   type SignupTermId,
   SignupTermsAgreement,
+  type TermDetail,
   TermsDetailSheet,
   toAgreementTerms,
+  toSignupTermConsents,
 } from '../../../features/accept-signup-terms';
 
 export function TermsAgreementPage({
@@ -18,7 +20,7 @@ export function TermsAgreementPage({
 }) {
   const [signupTerms, setSignupTerms] = useState<SignupTerm[]>([]);
   const [selected, setSelected] = useState<SignupTermId[]>([]);
-  const [detail, setDetail] = useState<'privacy' | 'giftHistory' | null>(null);
+  const [detail, setDetail] = useState<TermDetail | null>(null);
   const [loadingTerms, setLoadingTerms] = useState(true);
   const [termsError, setTermsError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -53,11 +55,7 @@ export function TermsAgreementPage({
     if (submitting) return;
     setSubmitting(true);
     setSubmitError('');
-    const consents: SignupTermConsent[] = signupTerms.map((term) => ({
-      termId: term.termId,
-      version: Number.parseInt(term.version, 10) || 1,
-      isAgreed: true,
-    }));
+    const consents: SignupTermConsent[] = toSignupTermConsents(signupTerms, selected);
     try {
       await onComplete(consents);
     } catch (reason) {
@@ -96,7 +94,7 @@ export function TermsAgreementPage({
         />
       )}
       <div className="terms-page-footer">
-        <p>필수 약관만 동의해도 회원가입과 기본 기능을 이용할 수 있습니다.</p>
+        <p>동의하고 회원가입을 완료하면 서비스를 바로 이용할 수 있어요.</p>
         <button
           type="button"
           className="primary terms-continue"
@@ -111,7 +109,7 @@ export function TermsAgreementPage({
           </p>
         ) : null}
       </div>
-      <TermsDetailSheet kind={detail} onClose={() => setDetail(null)} />
+      <TermsDetailSheet detail={detail} onClose={() => setDetail(null)} />
     </section>
   );
 }

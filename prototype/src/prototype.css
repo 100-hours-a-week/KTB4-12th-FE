@@ -7,6 +7,12 @@
   --accent: #be5a3e;
   --line: #dedbd6;
 }
+/* iOS Safari auto-zooms the page on focus for any text input rendered below
+   16px, and doesn't reliably zoom back out afterward (even across a reload). */
+input,
+textarea {
+  font-size: 16px;
+}
 button {
   border: 0;
   transition:
@@ -48,6 +54,13 @@ textarea:focus-visible,
 }
 .device-screen:has(.keyboard-dock[data-visible='false']) .bottom-sheet {
   bottom: 0 !important;
+}
+/* mobile-scroll-content is MobileScroll's internal content wrapper (auto-height by
+   design, so it can grow past the viewport). Without a min-height hook here,
+   .screen-body/.page's own `min-height: 100%` has no definite ancestor to resolve
+   against, so vertical-centering utilities on short pages silently no-op. */
+.mobile-scroll-content {
+  min-height: 100%;
 }
 .screen-body {
   min-height: 100%;
@@ -106,6 +119,7 @@ textarea:focus-visible,
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   width: 100%;
   height: 50px;
   padding: 0 14px;
@@ -190,10 +204,21 @@ textarea:focus-visible,
   letter-spacing: -3px;
 }
 .signup-page {
+  display: flex;
+  flex-direction: column;
   padding-top: 44px;
 }
 .login-page {
+  justify-content: center;
   padding-top: 64px;
+}
+/* 회원가입 화면의 뒤로가기/타이틀 헤더는 상단에 고정하고,
+   그 아래 폼 영역만 남은 공간에서 중앙정렬한다. */
+.signup-form-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
 }
 .login-title {
   margin: 0 0 22px;
@@ -543,10 +568,11 @@ textarea:focus-visible,
 }
 .filter-button {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  width: 78px;
+  width: 50px;
   border-radius: 12px;
   background: var(--surface);
   font-weight: 700;
@@ -941,6 +967,81 @@ textarea:focus-visible,
   width: 100%;
   margin-top: 12px;
 }
+.category-group {
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--surface);
+}
+.category-all-row,
+.category-parent-row,
+.category-child-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  color: var(--ink);
+  text-align: left;
+}
+.category-all-row,
+.category-parent-row {
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 800;
+}
+.category-parent-row > span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.category-parent-row small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.category-children {
+  display: grid;
+  padding: 4px 10px 10px 36px;
+  border-top: 1px solid rgba(20, 20, 20, 0.06);
+}
+.category-child-row {
+  min-height: 42px;
+  padding: 0 4px;
+  background: transparent;
+  font-size: 13px;
+}
+.select-box {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid #aaa7a1;
+  border-radius: 6px;
+}
+.select-box.active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+.select-box svg {
+  width: 13px;
+  height: 13px;
+}
+.category-filter-state {
+  padding: 20px 14px;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+.category-filter-state p {
+  margin: 0 0 12px;
+}
+.product-filter-actions {
+  margin-top: 12px;
+}
 .birthday-field {
   display: flex;
   align-items: center;
@@ -1028,6 +1129,24 @@ textarea:focus-visible,
   background: var(--ink);
   color: #fff;
   font-weight: 800;
+}
+.app-toast {
+  position: absolute;
+  z-index: 55;
+  left: 16px;
+  right: 16px;
+  bottom: 28px;
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  margin: 0 auto;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: rgba(20, 20, 20, 0.88);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
 }
 .bottom-nav {
   position: absolute;

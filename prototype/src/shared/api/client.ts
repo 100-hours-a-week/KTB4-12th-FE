@@ -73,6 +73,15 @@ async function refreshAccessToken(): Promise<string | null> {
   return body.data.accessToken;
 }
 
+// refreshToken 쿠키는 HttpOnly라 JS에서 지울 수 없다. 서버가 Set-Cookie로
+// 만료시켜주는 /auth/logout을 호출해야 실제로 브라우저에서 사라진다.
+function clearRefreshCookie() {
+  fetch(buildUrl('/auth/logout'), {
+    method: 'POST',
+    credentials: 'include',
+  }).catch(() => undefined);
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -94,11 +103,20 @@ async function request<T>(
   });
   const responseBody = await parseBody<T>(response);
 
-  if (response.status === 401 && allowRefresh && session && isSessionExpired(session)) {
-    const newToken = await refreshAccessToken();
-    if (newToken) return request<T>(method, path, body, params, extraHeaders, false);
+  // UNAUTHORIZED는 "로그인이 필요합니다" (세션이 아예 없거나 서버가 인증을 거부한 경우) 전용 코드다.
+  // 로그인 실패(INVALID_CREDENTIALS) 등 다른 401은 호출부에서 직접 처리하므로 여기서 건드리지 않는다.
+  if (response.status === 401 && responseBody.error?.code === 'UNAUTHORIZED') {
+    if (allowRefresh && session && isSessionExpired(session)) {
+      const newToken = await refreshAccessToken();
+      if (newToken) return request<T>(method, path, body, params, extraHeaders, false);
+    }
+    // 원래 세션이 있었을 때만 "만료됨" 토스트를 띄운다. 애초에 로그인한 적이 없는
+    // 상태(예: 로그인 화면에서 인증이 필요한 백그라운드 요청이 401을 받는 경우)까지
+    // "세션이 만료됐다"고 안내하면 잘못된 메시지가 된다.
+    const hadSession = Boolean(session?.accessToken);
     clearSession();
-    window.dispatchEvent(new Event('prototype:session-expired'));
+    clearRefreshCookie();
+    window.dispatchEvent(new CustomEvent('prototype:session-expired', { detail: { hadSession } }));
   }
 
   if (!response.ok) {

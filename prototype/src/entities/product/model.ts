@@ -1,6 +1,6 @@
 import { PRODUCT_IMAGE } from '../../shared/config/assets';
 
-export { PRODUCT_IMAGE } from '../../shared/config/assets';
+export { DEFAULT_PRODUCT_IMAGE, PRODUCT_IMAGE } from '../../shared/config/assets';
 
 export type Product = {
   productId: number;
@@ -9,6 +9,8 @@ export type Product = {
   price: number;
   thumbnailUrl: string;
 };
+
+export type ProductSort = 'AI_RECOMMENDED' | 'POPULAR' | 'MOST_GIFTED' | 'NEWEST';
 
 export type ProductDetail = {
   productId: number;
