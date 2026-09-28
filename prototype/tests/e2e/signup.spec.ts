@@ -23,6 +23,34 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole('button', { name: '회원가입' }).click();
 });
 
+test('숫자가 포함된 이름은 다음 단계 진행을 차단한다', async ({ page }) => {
+  await fillSignupForm(page);
+  await page.getByLabel('이름').fill('테스트1');
+
+  await expect(
+    page.getByText('이름은 한글 또는 영문으로 1~30자 이내로 입력해 주세요.'),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
+});
+
+test('조합 규칙을 충족하지 않는 비밀번호는 다음 단계 진행을 차단한다', async ({ page }) => {
+  await fillSignupForm(page);
+  await page.getByLabel('비밀번호', { exact: true }).fill('abcdefgh');
+  await page.getByRole('textbox', { name: '비밀번호 확인', exact: true }).fill('abcdefgh');
+
+  await expect(
+    page.getByText('영문, 숫자, 특수문자를 포함하여 8~64자로 입력해 주세요.'),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
+});
+
+test('한 글자 이름도 유효한 회원가입 입력으로 허용한다', async ({ page }) => {
+  await fillSignupForm(page);
+  await page.getByLabel('이름').fill('김');
+
+  await expect(page.getByRole('button', { name: '다음', exact: true })).toBeEnabled();
+});
+
 test('필수 약관만 동의한 신규 사용자가 회원가입을 완료한다', async ({ page }) => {
   await fillSignupForm(page);
 
