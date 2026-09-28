@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import {
   login as apiLogin,
@@ -85,11 +85,34 @@ export function GiftApp() {
   const [pendingRecipientSelection, setPendingRecipientSelection] = useState(false);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [filterOptions, setFilterOptions] = useState<ProductCategory[]>([]);
+  const [filterLoading, setFilterLoading] = useState(false);
   const [filterError, setFilterError] = useState('');
   const [activeFilterIds, setActiveFilterIds] = useState<number[]>([]);
   const [pendingOnboarding, setPendingOnboarding] = useState(false);
   const [signupDraft, setSignupDraft] = useState<SignupDraft>(emptySignupDraft);
   const [toast, setToast] = useState<string | null>(null);
+  const giftScrollTop = useRef(0);
+  const previousRoute = useRef<Route>(route);
+
+  useLayoutEffect(() => {
+    const priorRoute = previousRoute.current;
+    let restoreFrame: number | undefined;
+    const layoutFrame = window.requestAnimationFrame(() => {
+      restoreFrame = window.requestAnimationFrame(() => {
+        const scroll = screenRef.current?.querySelector<HTMLElement>(
+          '[data-testid="mobile-scroll"]',
+        );
+        if (!scroll) return;
+        scroll.scrollTop =
+          route === 'gifts' && priorRoute === 'product' ? giftScrollTop.current : 0;
+      });
+    });
+    previousRoute.current = route;
+    return () => {
+      window.cancelAnimationFrame(layoutFrame);
+      if (restoreFrame !== undefined) window.cancelAnimationFrame(restoreFrame);
+    };
+  }, [route, screenRef]);
 
   const dismissKeyboard = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -149,15 +172,13 @@ export function GiftApp() {
   }, [toast]);
 
   const loadProductCategories = useCallback(() => {
+    setFilterLoading(true);
     setFilterError('');
     return fetchProductCategories()
       .then(setFilterOptions)
-      .catch(() => setFilterError('카테고리를 불러오지 못했습니다.'));
+      .catch(() => setFilterError('카테고리를 불러오지 못했습니다.'))
+      .finally(() => setFilterLoading(false));
   }, []);
-
-  useEffect(() => {
-    void loadProductCategories();
-  }, [loadProductCategories]);
 
   const enterApp = (isFirstLogin: boolean) => {
     if (isFirstLogin) setDialog('onboarding');
@@ -250,18 +271,44 @@ export function GiftApp() {
       );
     if (route === 'terms')
       return <TermsAgreementPage onBack={goBack} onComplete={completeSignup} />;
-    if (route === 'gifts')
+    if (route === 'gifts' || (route === 'product' && selectedProduct))
       return (
-        <GiftsPage
-          filterCount={activeFilterIds.length}
-          filterCategoryIds={activeFilterIds}
-          onFilter={() => setFilterSheetOpen(true)}
-          onProduct={(product) => {
-            setSelectedProduct(product);
-            setQuantity(1);
-            navigate('product');
-          }}
-        />
+        <>
+          <div className={route === 'gifts' ? undefined : 'route-preserved-page'}>
+            <GiftsPage
+              filterCount={activeFilterIds.length}
+              filterCategoryIds={activeFilterIds}
+              onFilter={() => {
+                setFilterSheetOpen(true);
+                if (filterOptions.length === 0 && !filterLoading) void loadProductCategories();
+              }}
+              onProduct={(product) => {
+                giftScrollTop.current =
+                  screenRef.current?.querySelector<HTMLElement>('[data-testid="mobile-scroll"]')
+                    ?.scrollTop ?? 0;
+                setSelectedProduct(product);
+                setQuantity(1);
+                navigate('product');
+              }}
+            />
+          </div>
+          {route === 'product' ? (
+            <ProductPage
+              product={selectedProduct!}
+              quantity={quantity}
+              onDecrease={() => setQuantity((value) => Math.max(1, value - 1))}
+              onIncrease={() => setQuantity((value) => Math.min(MAX_GIFT_QUANTITY, value + 1))}
+              onBack={goBack}
+              onGift={() => {
+                if (!giftRecipient) {
+                  setDialog('selectRecipient');
+                  return;
+                }
+                navigate('complete');
+              }}
+            />
+          ) : null}
+        </>
       );
     if (route === 'mypage')
       return (
@@ -273,23 +320,6 @@ export function GiftApp() {
         />
       );
     if ((route === 'product' || route === 'complete') && !selectedProduct) return null;
-    if (route === 'product' && selectedProduct)
-      return (
-        <ProductPage
-          product={selectedProduct}
-          quantity={quantity}
-          onDecrease={() => setQuantity((value) => Math.max(1, value - 1))}
-          onIncrease={() => setQuantity((value) => Math.min(MAX_GIFT_QUANTITY, value + 1))}
-          onBack={goBack}
-          onGift={() => {
-            if (!giftRecipient) {
-              setDialog('selectRecipient');
-              return;
-            }
-            navigate('complete');
-          }}
-        />
-      );
     if (route === 'complete' && selectedProduct)
       return (
         <CompletePage
@@ -301,7 +331,13 @@ export function GiftApp() {
         />
       );
     if (route === 'received') return <ReceivedGiftsPage onBack={goBack} />;
-    if (route === 'preferences') return <PreferencesPage onBack={goBack} />;
+    if (route === 'preferences')
+      return (
+        <PreferencesPage
+          onBack={goBack}
+          onSaved={() => setToast('비선호 카테고리를 저장했습니다.')}
+        />
+      );
     return (
       <AccountPage
         profile={profile}
@@ -320,7 +356,7 @@ export function GiftApp() {
 
   return (
     <div className="gift-app" data-testid="gift-app" data-route={route}>
-      <MobileScroll key={route} className="app-screen">
+      <MobileScroll className="app-screen">
         <div className={`screen-body ${showBottomNav ? 'has-bottom-nav' : ''}`}>
           <Suspense
             fallback={
@@ -350,6 +386,7 @@ export function GiftApp() {
         open={filterSheetOpen}
         options={filterOptions}
         selected={activeFilterIds}
+        loading={filterLoading}
         error={filterError}
         onApply={setActiveFilterIds}
         onRetry={() => void loadProductCategories()}

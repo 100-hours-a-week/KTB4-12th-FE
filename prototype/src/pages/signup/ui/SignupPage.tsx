@@ -28,7 +28,8 @@ type SignupPageProps = {
 };
 
 export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupPageProps) {
-  const [visible, setVisible] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [passwordConfirmationVisible, setPasswordConfirmationVisible] = useState(false);
   const [birthdayPickerOpen, setBirthdayPickerOpen] = useState(false);
   const [pendingBirthday, setPendingBirthday] = useState(draft.birthday || '2000.01.01');
   const [emailChecking, setEmailChecking] = useState(false);
@@ -134,7 +135,7 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
         <FormField label="비밀번호">
           <div className="input-with-icon">
             <KeyboardInput
-              type={visible ? 'text' : 'password'}
+              type={passwordVisible ? 'text' : 'password'}
               value={draft.password}
               onChange={(event) => update('password', event.target.value)}
               placeholder="영문, 숫자, 특수문자 포함 8자 이상"
@@ -143,8 +144,8 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
             />
             <button
               type="button"
-              aria-label="비밀번호 보기"
-              onClick={() => setVisible((value) => !value)}
+              aria-label={passwordVisible ? '비밀번호 숨기기' : '비밀번호 보기'}
+              onClick={() => setPasswordVisible((value) => !value)}
             >
               <EyeOpenIcon />
             </button>
@@ -159,15 +160,17 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
           <div className="input-with-icon">
             <KeyboardInput
               aria-label="비밀번호 확인"
-              type={visible ? 'text' : 'password'}
+              type={passwordConfirmationVisible ? 'text' : 'password'}
               value={draft.passwordConfirmation}
               onChange={(event) => update('passwordConfirmation', event.target.value)}
               placeholder="비밀번호를 다시 입력해 주세요"
             />
             <button
               type="button"
-              aria-label="비밀번호 확인 보기"
-              onClick={() => setVisible((value) => !value)}
+              aria-label={
+                passwordConfirmationVisible ? '비밀번호 확인 숨기기' : '비밀번호 확인 보기'
+              }
+              onClick={() => setPasswordConfirmationVisible((value) => !value)}
             >
               <EyeOpenIcon />
             </button>

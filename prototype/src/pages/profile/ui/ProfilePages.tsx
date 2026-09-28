@@ -99,7 +99,7 @@ export function AccountPage({
   );
 }
 
-export function PreferencesPage({ onBack }: { onBack: () => void }) {
+export function PreferencesPage({ onBack, onSaved }: { onBack: () => void; onSaved: () => void }) {
   const [options, setOptions] = useState<
     Array<{ categoryId: number; name: string; isSelected: boolean }>
   >([]);
@@ -151,6 +151,7 @@ export function PreferencesPage({ onBack }: { onBack: () => void }) {
     try {
       await saveDislikeCategories(selected);
       setSaved(true);
+      onSaved();
     } catch (reason) {
       setSaved(false);
       setSaveError(

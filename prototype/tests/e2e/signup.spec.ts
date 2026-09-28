@@ -44,6 +44,19 @@ test('조합 규칙을 충족하지 않는 비밀번호는 다음 단계 진행�
   await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
 });
 
+test('비밀번호와 비밀번호 확인의 보기 상태를 각각 변경한다', async ({ page }) => {
+  const password = page.getByLabel('비밀번호', { exact: true });
+  const confirmation = page.getByLabel('비밀번호 확인', { exact: true });
+
+  await page.getByRole('button', { name: '비밀번호 보기', exact: true }).click();
+  await expect(password).toHaveAttribute('type', 'text');
+  await expect(confirmation).toHaveAttribute('type', 'password');
+
+  await page.getByRole('button', { name: '비밀번호 확인 보기', exact: true }).click();
+  await expect(password).toHaveAttribute('type', 'text');
+  await expect(confirmation).toHaveAttribute('type', 'text');
+});
+
 test('한 글자 이름도 유효한 회원가입 입력으로 허용한다', async ({ page }) => {
   await fillSignupForm(page);
   await page.getByLabel('이름').fill('김');
