@@ -1,3 +1,5 @@
+import { API_BASE_URL } from '../../shared/api/client';
+
 export interface BugReportContext {
   pageUrl: string;
   route: string;
@@ -17,11 +19,13 @@ export interface BugReportPayload {
 // ⚠️ 보안 주의: VITE_ 접두사 환경변수는 클라이언트 번들에 그대로 포함된다.
 // 즉 아래 Discord 웹훅 URL은 빌드 산출물에서 누구나 볼 수 있고,
 // 유출 시 누구나 이 채널에 메시지를 보낼 수 있다. 개발 환경에서만 사용하고,
-// 프로덕션에서는 반드시 백엔드 프록시(POST /api/bug-report)로 교체한다.
+// 프로덕션에서는 반드시 백엔드 프록시(POST /bug-report)로 교체한다.
 // 프록시는 아래와 동일한 multipart/form-data(payload_json + files[])를 받도록 만들면
 // 이 파일의 ENDPOINT 한 줄만 바꾸면 된다.
-const ENDPOINT: string | undefined =
-  import.meta.env.VITE_BUG_REPORT_ENDPOINT || import.meta.env.VITE_DISCORD_WEBHOOK_URL;
+const BUG_REPORT_PATH = import.meta.env.VITE_BUG_REPORT_ENDPOINT;
+const ENDPOINT: string | undefined = BUG_REPORT_PATH
+  ? `${API_BASE_URL}${BUG_REPORT_PATH}`
+  : import.meta.env.VITE_DISCORD_WEBHOOK_URL;
 
 const DISCORD_LIMITS = {
   description: 4096,
