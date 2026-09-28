@@ -13,6 +13,7 @@
     "update:runtime-lock": "node scripts/update-mobile-runtime-lock.mjs",
     "test:runtime": "playwright test tests/mobile-runtime.spec.ts",
     "test:e2e": "playwright test tests/e2e",
+    "test:e2e:api-error": "playwright test --config=playwright.api-error.config.ts",
     "test:e2e:ui": "playwright test tests/e2e --ui",
     "test:e2e:headed": "playwright test tests/e2e --headed",
     "test:all": "playwright test",
