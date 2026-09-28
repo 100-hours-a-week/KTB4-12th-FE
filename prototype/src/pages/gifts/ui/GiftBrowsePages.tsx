@@ -1,5 +1,4 @@
 import {
-  BoxIcon,
   MagnifyingGlassIcon,
   MinusIcon,
   MixerHorizontalIcon,
@@ -26,7 +25,7 @@ import type { SearchedUser } from '../../../entities/user';
 import { KeyboardInput, useScreenPortal } from '../../../mobile';
 import { recoverQaScenario } from '../../../shared/config/qaScenario';
 import { useCursorList } from '../../../shared/lib/useCursorList';
-import { AppDialog, InfiniteCursor, ScreenHeader, SettingRow } from '../../../shared/ui';
+import { AppDialog, GiftIcon, InfiniteCursor, ScreenHeader, SettingRow } from '../../../shared/ui';
 
 // crypto.randomUUID 미지원 환경(구형 브라우저 등)에서도 백엔드가 요구하는 UUID 형식을 지키기 위한 폴백.
 function generateUuidFallback() {
@@ -215,7 +214,7 @@ export function ProductPage({
         disabled={soldOut || detail === null || Boolean(detailError)}
         onClick={onGift}
       >
-        <BoxIcon /> 선물하기 <span>{(price * quantity).toLocaleString()}원</span>
+        <GiftIcon /> 선물하기 <span>{(price * quantity).toLocaleString()}원</span>
       </button>
     </section>
   );
