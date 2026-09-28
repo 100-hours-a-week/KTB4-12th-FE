@@ -27,6 +27,12 @@ export async function checkEmailAvailability(email: string): Promise<boolean> {
 export async function signup(payload: SignupRequest): Promise<{ userId: number }> {
   if (USE_MOCK_API) {
     await delay(400);
+    if (new URLSearchParams(window.location.search).get('qa') === 'signup-underage') {
+      throw new ApiError('입력값을 확인해 주세요.', 400, {
+        code: 'INVALID_REQUEST',
+        details: [{ field: 'birth', reason: 'AGE_REQUIREMENT_NOT_MET' }],
+      });
+    }
     return { userId: 1 };
   }
   return apiPost<{ userId: number }>('/auth/signup', payload);

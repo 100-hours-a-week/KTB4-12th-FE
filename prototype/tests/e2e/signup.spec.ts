@@ -51,6 +51,27 @@ test('한 글자 이름도 유효한 회원가입 입력으로 허용한다', as
   await expect(page.getByRole('button', { name: '다음', exact: true })).toBeEnabled();
 });
 
+test('만 14세 미만 응답은 가입 불가 사유를 명확히 안내한다', async ({ page }) => {
+  await page.goto('/?qa=signup-underage');
+  await page.getByRole('button', { name: '회원가입' }).click();
+  await fillSignupForm(page);
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+  await page
+    .getByRole('checkbox', { name: '(필수) 개인정보 수집 및 이용 동의서', exact: true })
+    .check();
+  await page
+    .getByRole('checkbox', {
+      name: '(필수) 선물 송수신 이력 정보 수집 및 이용 동의서',
+      exact: true,
+    })
+    .check();
+
+  await page.getByRole('button', { name: '동의하고 회원가입' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText('만 14세 미만은 서비스를 이용할 수 없습니다.');
+  await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'terms');
+});
+
 test('필수 약관만 동의한 신규 사용자가 회원가입을 완료한다', async ({ page }) => {
   await fillSignupForm(page);
 

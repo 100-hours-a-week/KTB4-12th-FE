@@ -468,6 +468,13 @@ textarea:focus-visible,
   line-height: 1.45 !important;
   text-align: center;
 }
+.terms-page-footer > .signup-submit-error {
+  margin: 8px 0 0 !important;
+  color: var(--accent-strong);
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  font-weight: 700;
+}
 .terms-continue {
   width: calc(100% + 16px);
   min-height: 43px;
