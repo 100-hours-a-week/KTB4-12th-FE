@@ -28,13 +28,19 @@ test('서버 약관만 필수 여부에 맞게 화면 약관으로 변환한다'
       id: 'PRIVACY_COLLECTION_USE',
       label: '(필수) 개인정보 수집 및 이용 동의서',
       required: true,
-      detail: 'privacy',
+      detail: {
+        title: '개인정보 수집 및 이용 동의서',
+        content: '필수 약관 본문',
+      },
     },
     {
       id: 'MARKETING',
       label: '(선택) 마케팅 정보 수신 동의서',
       required: false,
-      detail: undefined,
+      detail: {
+        title: '마케팅 정보 수신 동의서',
+        content: '선택 약관 본문',
+      },
     },
   ]);
 });

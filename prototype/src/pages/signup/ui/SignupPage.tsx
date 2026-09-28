@@ -4,6 +4,12 @@ import { useState } from 'react';
 import { checkEmailAvailability } from '../../../entities/auth';
 import { BottomSheet, KeyboardInput } from '../../../mobile';
 import { BirthdayFields, FormField } from '../../../shared/ui';
+import {
+  isValidSignupName,
+  isValidSignupPassword,
+  SIGNUP_NAME_ERROR,
+  SIGNUP_PASSWORD_ERROR,
+} from '../validation';
 
 export type SignupDraft = {
   name: string;
@@ -29,10 +35,14 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
   const [emailError, setEmailError] = useState('');
   const update = <Key extends keyof SignupDraft>(field: Key, value: SignupDraft[Key]) =>
     onDraftChange((current) => ({ ...current, [field]: value }));
+  const validName = isValidSignupName(draft.name);
+  const validPassword = isValidSignupPassword(draft.password);
   const passwordMatches =
-    draft.password.length >= 8 && draft.password === draft.passwordConfirmation;
+    Boolean(draft.passwordConfirmation) && draft.password === draft.passwordConfirmation;
+  const nameInvalid = Boolean(draft.name) && !validName;
+  const passwordInvalid = Boolean(draft.password) && !validPassword;
   const ready =
-    draft.name.length > 1 && Boolean(draft.birthday) && draft.emailVerified && passwordMatches;
+    validName && Boolean(draft.birthday) && draft.emailVerified && validPassword && passwordMatches;
 
   const checkEmail = async () => {
     if (emailChecking) return;
@@ -68,7 +78,14 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
             value={draft.name}
             onChange={(event) => update('name', event.target.value)}
             placeholder="성이름"
+            aria-invalid={nameInvalid}
+            aria-describedby={nameInvalid ? 'signup-name-error' : undefined}
           />
+          {nameInvalid ? (
+            <small id="signup-name-error" className="field-error" role="alert">
+              {SIGNUP_NAME_ERROR}
+            </small>
+          ) : null}
         </FormField>
         <div className="form-field">
           <span>생년월일</span>
@@ -120,7 +137,9 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
               type={visible ? 'text' : 'password'}
               value={draft.password}
               onChange={(event) => update('password', event.target.value)}
-              placeholder="대문자, 특수문자 포함 8자 이상"
+              placeholder="영문, 숫자, 특수문자 포함 8자 이상"
+              aria-invalid={passwordInvalid}
+              aria-describedby={passwordInvalid ? 'signup-password-error' : undefined}
             />
             <button
               type="button"
@@ -130,6 +149,11 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
               <EyeOpenIcon />
             </button>
           </div>
+          {passwordInvalid ? (
+            <small id="signup-password-error" className="field-error" role="alert">
+              {SIGNUP_PASSWORD_ERROR}
+            </small>
+          ) : null}
         </FormField>
         <FormField label="비밀번호 확인">
           <div className="input-with-icon">
