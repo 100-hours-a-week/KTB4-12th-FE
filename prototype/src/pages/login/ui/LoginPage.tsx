@@ -14,9 +14,10 @@ export function LoginPage({
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const ready = email.trim().length > 0 && password.length > 0;
 
   const submit = async () => {
-    if (submitting) return;
+    if (submitting || !ready) return;
     setSubmitting(true);
     setError('');
     try {
@@ -70,7 +71,7 @@ export function LoginPage({
       <button
         type="button"
         className="primary signup-submit"
-        disabled={submitting}
+        disabled={submitting || !ready}
         onClick={submit}
       >
         {submitting ? '로그인 중' : '로그인'}
