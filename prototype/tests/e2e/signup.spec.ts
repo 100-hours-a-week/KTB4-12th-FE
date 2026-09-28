@@ -72,6 +72,32 @@ test('만 14세 미만 응답은 가입 불가 사유를 명확히 안내한다'
   await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'terms');
 });
 
+test('약관 상세는 서버 본문의 문단 구조를 유지하고 닫을 수 있다', async ({ page }) => {
+  await fillSignupForm(page);
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+
+  await page
+    .getByRole('button', {
+      name: '(필수) 개인정보 수집 및 이용 동의서 상세 보기',
+      exact: true,
+    })
+    .click();
+
+  const detailSheet = page.getByTestId('bottom-sheet');
+  const detailCopy = detailSheet.locator('.terms-detail-copy');
+  await expect(
+    detailSheet.getByRole('heading', { name: '개인정보 수집 및 이용 동의서' }),
+  ).toBeVisible();
+  await expect(detailCopy).toContainText('1. 수집하는 개인정보');
+  await expect(
+    detailSheet.getByRole('heading', { name: '1. 수집하는 개인정보', level: 3 }),
+  ).toBeVisible();
+  await expect(detailCopy).toHaveCSS('white-space', 'pre-wrap');
+
+  await detailSheet.getByRole('button', { name: '약관 상세 닫기' }).click();
+  await expect(detailSheet).not.toBeVisible();
+});
+
 test('필수 약관만 동의한 신규 사용자가 회원가입을 완료한다', async ({ page }) => {
   await fillSignupForm(page);
 
