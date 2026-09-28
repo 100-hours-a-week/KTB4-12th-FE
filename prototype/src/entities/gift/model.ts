@@ -41,7 +41,7 @@ export type SentGiftResult = {
     quantity: number;
     unitPrice: number;
     totalPrice: number;
-    imageUrl: string;
+    imageUrl: string | null;
   };
 };
 
