@@ -42,7 +42,6 @@ const PRODUCT_SORT_OPTIONS: ReadonlyArray<{
   value: ProductSort;
 }> = [
   { label: '인기순', value: 'POPULAR' },
-  { label: 'AI 추천순', value: 'AI_RECOMMENDED' },
   { label: '구매순', value: 'MOST_GIFTED' },
 ];
 

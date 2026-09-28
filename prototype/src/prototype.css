@@ -62,6 +62,10 @@ textarea:focus-visible,
 .mobile-scroll-content {
   min-height: 100%;
 }
+
+.route-preserved-page {
+  display: none;
+}
 .screen-body {
   min-height: 100%;
 }

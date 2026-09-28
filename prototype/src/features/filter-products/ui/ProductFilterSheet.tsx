@@ -8,6 +8,7 @@ type ProductFilterSheetProps = {
   open: boolean;
   options: ProductCategory[];
   selected: number[];
+  loading: boolean;
   error: string;
   onApply: (categoryIds: number[]) => void;
   onRetry: () => void;
@@ -18,6 +19,7 @@ export function ProductFilterSheet({
   open,
   options,
   selected,
+  loading,
   error,
   onApply,
   onRetry,
@@ -75,7 +77,9 @@ export function ProductFilterSheet({
           </div>
         ) : null}
 
-        {!error && options.length === 0 ? (
+        {loading ? <p className="category-filter-state">카테고리를 불러오는 중</p> : null}
+
+        {!loading && !error && options.length === 0 ? (
           <p className="category-filter-state">선택할 수 있는 카테고리가 없어요.</p>
         ) : null}
 
@@ -134,7 +138,12 @@ export function ProductFilterSheet({
         <button type="button" className="secondary" onClick={() => setDraftSelected([])}>
           초기화
         </button>
-        <button type="button" className="primary" onClick={apply}>
+        <button
+          type="button"
+          className="primary"
+          disabled={loading || Boolean(error)}
+          onClick={apply}
+        >
           {draftSelected.length ? `${draftSelected.length}개 적용하기` : '전체 상품 보기'}
         </button>
       </div>
