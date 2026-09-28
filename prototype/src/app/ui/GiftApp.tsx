@@ -219,14 +219,9 @@ export function GiftApp() {
       termConsents: consents,
     });
     setSignupDraft(emptySignupDraft);
-    const result = await apiLogin(draft.email.trim(), draft.password);
-    saveSession({
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken ?? '',
-      expiresIn: result.expiresIn,
-      user: result.user,
-    });
-    enterApp(result.isFirstLogin);
+    setHistory([]);
+    setRoute('login');
+    setToast('회원가입이 완료됐어요. 로그인해 주세요.');
   };
 
   const setBirthdayPublic = (isBirthdayPublic: boolean) => {

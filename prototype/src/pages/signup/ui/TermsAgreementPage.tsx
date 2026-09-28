@@ -112,7 +112,7 @@ export function TermsAgreementPage({
         />
       )}
       <div className="terms-page-footer">
-        <p>동의하고 회원가입을 완료하면 서비스를 바로 이용할 수 있어요.</p>
+        <p>동의하고 회원가입을 완료하면 로그인 화면으로 이동해요.</p>
         {submitError ? (
           <p className="signup-submit-error" role="alert">
             {submitError}
