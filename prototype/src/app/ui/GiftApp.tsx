@@ -18,6 +18,7 @@ import {
 import { AddFriendSheet } from '../../features/add-friend';
 import { EditBirthdaySheet } from '../../features/edit-birthday';
 import { ProductFilterSheet } from '../../features/filter-products';
+import { BugReportWidget } from '../../features/report-bug';
 import { MobileScroll, useKeyboard, useScreenPortal } from '../../mobile';
 import type { SignupDraft } from '../../pages/signup';
 import { AUTH_FLAG_KEY, clearSession, loadSession, saveSession } from '../../shared/api/session';
@@ -337,6 +338,8 @@ export function GiftApp() {
       {showBottomNav ? <BottomNavigation route={route} onSelect={setTab} /> : null}
 
       <Toast message={toast} container={screenRef.current} />
+
+      <BugReportWidget containerRef={screenRef} raised={showBottomNav} />
 
       <AddFriendSheet
         open={friendSheetOpen}
