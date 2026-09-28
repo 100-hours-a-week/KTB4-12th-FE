@@ -1,5 +1,8 @@
 import { PRODUCT_IMAGE } from '../../shared/config/assets';
 
+// 백엔드 GiftPolicy.MAX_QUANTITY와 동일한 값. 초과 요청은 생성/사전검증 API에서 모두 400으로 거부된다.
+export const MAX_GIFT_QUANTITY = 10;
+
 export type ReceivedGift = {
   giftId: number;
   receivedAt: string;
