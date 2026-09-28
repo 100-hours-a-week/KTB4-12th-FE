@@ -137,7 +137,7 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
               type={visible ? 'text' : 'password'}
               value={draft.password}
               onChange={(event) => update('password', event.target.value)}
-              placeholder="대문자, 특수문자 포함 8자 이상"
+              placeholder="영문, 숫자, 특수문자 포함 8자 이상"
               aria-invalid={passwordInvalid}
               aria-describedby={passwordInvalid ? 'signup-password-error' : undefined}
             />
