@@ -61,7 +61,7 @@ test('사용자가 상품을 검색하고 상세 화면에서 목록으로 돌�
     .getByRole('button', { name: '선물' })
     .click();
 
-  await page.getByPlaceholder('상품명을 입력해 주세요.').fill('프리미엄 티 세트');
+  await page.getByPlaceholder('상품명 또는 브랜드를 입력해 주세요.').fill('프리미엄 티 세트');
   const products = page.locator('.product-card');
   await expect(products).toHaveCount(15);
   await products.first().click();
@@ -97,7 +97,7 @@ test('공백만 입력한 상품명으로는 검색하지 않는다', async ({ p
     .getByRole('button', { name: '선물' })
     .click();
 
-  const searchInput = page.getByPlaceholder('상품명을 입력해 주세요.');
+  const searchInput = page.getByPlaceholder('상품명 또는 브랜드를 입력해 주세요.');
 
   await searchInput.fill('   ');
   await page.waitForTimeout(400);

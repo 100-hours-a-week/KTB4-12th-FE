@@ -85,7 +85,7 @@ export function GiftsPage({
           <KeyboardInput
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="상품명을 입력해 주세요."
+            placeholder="상품명 또는 브랜드를 입력해 주세요."
             maxLength={PRODUCT_SEARCH_MAX_LENGTH}
           />
         </div>
