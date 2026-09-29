@@ -37,7 +37,6 @@ export function LoginPage({
         <img src="/assets/brand/sunjalal-app-icon.png" alt="" aria-hidden="true" />
         <div>
           <h1 className="brand-title">선잘알</h1>
-          <span>SUNJALAL</span>
         </div>
       </div>
       <p className="brand-message">선물을 더 쉽게, 마음을 더 가깝게</p>

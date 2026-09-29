@@ -16,11 +16,15 @@ export function FriendsPage({
   onAdd: () => void;
   onGift: (friend: Friend) => void;
 }) {
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [searchEditing, setSearchEditing] = useState(false);
   const keyboard = useKeyboard();
-  const loader = useCallback((cursor: string | null) => fetchFriends(cursor, search), [search]);
-  const list = useCursorList(loader, `${search}:${refreshKey}`);
+  const searchQuery = searchInput.trim();
+  const loader = useCallback(
+    (cursor: string | null) => fetchFriends(cursor, searchQuery),
+    [searchQuery],
+  );
+  const list = useCursorList(loader, `${searchQuery}:${refreshKey}`);
 
   return (
     <section className="page">
@@ -39,29 +43,29 @@ export function FriendsPage({
             autoFocus
             aria-label="친구 이름 검색"
             placeholder="친구 이름 검색"
-            value={search}
+            value={searchInput}
             onBlur={() => {
               setSearchEditing(false);
               keyboard.hide();
             }}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => setSearchInput(event.target.value)}
           />
         ) : (
           <button
             type="button"
-            className={`inline-search-trigger ${search ? 'has-value' : ''}`}
+            className={`inline-search-trigger ${searchInput ? 'has-value' : ''}`}
             aria-label="친구 이름 검색"
             onClick={() => setSearchEditing(true)}
           >
-            {search || '친구 이름 검색'}
+            {searchInput || '친구 이름 검색'}
           </button>
         )}
-        {search ? (
+        {searchInput ? (
           <button
             type="button"
             className="clear-search"
             aria-label="검색어 지우기"
-            onClick={() => setSearch('')}
+            onClick={() => setSearchInput('')}
           >
             <Cross1Icon />
           </button>
@@ -88,7 +92,7 @@ export function FriendsPage({
       <InfiniteCursor
         {...list}
         itemCount={list.items.length}
-        emptyLabel={search ? '검색 결과가 없어요' : '등록된 친구가 없어요'}
+        emptyLabel={searchQuery ? '검색 결과가 없어요' : '등록된 친구가 없어요'}
         onLoadMore={list.loadMore}
         onRetry={() => {
           recoverQaScenario('friend-list-error');
