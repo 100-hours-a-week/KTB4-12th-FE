@@ -1,6 +1,7 @@
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon, Cross1Icon } from '@radix-ui/react-icons';
 import { useEffect, useState } from 'react';
 
+import { getCategoryIcon } from '../../../entities/category';
 import type { ProductCategory } from '../../../entities/product';
 import { BottomSheet } from '../../../mobile';
 
@@ -85,6 +86,7 @@ export function ProductFilterSheet({
 
         {options.map((parent) => {
           const expanded = expandedCategoryId === parent.categoryId;
+          const CategoryIcon = getCategoryIcon(parent.categoryId, parent.name);
           const selectedCount = parent.children.filter((child) =>
             draftSelected.includes(child.categoryId),
           ).length;
@@ -103,10 +105,13 @@ export function ProductFilterSheet({
                 }
               >
                 <span>
-                  {expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                  <CategoryIcon />
                   {parent.name}
                 </span>
-                {selectedCount ? <small>{selectedCount}개 선택</small> : null}
+                <span className="category-parent-meta">
+                  {selectedCount ? <small>{selectedCount}개 선택</small> : null}
+                  {expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                </span>
               </button>
 
               {expanded ? (

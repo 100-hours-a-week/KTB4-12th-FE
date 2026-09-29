@@ -107,7 +107,7 @@ test('사용자가 카테고리 필터를 적용한다', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: '카테고리 필터' })).toBeVisible();
   await page.getByRole('button', { name: '뷰티' }).click();
-  await page.locator('.category-child-row').filter({ hasText: '뷰티' }).click();
+  await page.locator('.category-child-row').filter({ hasText: '스킨케어' }).click();
   await page.getByRole('button', { name: '1개 적용하기' }).click();
 
   await expect(page.getByRole('button', { name: '필터, 1개 선택됨' })).toBeVisible();

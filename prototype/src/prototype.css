@@ -1026,6 +1026,17 @@ textarea:focus-visible,
   align-items: center;
   gap: 10px;
 }
+.category-parent-row > span:first-child > svg {
+  width: 18px;
+  height: 18px;
+}
+.category-parent-row .category-parent-meta {
+  gap: 8px;
+}
+.category-parent-meta > svg {
+  width: 15px;
+  height: 15px;
+}
 .category-parent-row small {
   color: var(--muted);
   font-size: 11px;
