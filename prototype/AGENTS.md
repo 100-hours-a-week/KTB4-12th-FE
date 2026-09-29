@@ -70,6 +70,7 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 
 - The v1 scope includes sent-gift and received-gift lists, but excludes their detail screens and review edit/delete flows. Keep list cards non-interactive until that scope changes explicitly.
 - Signup follows `B-02 form → B-03 terms → account creation`. The form action is labeled "다음", its draft survives a round trip back from terms, and no account is created until the terms action labeled "동의하고 회원가입" runs. The terms screen contains required privacy and gift-history consents plus the optional review/rating AI-improvement consent; only the two required consents gate completion.
+- On the signup terms screen, always display every required term before any optional term, regardless of the order returned by the API.
 
 - Bottom sheets must overlay the current screen without translating or scrolling the background. Opening a sheet may animate only the overlay and sheet; preserve the background screen position until the sheet closes.
 
