@@ -71,7 +71,7 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
         <button type="button" aria-label="뒤로 가기" onClick={onBack}>
           <ArrowLeftIcon />
         </button>
-        <strong>선잘알</strong>
+        <strong>회원가입</strong>
       </header>
       <div className="signup-form-body">
         <FormField label="이름">
@@ -104,25 +104,27 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
           </button>
         </div>
         <FormField label="이메일">
-          <KeyboardInput
-            value={draft.email}
-            onChange={(event) =>
-              onDraftChange((current) => ({
-                ...current,
-                email: event.target.value,
-                emailVerified: false,
-              }))
-            }
-            placeholder="email@email.com"
-          />
-          <button
-            type="button"
-            className="duplicate-check"
-            disabled={!draft.email.includes('@') || emailChecking}
-            onClick={checkEmail}
-          >
-            {draft.emailVerified ? '확인 완료' : emailChecking ? '확인 중' : '중복확인'}
-          </button>
+          <div className="input-with-icon">
+            <KeyboardInput
+              value={draft.email}
+              onChange={(event) =>
+                onDraftChange((current) => ({
+                  ...current,
+                  email: event.target.value,
+                  emailVerified: false,
+                }))
+              }
+              placeholder="email@email.com"
+            />
+            <button
+              type="button"
+              className="duplicate-check"
+              disabled={!draft.email.includes('@') || emailChecking}
+              onClick={checkEmail}
+            >
+              {draft.emailVerified ? '확인 완료' : emailChecking ? '확인 중' : '중복확인'}
+            </button>
+          </div>
           {draft.emailVerified ? (
             <small className="field-success">사용할 수 있는 이메일입니다.</small>
           ) : null}

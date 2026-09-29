@@ -1,4 +1,5 @@
-import { apiGet, apiPatch, USE_MOCK_API } from '../../shared/api/client';
+import { ApiError, apiGet, apiPatch, USE_MOCK_API } from '../../shared/api/client';
+import { isQaScenario } from '../../shared/config/qaScenario';
 import type { MyProfile, SearchedUser } from './model';
 
 function delay(ms = 240) {
@@ -60,6 +61,9 @@ export async function completeOnboarding(): Promise<{ isFirstLogin: boolean }> {
 export async function searchUserByEmail(email: string): Promise<SearchedUser | null> {
   if (USE_MOCK_API) {
     await delay(300);
+    if (isQaScenario('friend-search-error')) {
+      throw new ApiError('친구 검색에 실패했습니다.', 500, { code: 'INTERNAL_SERVER_ERROR' });
+    }
     const found = searchFriendsMock.find(
       (friend) => friend.email.toLowerCase() === email.trim().toLowerCase(),
     );
@@ -73,6 +77,7 @@ export async function searchUserByEmail(email: string): Promise<SearchedUser | n
 
 // 목업용 친구 추가 대상 (features/add-friend의 기존 목업 데이터와 동일)
 const searchFriendsMock = [
+  { userId: 1, name: '홍길동', email: 'email@email.com' },
   { userId: 27, name: '김민정', email: 'kakaa@kakao.co.kr' },
   { userId: 31, name: '김민주', email: 'kakaminjoo@kakao.co.kr' },
   { userId: 33, name: '박민지', email: 'kakapark@kakao.co.kr' },
