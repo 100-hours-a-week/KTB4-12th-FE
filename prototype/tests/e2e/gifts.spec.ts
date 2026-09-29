@@ -61,7 +61,8 @@ test('사용자가 상품을 검색하고 상세 화면에서 목록으로 돌�
     .getByRole('button', { name: '선물' })
     .click();
 
-  await page.getByPlaceholder('상품명을 입력해 주세요.').fill('프리미엄 티 세트');
+  await page.getByPlaceholder('상품명을 입력하고 검색 버튼을 눌러 주세요').fill('프리미엄 티 세트');
+  await page.getByRole('button', { name: '상품 검색' }).click();
   const products = page.locator('.product-card');
   await expect(products).toHaveCount(15);
   await products.first().click();
