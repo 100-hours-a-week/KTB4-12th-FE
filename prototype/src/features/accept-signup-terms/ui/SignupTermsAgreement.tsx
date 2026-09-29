@@ -15,12 +15,14 @@ export type AgreementTerm = {
 };
 
 export function toAgreementTerms(signupTerms: SignupTerm[]): AgreementTerm[] {
-  return signupTerms.map((term) => ({
-    id: term.termCode,
-    label: `(${term.isRequired ? '필수' : '선택'}) ${term.title}`,
-    required: term.isRequired,
-    detail: { title: term.title, content: term.content },
-  }));
+  return [...signupTerms]
+    .sort((left, right) => Number(right.isRequired) - Number(left.isRequired))
+    .map((term) => ({
+      id: term.termCode,
+      label: `(${term.isRequired ? '필수' : '선택'}) ${term.title}`,
+      required: term.isRequired,
+      detail: { title: term.title, content: term.content },
+    }));
 }
 
 type SignupTermsAgreementProps = {
