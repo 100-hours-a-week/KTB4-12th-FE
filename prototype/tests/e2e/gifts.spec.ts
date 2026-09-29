@@ -76,6 +76,23 @@ test('사용자가 상품을 검색하고 상세 화면에서 목록으로 돌�
   await expect(page.getByRole('heading', { name: '선물 탐색' })).toBeVisible();
 });
 
+test('상품 목록의 모든 이미지가 같은 크기로 표시된다', async ({ page }) => {
+  await page
+    .getByRole('navigation', { name: '하단 메뉴' })
+    .getByRole('button', { name: '선물' })
+    .click();
+  await expect(page.locator('.product-card img')).toHaveCount(20);
+
+  const imageSizes = await page.locator('.product-card img').evaluateAll((images) =>
+    images.map((image) => {
+      const { width, height } = image.getBoundingClientRect();
+      return { width, height };
+    }),
+  );
+  expect(new Set(imageSizes.map(({ width, height }) => `${width}:${height}`)).size).toBe(1);
+  expect(imageSizes[0].width).toBe(imageSizes[0].height);
+});
+
 test('새로고침 후에도 현재 메인 탭을 유지한다', async ({ page }) => {
   await page
     .getByRole('navigation', { name: '하단 메뉴' })
