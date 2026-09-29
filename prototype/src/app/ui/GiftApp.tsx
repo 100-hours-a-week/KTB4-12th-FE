@@ -66,13 +66,20 @@ const emptySignupDraft: SignupDraft = {
   passwordConfirmation: '',
 };
 
+const MAIN_TAB_STORAGE_KEY = 'gift-prototype-main-tab';
+
+function getStoredMainTab(): MainTabRoute {
+  const storedTab = window.localStorage.getItem(MAIN_TAB_STORAGE_KEY);
+  return storedTab === 'gifts' || storedTab === 'mypage' ? storedTab : 'friends';
+}
+
 export function GiftApp() {
   const keyboard = useKeyboard();
   const { screenRef } = useScreenPortal();
   const [route, setRoute] = useState<Route>(() => {
     if (window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' || !loadSession())
       return 'login';
-    return getQaInitialRoute() ?? 'friends';
+    return getQaInitialRoute() ?? getStoredMainTab();
   });
   const [history, setHistory] = useState<Route[]>([]);
   const [friendSheetOpen, setFriendSheetOpen] = useState(false);
@@ -138,6 +145,7 @@ export function GiftApp() {
     dismissKeyboard();
     setHistory([]);
     setRoute(next);
+    window.localStorage.setItem(MAIN_TAB_STORAGE_KEY, next);
     setGiftRecipient(null);
     setPendingRecipientSelection(false);
     if (next === 'mypage') void refreshProfile();
