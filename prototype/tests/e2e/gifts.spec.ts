@@ -61,7 +61,8 @@ test('사용자가 상품을 검색하고 상세 화면에서 목록으로 돌�
     .getByRole('button', { name: '선물' })
     .click();
 
-  await page.getByPlaceholder('상품명을 입력해 주세요.').fill('프리미엄 티 세트');
+  await page.getByPlaceholder('상품명을 입력하고 검색 버튼을 눌러 주세요').fill('프리미엄 티 세트');
+  await page.getByRole('button', { name: '상품 검색' }).click();
   const products = page.locator('.product-card');
   await expect(products).toHaveCount(15);
   await products.first().click();
@@ -90,6 +91,22 @@ test('상품 목록의 모든 이미지가 같은 크기로 표시된다', async
   );
   expect(new Set(imageSizes.map(({ width, height }) => `${width}:${height}`)).size).toBe(1);
   expect(imageSizes[0].width).toBe(imageSizes[0].height);
+});
+
+test('새로고침 후에도 현재 메인 탭을 유지한다', async ({ page }) => {
+  await page
+    .getByRole('navigation', { name: '하단 메뉴' })
+    .getByRole('button', { name: '선물' })
+    .click();
+  await expect(page.getByRole('heading', { name: '선물 탐색' })).toBeVisible();
+
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: '선물 탐색' })).toBeVisible();
+  await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'gifts');
+  await expect(
+    page.getByRole('navigation', { name: '하단 메뉴' }).getByRole('button', { name: '선물' }),
+  ).toHaveAttribute('aria-current', 'page');
 });
 
 test('상품 상세에서 돌아가면 선물 목록의 스크롤 위치를 복원한다', async ({ page }) => {
@@ -123,7 +140,7 @@ test('사용자가 카테고리 필터를 적용한다', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: '카테고리 필터' })).toBeVisible();
   await page.getByRole('button', { name: '뷰티' }).click();
-  await page.locator('.category-child-row').filter({ hasText: '뷰티' }).click();
+  await page.locator('.category-child-row').filter({ hasText: '스킨케어' }).click();
   await page.getByRole('button', { name: '1개 적용하기' }).click();
 
   await expect(page.getByRole('button', { name: '필터, 1개 선택됨' })).toBeVisible();

@@ -44,6 +44,8 @@ const PRODUCT_SORT_OPTIONS: ReadonlyArray<{
   { label: '구매순', value: 'MOST_GIFTED' },
 ];
 
+const PRODUCT_SEARCH_MAX_LENGTH = 100;
+
 export function GiftsPage({
   filterCount,
   filterCategoryIds,
@@ -56,7 +58,9 @@ export function GiftsPage({
   onProduct: (product: Product) => void;
 }) {
   const [sort, setSort] = useState<ProductSort>('POPULAR');
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
+  const submitSearch = () => setSearch(searchInput.trim());
   const loader = useCallback(
     (cursor: string | null) => fetchProducts(cursor, search, sort, filterCategoryIds),
     [search, sort, filterCategoryIds],
@@ -68,11 +72,25 @@ export function GiftsPage({
       <ScreenHeader title="선물 탐색" />
       <div className="gift-search-row">
         <div className="inline-search">
-          <MagnifyingGlassIcon />
+          <button
+            type="button"
+            className="inline-search-submit"
+            aria-label="상품 검색"
+            onClick={submitSearch}
+          >
+            <MagnifyingGlassIcon />
+          </button>
           <KeyboardInput
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="상품명을 입력해 주세요."
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                submitSearch();
+              }
+            }}
+            placeholder="상품명을 입력하고 검색 버튼을 눌러 주세요"
+            maxLength={PRODUCT_SEARCH_MAX_LENGTH}
           />
         </div>
         <button

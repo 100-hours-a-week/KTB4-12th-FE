@@ -1,14 +1,30 @@
-const SIGNUP_NAME_PATTERN = /^[가-힣A-Za-z](?:[가-힣A-Za-z ]*[가-힣A-Za-z])?$/;
-const SIGNUP_PASSWORD_PATTERN =
-  /^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=])[A-Za-z0-9!@#$%^&*()_+\-=]+$/;
+import {
+  EMAIL_FORMAT_ERROR,
+  EMAIL_MAX_LENGTH,
+  isValidEmailFormat,
+  isValidPassword,
+  PASSWORD_FORMAT_ERROR,
+  PASSWORD_MAX_LENGTH,
+} from '../../shared/lib/authValidation';
 
-export const SIGNUP_NAME_ERROR = '이름은 한글 또는 영문으로 1~30자 이내로 입력해 주세요.';
-export const SIGNUP_PASSWORD_ERROR = '영문, 숫자, 특수문자를 포함하여 8~64자로 입력해 주세요.';
+const SIGNUP_NAME_PATTERN = /^[가-힣A-Za-z](?:[가-힣A-Za-z ]*[가-힣A-Za-z])?$/;
+
+export const SIGNUP_NAME_MAX_LENGTH = 30;
+export const SIGNUP_EMAIL_MAX_LENGTH = EMAIL_MAX_LENGTH;
+export const SIGNUP_PASSWORD_MAX_LENGTH = PASSWORD_MAX_LENGTH;
+
+export const SIGNUP_NAME_ERROR = `한글 또는 영문으로 1~${SIGNUP_NAME_MAX_LENGTH}자 이내로 입력해 주세요.`;
+export const SIGNUP_EMAIL_ERROR = EMAIL_FORMAT_ERROR;
+export const SIGNUP_PASSWORD_ERROR = PASSWORD_FORMAT_ERROR;
 
 export function isValidSignupName(name: string) {
-  return name.length <= 30 && SIGNUP_NAME_PATTERN.test(name);
+  return name.length <= SIGNUP_NAME_MAX_LENGTH && SIGNUP_NAME_PATTERN.test(name);
+}
+
+export function isValidSignupEmail(email: string) {
+  return isValidEmailFormat(email);
 }
 
 export function isValidSignupPassword(password: string) {
-  return password.length >= 8 && password.length <= 64 && SIGNUP_PASSWORD_PATTERN.test(password);
+  return isValidPassword(password);
 }

@@ -140,6 +140,16 @@ textarea:focus-visible,
 .inline-search input::placeholder {
   color: #77746f;
 }
+.inline-search-submit {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
 .inline-search-trigger {
   flex: 1;
   min-width: 0;
@@ -1015,6 +1025,17 @@ textarea:focus-visible,
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.category-parent-row > span:first-child > svg {
+  width: 18px;
+  height: 18px;
+}
+.category-parent-row .category-parent-meta {
+  gap: 8px;
+}
+.category-parent-meta > svg {
+  width: 15px;
+  height: 15px;
 }
 .category-parent-row small {
   color: var(--muted);
