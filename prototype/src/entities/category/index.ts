@@ -1,1 +1,1 @@
-export { categories } from './model';
+export { categories, categoryTree } from './model';
