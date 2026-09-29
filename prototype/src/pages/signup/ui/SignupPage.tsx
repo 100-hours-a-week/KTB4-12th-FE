@@ -85,7 +85,7 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
           <KeyboardInput
             value={draft.name}
             onChange={(event) => update('name', event.target.value)}
-            placeholder="예: 홍길동"
+            placeholder="이름을 입력해주세요"
             maxLength={SIGNUP_NAME_MAX_LENGTH}
             aria-invalid={nameInvalid}
             aria-describedby={nameInvalid ? 'signup-name-error' : undefined}
