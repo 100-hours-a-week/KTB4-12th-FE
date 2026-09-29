@@ -1,27 +1,29 @@
 import {
   CookieIcon,
   DotsHorizontalIcon,
-  HeartFilledIcon,
+  FaceIcon,
   HobbyKnifeIcon,
   HomeIcon,
   LaptopIcon,
   MagicWandIcon,
-  SewingPinFilledIcon,
 } from '@radix-ui/react-icons';
 
-export type CategoryIcon = typeof HomeIcon;
+import type { CategoryIcon } from './icons';
+import { FashionIcon, FoodIcon, PetIcon, VoucherIcon } from './icons';
+
+export type { CategoryIcon } from './icons';
 
 export const categories: Array<{ categoryId: number; name: string; Icon: CategoryIcon }> = [
   { categoryId: 1, name: '뷰티', Icon: MagicWandIcon },
-  { categoryId: 2, name: '패션', Icon: SewingPinFilledIcon },
+  { categoryId: 2, name: '패션', Icon: FashionIcon },
   { categoryId: 3, name: '카페·디저트', Icon: CookieIcon },
-  { categoryId: 4, name: '식품', Icon: HeartFilledIcon },
+  { categoryId: 4, name: '식품', Icon: FoodIcon },
   { categoryId: 5, name: '생활', Icon: HomeIcon },
   { categoryId: 6, name: '디지털·가전', Icon: LaptopIcon },
   { categoryId: 7, name: '취미·여가', Icon: HobbyKnifeIcon },
-  { categoryId: 8, name: '유아·키즈', Icon: DotsHorizontalIcon },
-  { categoryId: 9, name: '반려동물', Icon: DotsHorizontalIcon },
-  { categoryId: 10, name: '상품권', Icon: DotsHorizontalIcon },
+  { categoryId: 8, name: '유아·키즈', Icon: FaceIcon },
+  { categoryId: 9, name: '반려동물', Icon: PetIcon },
+  { categoryId: 10, name: '상품권', Icon: VoucherIcon },
 ];
 
 export const categoryTree = [
@@ -93,3 +95,41 @@ export const categoryTree = [
     name,
   })),
 }));
+
+const categoryIconAliases: Array<{ keywords: string[]; Icon: CategoryIcon }> = [
+  { keywords: ['상품권', '기프티콘'], Icon: VoucherIcon },
+  { keywords: ['반려동물', '펫'], Icon: PetIcon },
+  { keywords: ['유아', '키즈', '아동', '육아'], Icon: FaceIcon },
+  { keywords: ['뷰티', '화장품', '미용'], Icon: MagicWandIcon },
+  { keywords: ['카페', '디저트', '커피', '음료'], Icon: CookieIcon },
+  { keywords: ['식품', '음식'], Icon: FoodIcon },
+  { keywords: ['패션', '의류', '잡화'], Icon: FashionIcon },
+  { keywords: ['테크', '디지털', '가전', '전자'], Icon: LaptopIcon },
+  { keywords: ['생활', '리빙', '주방', '가구'], Icon: HomeIcon },
+  { keywords: ['취미', '여가', '스포츠'], Icon: HobbyKnifeIcon },
+  { keywords: ['건강', '헬스'], Icon: FoodIcon },
+];
+
+function normalizeCategoryName(name: string) {
+  return name
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[\s/&·_-]/g, '');
+}
+
+export function getCategoryIcon(categoryId: number, name: string): CategoryIcon {
+  const category = categories.find((item) => item.categoryId === categoryId);
+  if (category) return category.Icon;
+
+  const parentCategory = categoryTree.find((item) =>
+    item.children.some((child) => child.categoryId === categoryId),
+  );
+  if (parentCategory) return parentCategory.Icon;
+
+  const normalizedName = normalizeCategoryName(name);
+  const match = categoryIconAliases.find(({ keywords }) =>
+    keywords.some((keyword) => normalizedName.includes(normalizeCategoryName(keyword))),
+  );
+
+  return match?.Icon ?? DotsHorizontalIcon;
+}
