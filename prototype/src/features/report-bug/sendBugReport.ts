@@ -1,6 +1,9 @@
 import { API_BASE_URL } from '../../shared/api/client';
 
+export type ReportCategory = 'bug' | 'suggestion' | 'help';
+
 export interface BugReportContext {
+  reportId: string;
   pageUrl: string;
   route: string;
   viewport: string;
@@ -10,11 +13,18 @@ export interface BugReportContext {
 }
 
 export interface BugReportPayload {
+  category: ReportCategory;
   message: string;
   screenshot: Blob | null;
   errorsText: string;
   context: BugReportContext;
 }
+
+const CATEGORY_META: Record<ReportCategory, { title: string; label: string; color: number }> = {
+  bug: { title: '🐞 버그 제보', label: '버그', color: 0xed5258 },
+  suggestion: { title: '💡 제안', label: '제안', color: 0xf1c40f },
+  help: { title: '🙋 도움 요청', label: '도움', color: 0x4c9aff },
+};
 
 // ⚠️ 보안 주의: VITE_ 접두사 환경변수는 클라이언트 번들에 그대로 포함된다.
 // 즉 아래 Discord 웹훅 URL은 빌드 산출물에서 누구나 볼 수 있고,
@@ -62,12 +72,15 @@ function embedLength(embed: Embed): number {
 
 function buildEmbed(payload: BugReportPayload, screenshotName: string | null): Embed {
   const { context } = payload;
+  const meta = CATEGORY_META[payload.category];
   const embed: Embed = {
-    title: '🐞 버그 제보',
+    title: meta.title,
     description: clamp(payload.message, DISCORD_LIMITS.description),
-    color: 0xed5258,
+    color: meta.color,
     timestamp: context.reportedAt,
     fields: [
+      { name: '카테고리', value: meta.label, inline: true },
+      { name: '제보 ID', value: context.reportId },
       { name: '페이지 URL', value: clamp(context.pageUrl, DISCORD_LIMITS.fieldValue) },
       { name: '라우트', value: clamp(context.route, DISCORD_LIMITS.fieldValue), inline: true },
       { name: '뷰포트', value: clamp(context.viewport, DISCORD_LIMITS.fieldValue), inline: true },
