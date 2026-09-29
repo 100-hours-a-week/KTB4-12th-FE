@@ -5,10 +5,15 @@ import { checkEmailAvailability } from '../../../entities/auth';
 import { BottomSheet, KeyboardInput } from '../../../mobile';
 import { BirthdayFields, FormField } from '../../../shared/ui';
 import {
+  isValidSignupEmail,
   isValidSignupName,
   isValidSignupPassword,
+  SIGNUP_EMAIL_ERROR,
+  SIGNUP_EMAIL_MAX_LENGTH,
   SIGNUP_NAME_ERROR,
+  SIGNUP_NAME_MAX_LENGTH,
   SIGNUP_PASSWORD_ERROR,
+  SIGNUP_PASSWORD_MAX_LENGTH,
 } from '../validation';
 
 export type SignupDraft = {
@@ -37,10 +42,12 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
   const update = <Key extends keyof SignupDraft>(field: Key, value: SignupDraft[Key]) =>
     onDraftChange((current) => ({ ...current, [field]: value }));
   const validName = isValidSignupName(draft.name);
+  const validEmailFormat = isValidSignupEmail(draft.email);
   const validPassword = isValidSignupPassword(draft.password);
   const passwordMatches =
     Boolean(draft.passwordConfirmation) && draft.password === draft.passwordConfirmation;
   const nameInvalid = Boolean(draft.name) && !validName;
+  const emailFormatInvalid = Boolean(draft.email) && !validEmailFormat && !draft.emailVerified;
   const passwordInvalid = Boolean(draft.password) && !validPassword;
   const ready =
     validName && Boolean(draft.birthday) && draft.emailVerified && validPassword && passwordMatches;
@@ -78,7 +85,8 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
           <KeyboardInput
             value={draft.name}
             onChange={(event) => update('name', event.target.value)}
-            placeholder="성이름"
+            placeholder="예: 홍길동"
+            maxLength={SIGNUP_NAME_MAX_LENGTH}
             aria-invalid={nameInvalid}
             aria-describedby={nameInvalid ? 'signup-name-error' : undefined}
           />
@@ -113,16 +121,24 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
                 emailVerified: false,
               }))
             }
-            placeholder="email@email.com"
+            placeholder="가입에 사용할 이메일 주소를 입력해 주세요"
+            maxLength={SIGNUP_EMAIL_MAX_LENGTH}
+            aria-invalid={emailFormatInvalid}
+            aria-describedby={emailFormatInvalid ? 'signup-email-error' : undefined}
           />
           <button
             type="button"
             className="duplicate-check"
-            disabled={!draft.email.includes('@') || emailChecking}
+            disabled={!validEmailFormat || emailChecking}
             onClick={checkEmail}
           >
             {draft.emailVerified ? '확인 완료' : emailChecking ? '확인 중' : '중복확인'}
           </button>
+          {emailFormatInvalid ? (
+            <small id="signup-email-error" className="field-error" role="alert">
+              {SIGNUP_EMAIL_ERROR}
+            </small>
+          ) : null}
           {draft.emailVerified ? (
             <small className="field-success">사용할 수 있는 이메일입니다.</small>
           ) : null}
@@ -138,7 +154,8 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
               type={passwordVisible ? 'text' : 'password'}
               value={draft.password}
               onChange={(event) => update('password', event.target.value)}
-              placeholder="영문, 숫자, 특수문자 포함 8자 이상"
+              placeholder="영문, 숫자, 특수문자 포함 8~64자"
+              maxLength={SIGNUP_PASSWORD_MAX_LENGTH}
               aria-invalid={passwordInvalid}
               aria-describedby={passwordInvalid ? 'signup-password-error' : undefined}
             />
@@ -164,6 +181,7 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
               value={draft.passwordConfirmation}
               onChange={(event) => update('passwordConfirmation', event.target.value)}
               placeholder="비밀번호를 다시 입력해 주세요"
+              maxLength={SIGNUP_PASSWORD_MAX_LENGTH}
             />
             <button
               type="button"
