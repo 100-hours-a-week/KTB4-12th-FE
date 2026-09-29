@@ -1646,6 +1646,30 @@ textarea:focus-visible,
   font-size: 16px;
 }
 
+.bug-report-categories {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.bug-report-chip {
+  flex: 1;
+  padding: 8px 0;
+  border: 1px solid #eadbd7;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bug-report-chip.selected {
+  border-color: var(--accent);
+  background: #fff0ee;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
 .bug-report-textarea {
   width: 100%;
   padding: 12px 14px;

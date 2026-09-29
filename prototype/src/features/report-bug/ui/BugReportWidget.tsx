@@ -4,10 +4,11 @@ import { useKeyboard } from '../../../mobile';
 import { Toast } from '../../../shared/ui';
 import { captureScreen } from '../captureScreen';
 import { formatErrorsAsText, getCollectedErrors } from '../errorCollector';
-import { sendBugReport } from '../sendBugReport';
+import { type ReportCategory, sendBugReport } from '../sendBugReport';
 import { BugReportModal } from './BugReportModal';
 
 type BugReportWidgetProps = {
+  route: string;
   /** 캡처·토스트의 기준이 되는 앱 화면 요소. 생략하면 document.body를 캡처한다. */
   containerRef?: RefObject<HTMLElement | null>;
   /** true면 production 빌드에서도 위젯을 렌더링한다. */
@@ -17,6 +18,7 @@ type BugReportWidgetProps = {
 };
 
 export function BugReportWidget({
+  route,
   containerRef,
   enabledInProduction = false,
   raised = false,
@@ -57,22 +59,28 @@ export function BugReportWidget({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [enabled, open, capturing, openReport]);
 
-  const handleSubmit = async (message: string, includeScreenshot: boolean): Promise<boolean> => {
+  const handleSubmit = async (
+    category: ReportCategory,
+    message: string,
+    includeScreenshot: boolean,
+  ): Promise<boolean> => {
     try {
       await sendBugReport({
+        category,
         message,
         screenshot: includeScreenshot ? screenshot : null,
         errorsText: formatErrorsAsText(),
         context: {
+          reportId: crypto.randomUUID(),
           pageUrl: window.location.href,
-          route: window.location.pathname + window.location.hash,
+          route,
           viewport: `${window.innerWidth} x ${window.innerHeight}`,
           userAgent: navigator.userAgent,
           reportedAt: new Date().toISOString(),
           errorCount: getCollectedErrors().length,
         },
       });
-      setToast('버그 제보가 전송됐어요. 고마워요!');
+      setToast('소중한 의견 감사해요!');
       return true;
     } catch (error) {
       setToast(error instanceof Error ? error.message : '전송에 실패했어요. 다시 시도해 주세요.');
@@ -88,11 +96,11 @@ export function BugReportWidget({
         type="button"
         className={raised ? 'bug-report-fab raised' : 'bug-report-fab'}
         data-bug-report-widget
-        aria-label="버그 제보"
+        aria-label="의견 남기기"
         disabled={capturing}
         onClick={() => void openReport()}
       >
-        {capturing ? <span className="loading-dot" /> : '🐞'}
+        {capturing ? <span className="loading-dot" /> : '💬'}
       </button>
       {open ? (
         <BugReportModal
