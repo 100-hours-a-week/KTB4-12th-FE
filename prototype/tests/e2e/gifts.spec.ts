@@ -76,6 +76,22 @@ test('사용자가 상품을 검색하고 상세 화면에서 목록으로 돌�
   await expect(page.getByRole('heading', { name: '선물 탐색' })).toBeVisible();
 });
 
+test('새로고침 후에도 현재 메인 탭을 유지한다', async ({ page }) => {
+  await page
+    .getByRole('navigation', { name: '하단 메뉴' })
+    .getByRole('button', { name: '선물' })
+    .click();
+  await expect(page.getByRole('heading', { name: '선물 탐색' })).toBeVisible();
+
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: '선물 탐색' })).toBeVisible();
+  await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'gifts');
+  await expect(
+    page.getByRole('navigation', { name: '하단 메뉴' }).getByRole('button', { name: '선물' }),
+  ).toHaveAttribute('aria-current', 'page');
+});
+
 test('상품 상세에서 돌아가면 선물 목록의 스크롤 위치를 복원한다', async ({ page }) => {
   await page
     .getByRole('navigation', { name: '하단 메뉴' })
