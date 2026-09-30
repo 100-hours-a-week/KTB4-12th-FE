@@ -1,7 +1,7 @@
 import { CheckIcon, GearIcon } from '@radix-ui/react-icons';
 import { useCallback, useEffect, useState } from 'react';
 
-import { getCategoryIcon } from '../../../entities/category';
+import { categories as categoryIcons } from '../../../entities/category';
 import { fetchDislikeCategories, saveDislikeCategories } from '../../../entities/preference';
 import type { MyProfile } from '../../../entities/user';
 import { recoverQaScenario } from '../../../shared/config/qaScenario';
@@ -99,7 +99,7 @@ export function AccountPage({
   );
 }
 
-export function PreferencesPage({ onBack, onSaved }: { onBack: () => void; onSaved: () => void }) {
+export function PreferencesPage({ onBack }: { onBack: () => void }) {
   const [options, setOptions] = useState<
     Array<{ categoryId: number; name: string; isSelected: boolean }>
   >([]);
@@ -151,7 +151,6 @@ export function PreferencesPage({ onBack, onSaved }: { onBack: () => void; onSav
     try {
       await saveDislikeCategories(selected);
       setSaved(true);
-      onSaved();
     } catch (reason) {
       setSaved(false);
       setSaveError(
@@ -191,7 +190,8 @@ export function PreferencesPage({ onBack, onSaved }: { onBack: () => void; onSav
         <div className="category-list">
           {options.map(({ categoryId, name }) => {
             const active = selected.includes(categoryId);
-            const Icon = getCategoryIcon(categoryId, name);
+            const Icon =
+              categoryIcons.find((category) => category.name === name)?.Icon ?? CheckIcon;
             return (
               <button
                 type="button"

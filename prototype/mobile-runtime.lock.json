@@ -4,7 +4,7 @@
   "scripts/update-mobile-runtime-lock.mjs": "b9a418ea6d37f5dbb5f7864efb22955727aa540913625b57db125920e7c80743",
   "vite.config.ts": "18ac30bc25b1de88beb996361e365351e03f1cf3b482b6a6c9a91422293fe15b",
   "src/App.tsx": "27777040cf06ca27da41b8d75513804201fbe87ddfd3dc00fc8b19a559d58285",
-  "src/main.tsx": "bc032fc501636e47027f51f2c881302db733646799b7246dc422f78e043941e9",
+  "src/main.tsx": "633c3a88a36edd44e80d81c7482bc907c00eaf370874c43abf2631043a845530",
   "src/styles.css": "a45d8e599e2c8b35af57540c9b9b9c98ac6370f9c539318c462e0d3a12ff483d",
   "src/mobile/BottomSheet.tsx": "99549e1e3b2ae6b5559871d3b47deeadf2b0c132ad3c3a2e4458aa6cf42084e0",
   "src/mobile/Carousel.tsx": "615e604c2bb552acb71b9c075a46efaadcc4babc003bf3ffeca590d54a476cf9",

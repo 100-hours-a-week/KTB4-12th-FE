@@ -1,6 +1,5 @@
 import { ApiError, apiGet, apiPut, USE_MOCK_API } from '../../shared/api/client';
 import { shouldFailOnce, shouldFailUntilRecovery } from '../../shared/config/qaScenario';
-import { categories } from '../category';
 
 export type DislikeCategory = {
   categoryId: number;
@@ -12,6 +11,8 @@ export type DislikeCategoryOption = {
   maxSelectableCount: number;
   categories: DislikeCategory[];
 };
+
+const mockCategoryNames = ['뷰티', '카페/디저트', '패션', '테크', '생활', '취미', '건강', '기타'];
 
 const PREFERENCE_KEY = 'mock-preference';
 const DISLIKE_KEY = 'mock-dislike-categories';
@@ -53,10 +54,10 @@ export async function fetchDislikeCategories(): Promise<DislikeCategoryOption> {
     );
     return {
       maxSelectableCount: 5,
-      categories: categories.map(({ categoryId, name }) => ({
-        categoryId,
+      categories: mockCategoryNames.map((name, index) => ({
+        categoryId: index + 1,
         name,
-        isSelected: selected.has(categoryId),
+        isSelected: selected.has(index + 1),
       })),
     };
   }
@@ -66,9 +67,7 @@ export async function fetchDislikeCategories(): Promise<DislikeCategoryOption> {
 export async function saveDislikeCategories(categoryIds: number[]): Promise<number[]> {
   if (USE_MOCK_API) {
     await delay(300);
-    if (
-      categoryIds.some((categoryId) => !categories.some((item) => item.categoryId === categoryId))
-    ) {
+    if (categoryIds.some((categoryId) => categoryId < 1 || categoryId > mockCategoryNames.length)) {
       throw new ApiError('선택할 수 없는 카테고리입니다.', 422, {
         code: 'DISLIKE_CATEGORY_NOT_AVAILABLE',
       });

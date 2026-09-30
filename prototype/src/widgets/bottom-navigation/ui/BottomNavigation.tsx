@@ -1,12 +1,10 @@
-import { AvatarIcon, PersonIcon } from '@radix-ui/react-icons';
-import type { ComponentType } from 'react';
+import { AvatarIcon, HeartIcon, PersonIcon } from '@radix-ui/react-icons';
 
 import type { MainTabRoute, Route } from '../../../shared/model/navigation';
-import { GiftIcon } from '../../../shared/ui';
 
-const items: Array<{ route: MainTabRoute; label: string; Icon: ComponentType }> = [
+const items: Array<{ route: MainTabRoute; label: string; Icon: typeof PersonIcon }> = [
   { route: 'friends', label: '친구', Icon: PersonIcon },
-  { route: 'gifts', label: '선물', Icon: GiftIcon },
+  { route: 'gifts', label: '선물', Icon: HeartIcon },
   { route: 'mypage', label: '마이', Icon: AvatarIcon },
 ];
 

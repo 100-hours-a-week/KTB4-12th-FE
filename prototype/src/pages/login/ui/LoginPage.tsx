@@ -1,14 +1,6 @@
 import { useState } from 'react';
 
 import { KeyboardInput } from '../../../mobile';
-import {
-  EMAIL_FORMAT_ERROR,
-  EMAIL_MAX_LENGTH,
-  isValidEmailFormat,
-  isValidPassword,
-  PASSWORD_FORMAT_ERROR,
-  PASSWORD_MAX_LENGTH,
-} from '../../../shared/lib/authValidation';
 import { FormField } from '../../../shared/ui';
 
 export function LoginPage({
@@ -22,12 +14,9 @@ export function LoginPage({
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const emailInvalid = Boolean(email) && !isValidEmailFormat(email);
-  const passwordInvalid = Boolean(password) && !isValidPassword(password);
-  const ready = email.trim().length > 0 && password.length > 0;
 
   const submit = async () => {
-    if (submitting || !ready) return;
+    if (submitting) return;
     setSubmitting(true);
     setError('');
     try {
@@ -59,16 +48,8 @@ export function LoginPage({
             setEmail(event.target.value);
             setError('');
           }}
-          placeholder="가입한 이메일 주소를 입력해 주세요"
-          maxLength={EMAIL_MAX_LENGTH}
-          aria-invalid={emailInvalid}
-          aria-describedby={emailInvalid ? 'login-email-error' : undefined}
+          placeholder="email@email.com"
         />
-        {emailInvalid ? (
-          <small id="login-email-error" className="field-error" role="alert">
-            {EMAIL_FORMAT_ERROR}
-          </small>
-        ) : null}
       </FormField>
       <FormField label="비밀번호">
         <KeyboardInput
@@ -78,16 +59,8 @@ export function LoginPage({
             setPassword(event.target.value);
             setError('');
           }}
-          placeholder="영문, 숫자, 특수문자 포함 8~64자"
-          maxLength={PASSWORD_MAX_LENGTH}
-          aria-invalid={passwordInvalid}
-          aria-describedby={passwordInvalid ? 'login-password-error' : undefined}
+          placeholder="비밀번호를 입력해 주세요"
         />
-        {passwordInvalid ? (
-          <small id="login-password-error" className="field-error" role="alert">
-            {PASSWORD_FORMAT_ERROR}
-          </small>
-        ) : null}
       </FormField>
       {error ? (
         <p className="login-error" role="alert">
@@ -97,7 +70,7 @@ export function LoginPage({
       <button
         type="button"
         className="primary signup-submit"
-        disabled={submitting || !ready}
+        disabled={submitting}
         onClick={submit}
       >
         {submitting ? '로그인 중' : '로그인'}

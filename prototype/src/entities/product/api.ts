@@ -1,7 +1,6 @@
 import { ApiError, apiGet, USE_MOCK_API } from '../../shared/api/client';
 import { type CursorPage, mockPage, type Pagination } from '../../shared/api/pagination';
 import { isQaScenario, shouldFailUntilRecovery } from '../../shared/config/qaScenario';
-import { categoryTree } from '../category';
 import {
   mockProducts,
   type Product,
@@ -74,10 +73,16 @@ export async function fetchProductDetail(productId: number): Promise<ProductDeta
   return data.product;
 }
 
+const mockCategoryNames = ['뷰티', '카페/디저트', '패션', '테크', '생활', '취미', '건강', '기타'];
+
 export async function fetchProductCategories(): Promise<ProductCategory[]> {
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 180));
-    return categoryTree;
+    return mockCategoryNames.map((name, index) => ({
+      categoryId: index + 1,
+      name,
+      children: [{ categoryId: (index + 1) * 10 + 1, name }],
+    }));
   }
   const data = await apiGet<{ categories: ProductCategory[] }>('/products/categories');
   return data.categories;

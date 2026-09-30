@@ -1,7 +1,6 @@
 export { AppDialog } from './AppDialog';
 export { BirthdayFields } from './BirthdayFields';
 export { FormField } from './FormField';
-export { GiftIcon } from './icons';
 export { InfiniteCursor } from './InfiniteCursor';
 export { ScreenHeader } from './ScreenHeader';
 export { SettingRow } from './SettingRow';
