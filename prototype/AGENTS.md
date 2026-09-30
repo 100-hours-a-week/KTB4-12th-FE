@@ -65,6 +65,7 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 ## Prototype Decisions
 
 - Simulated keyboard disabled: `src/Prototype.tsx` calls `setSimulatedKeyboardEnabled(false)`, so focusing an input never opens the on-screen keyboard. Text entry still uses `KeyboardInput`, `KeyboardTextarea`, or `MobileTextField`; native focus, blur dismissal, and safe-area insets stay intact. Keep this opt-out unless a phone-keyboard demo is explicitly requested.
+- Phone-sized and coarse-pointer environments use a compact 24px app-page top inset because preview-only status chrome is hidden there. Keep the larger desktop page inset for simulated device chrome.
 - The feedback widget (formerly bug-report only) supports three categories — 버그 / 제안 / 도움 — chosen via chips in a modal titled "의견 남기기"; the FAB icon is 💬. The screenshot attach toggle is shown only for 버그/제안; 도움 never sends a screenshot. Screen spec lives in `docs/report-categories.md`.
 
 ## Interaction Rules

@@ -130,6 +130,7 @@ test('작은 실기기에서도 마이페이지에 불필요한 스크롤이 생
     scrollHeight: element.scrollHeight,
   }));
   expect(size.scrollHeight).toBeLessThanOrEqual(size.clientHeight + 1);
+  await expect(page.locator('.mypage-page')).toHaveCSS('padding-top', '24px');
 });
 
 test('공백만 입력한 상품명으로는 검색하지 않는다', async ({ page }) => {

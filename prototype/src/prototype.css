@@ -1355,6 +1355,11 @@ textarea:focus-visible,
     margin-top: 40px;
   }
 }
+@media (max-width: 600px), (hover: none) and (pointer: coarse) {
+  .page {
+    padding-top: 24px;
+  }
+}
 
 /* Sunjalal brand refresh */
 :root {
