@@ -198,3 +198,40 @@ test('[QA 76] 상품을 먼저 선택한 뒤 친구를 선택해 선물을 완�
   await expect(page.getByRole('heading', { name: '완료' })).toBeVisible();
   await expect(page.locator('.summary-card')).toContainText('김민지');
 });
+
+test('받는 사람 선택 바텀시트 위에서도 의견 남기기 버튼을 사용할 수 있다', async ({ page }) => {
+  test.setTimeout(30_000);
+  await page
+    .getByRole('navigation', { name: '하단 메뉴' })
+    .getByRole('button', { name: '선물' })
+    .click();
+  await page.locator('.product-card').first().click();
+
+  const feedbackButton = page.getByRole('button', { name: '의견 남기기' });
+  const feedbackFab = page.locator('.bug-report-fab');
+  const beforeSheet = await feedbackFab.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { right: style.right, bottom: style.bottom, width: style.width, height: style.height };
+  });
+
+  await page.getByRole('button', { name: /선물하기/ }).click();
+  const recipientSheet = page.getByRole('dialog', { name: '받는 사람 선택' });
+  await expect(recipientSheet).toBeVisible();
+
+  const withSheet = await feedbackFab.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { right: style.right, bottom: style.bottom, width: style.width, height: style.height };
+  });
+  expect(withSheet).toEqual(beforeSheet);
+
+  await feedbackButton.click();
+
+  const feedbackDialog = page.getByRole('dialog', { name: '의견 남기기' });
+  await expect(feedbackDialog).toBeVisible();
+  await expect(feedbackDialog.getByRole('textbox')).toBeFocused();
+  await expect(page.getByText('스크린샷 첨부')).toBeVisible();
+  await feedbackDialog.getByRole('button', { name: '취소' }).click();
+
+  await expect(feedbackDialog).toHaveCount(0);
+  await expect(recipientSheet).toBeVisible();
+});

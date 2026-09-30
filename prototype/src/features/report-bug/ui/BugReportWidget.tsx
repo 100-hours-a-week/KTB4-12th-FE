@@ -1,6 +1,7 @@
-import { type RefObject, useCallback, useEffect, useState } from 'react';
+import { type CSSProperties, type RefObject, useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
-import { useKeyboard } from '../../../mobile';
+import { useKeyboard, useMobileDevice } from '../../../mobile';
 import { Toast } from '../../../shared/ui';
 import { captureScreen } from '../captureScreen';
 import { formatErrorsAsText, getCollectedErrors } from '../errorCollector';
@@ -25,10 +26,34 @@ export function BugReportWidget({
 }: BugReportWidgetProps) {
   const enabled = import.meta.env.DEV || enabledInProduction;
   const keyboard = useKeyboard();
+  const { device } = useMobileDevice();
   const [open, setOpen] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [screenshot, setScreenshot] = useState<Blob | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [screenContainer, setScreenContainer] = useState<HTMLElement | null>(null);
+  const [sheetContainer, setSheetContainer] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const screen = containerRef?.current;
+    if (!screen) return;
+
+    const updateSheetContainer = () => {
+      setScreenContainer((current) => (current === screen ? current : screen));
+      setSheetContainer(
+        screen.querySelector<HTMLElement>('[data-testid="bottom-sheet"][data-state="open"]'),
+      );
+    };
+    const observer = new MutationObserver(updateSheetContainer);
+    updateSheetContainer();
+    observer.observe(screen, {
+      attributes: true,
+      attributeFilter: ['data-state'],
+      childList: true,
+      subtree: true,
+    });
+    return () => observer.disconnect();
+  }, [containerRef]);
 
   useEffect(() => {
     if (!toast) return;
@@ -90,26 +115,38 @@ export function BugReportWidget({
 
   if (!enabled) return null;
 
+  const trigger = (
+    <button
+      type="button"
+      className={raised ? 'bug-report-fab raised' : 'bug-report-fab'}
+      style={
+        {
+          '--app-safe-area-height': `${
+            device.platform === 'ios' ? device.geometry.safeArea.bottom : 0
+          }px`,
+        } as CSSProperties
+      }
+      data-bug-report-widget
+      aria-label="의견 남기기"
+      disabled={capturing}
+      onClick={() => void openReport()}
+    >
+      {capturing ? <span className="loading-dot" /> : '💬'}
+    </button>
+  );
+
   return (
     <>
-      <button
-        type="button"
-        className={raised ? 'bug-report-fab raised' : 'bug-report-fab'}
-        data-bug-report-widget
-        aria-label="의견 남기기"
-        disabled={capturing}
-        onClick={() => void openReport()}
-      >
-        {capturing ? <span className="loading-dot" /> : '💬'}
-      </button>
+      {sheetContainer ? createPortal(trigger, sheetContainer) : trigger}
       {open ? (
         <BugReportModal
           screenshot={screenshot}
+          container={screenContainer}
           onClose={() => setOpen(false)}
           onSubmit={handleSubmit}
         />
       ) : null}
-      <Toast message={toast} container={containerRef?.current} />
+      <Toast message={toast} container={screenContainer} />
     </>
   );
 }

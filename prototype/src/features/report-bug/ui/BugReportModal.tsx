@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { useEffect, useRef, useState } from 'react';
 
 import { KeyboardTextarea } from '../../../mobile';
 import type { ReportCategory } from '../sendBugReport';
@@ -18,6 +19,7 @@ const PLACEHOLDERS: Record<ReportCategory, string> = {
 
 type BugReportModalProps = {
   screenshot: Blob | null;
+  container?: HTMLElement | null;
   onClose: () => void;
   onSubmit: (
     category: ReportCategory,
@@ -26,12 +28,13 @@ type BugReportModalProps = {
   ) => Promise<boolean>;
 };
 
-export function BugReportModal({ screenshot, onClose, onSubmit }: BugReportModalProps) {
+export function BugReportModal({ screenshot, container, onClose, onSubmit }: BugReportModalProps) {
   const [category, setCategory] = useState<ReportCategory>('bug');
   const [message, setMessage] = useState('');
   const [includeScreenshot, setIncludeScreenshot] = useState(true);
   const [sending, setSending] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   // 도움 카테고리는 스크린샷을 받지 않는다 — 토글도 그리지 않는다.
   const showScreenshotRow = category !== 'help' && Boolean(screenshot);
@@ -40,28 +43,13 @@ export function BugReportModal({ screenshot, onClose, onSubmit }: BugReportModal
   // useMemo가 아니라 effect 안에서 생성·해제한다.
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   useEffect(() => {
-    if (!screenshot) {
-      setPreviewUrl(null);
-      return;
-    }
+    if (!screenshot) return;
     const url = URL.createObjectURL(screenshot);
+    // Object URL 생성·해제는 브라우저 외부 자원과의 동기화이므로 effect에서 관리한다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [screenshot]);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      // 라이트박스가 열려 있으면 라이트박스만 닫고 모달은 유지한다.
-      if (lightboxOpen) {
-        setLightboxOpen(false);
-        return;
-      }
-      onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, lightboxOpen]);
 
   const submit = async () => {
     const trimmed = message.trim();
@@ -81,100 +69,124 @@ export function BugReportModal({ screenshot, onClose, onSubmit }: BugReportModal
   };
 
   return (
-    <div
-      className="bug-report-overlay"
-      data-bug-report-widget
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+    <Dialog.Root
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
       }}
     >
-      <section
-        className="bug-report-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="bug-report-title"
-      >
-        <h2 id="bug-report-title">의견 남기기</h2>
-        <div className="bug-report-categories" role="group" aria-label="의견 종류">
-          {CATEGORIES.map(({ id, label }) => (
-            <button
-              key={id}
-              type="button"
-              className={category === id ? 'bug-report-chip selected' : 'bug-report-chip'}
-              aria-pressed={category === id}
-              onClick={() => setCategory(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <KeyboardTextarea
-          className="bug-report-textarea"
-          autoFocus
-          rows={6}
-          maxLength={4000}
-          placeholder={PLACEHOLDERS[category]}
-          value={message}
-          onChange={(event) => setMessage(event.target.value)}
-        />
-        {showScreenshotRow ? (
-          <div className="bug-report-screenshot-row">
-            <label className="bug-report-screenshot-toggle">
-              <input
-                type="checkbox"
-                checked={includeScreenshot}
-                onChange={(event) => setIncludeScreenshot(event.target.checked)}
-              />
-              <span>스크린샷 첨부</span>
-            </label>
-            {includeScreenshot && previewUrl ? (
-              <button
-                type="button"
-                className="bug-report-thumbnail"
-                aria-label="스크린샷 크게 보기"
-                onClick={() => setLightboxOpen(true)}
-              >
-                <img src={previewUrl} alt="캡처된 화면 미리보기" />
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-        {lightboxOpen && previewUrl ? (
+      <Dialog.Portal container={container ?? undefined}>
+        <Dialog.Content
+          asChild
+          aria-describedby={undefined}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            window.requestAnimationFrame(() =>
+              overlayRef.current
+                ?.querySelector<HTMLTextAreaElement>('.bug-report-textarea')
+                ?.focus({ preventScroll: true }),
+            );
+          }}
+          onEscapeKeyDown={(event) => {
+            if (!lightboxOpen) return;
+            event.preventDefault();
+            setLightboxOpen(false);
+          }}
+        >
           <div
-            className="bug-report-lightbox"
-            role="dialog"
-            aria-modal="true"
-            aria-label="스크린샷 크게 보기"
+            ref={overlayRef}
+            className="bug-report-overlay"
+            data-bug-report-widget
             onMouseDown={(event) => {
-              if (event.target === event.currentTarget) setLightboxOpen(false);
+              if (event.target === event.currentTarget) onClose();
             }}
           >
-            <img src={previewUrl} alt="캡처된 화면 전체 보기" />
-            <button
-              type="button"
-              className="bug-report-lightbox-close"
-              aria-label="닫기"
-              onClick={() => setLightboxOpen(false)}
-            >
-              ✕
-            </button>
+            <section className="bug-report-modal">
+              <Dialog.Title asChild>
+                <h2>의견 남기기</h2>
+              </Dialog.Title>
+              <div className="bug-report-categories" role="group" aria-label="의견 종류">
+                {CATEGORIES.map(({ id, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={category === id ? 'bug-report-chip selected' : 'bug-report-chip'}
+                    aria-pressed={category === id}
+                    onClick={() => setCategory(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <KeyboardTextarea
+                className="bug-report-textarea"
+                autoFocus
+                rows={6}
+                maxLength={4000}
+                placeholder={PLACEHOLDERS[category]}
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+              />
+              {showScreenshotRow ? (
+                <div className="bug-report-screenshot-row">
+                  <label className="bug-report-screenshot-toggle">
+                    <input
+                      type="checkbox"
+                      checked={includeScreenshot}
+                      onChange={(event) => setIncludeScreenshot(event.target.checked)}
+                    />
+                    <span>스크린샷 첨부</span>
+                  </label>
+                  {includeScreenshot && previewUrl ? (
+                    <button
+                      type="button"
+                      className="bug-report-thumbnail"
+                      aria-label="스크린샷 크게 보기"
+                      onClick={() => setLightboxOpen(true)}
+                    >
+                      <img src={previewUrl} alt="캡처된 화면 미리보기" />
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+              {lightboxOpen && previewUrl ? (
+                <div
+                  className="bug-report-lightbox"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="스크린샷 크게 보기"
+                  onMouseDown={(event) => {
+                    if (event.target === event.currentTarget) setLightboxOpen(false);
+                  }}
+                >
+                  <img src={previewUrl} alt="캡처된 화면 전체 보기" />
+                  <button
+                    type="button"
+                    className="bug-report-lightbox-close"
+                    aria-label="닫기"
+                    onClick={() => setLightboxOpen(false)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : null}
+              <div className="dialog-actions">
+                <button type="button" className="secondary" onClick={onClose} disabled={sending}>
+                  취소
+                </button>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={!message.trim() || sending}
+                  onClick={() => void submit()}
+                >
+                  {sending ? '전송 중…' : '전송'}
+                </button>
+              </div>
+            </section>
           </div>
-        ) : null}
-        <div className="dialog-actions">
-          <button type="button" className="secondary" onClick={onClose} disabled={sending}>
-            취소
-          </button>
-          <button
-            type="button"
-            className="primary"
-            disabled={!message.trim() || sending}
-            onClick={() => void submit()}
-          >
-            {sending ? '전송 중…' : '전송'}
-          </button>
-        </div>
-      </section>
-    </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
