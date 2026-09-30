@@ -109,6 +109,46 @@ test('약관 상세는 서버 본문의 문단 구조를 유지하고 닫을 수
   await expect(detailSheet).not.toBeVisible();
 });
 
+test('회원가입 바텀시트에서도 의견 남기기 버튼을 사용할 수 있다', async ({ page }) => {
+  await page.route('**/auth/terms', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          terms: [
+            {
+              termId: 1,
+              termCode: 'PRIVACY_COLLECTION_USE',
+              title: '개인정보 수집 및 이용 동의서',
+              version: 1,
+              isRequired: true,
+              content: '개인정보 수집 및 이용 동의서 본문',
+            },
+          ],
+        },
+      }),
+    });
+  });
+
+  await page.getByRole('button', { name: '생년월일 선택' }).click();
+  const birthdaySheet = page.getByRole('dialog', { name: '생년월일 선택' });
+  await expect(page.locator('.bug-report-fab')).toBeVisible();
+  await birthdaySheet.getByRole('button', { name: '취소' }).click();
+
+  await fillSignupForm(page);
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+  await page
+    .getByRole('button', {
+      name: '(필수) 개인정보 수집 및 이용 동의서 상세 보기',
+      exact: true,
+    })
+    .click();
+
+  const termsSheet = page.getByRole('dialog', { name: '개인정보 수집 및 이용 동의서' });
+  await expect(page.locator('.bug-report-fab')).toBeVisible();
+});
+
 test('필수 약관만 동의한 신규 사용자가 회원가입을 완료한다', async ({ page }) => {
   await fillSignupForm(page);
 

@@ -142,7 +142,9 @@ test('모든 바텀시트는 배경 화면을 이동시키지 않는다', async 
   const expectStableAfter = async (openSheet: () => Promise<void>) => {
     const before = await backgroundPosition();
     await openSheet();
-    await expect(page.getByTestId('bottom-sheet')).toBeVisible();
+    const sheet = page.getByTestId('bottom-sheet');
+    await expect(sheet).toBeVisible();
+    await expect(page.locator('.bug-report-fab')).toBeVisible();
     const after = await backgroundPosition();
     expect(after.top).toBeCloseTo(before.top, 3);
     expect(after.screenScrollTop).toBe(before.screenScrollTop);
