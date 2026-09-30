@@ -13,6 +13,7 @@
     "update:runtime-lock": "node scripts/update-mobile-runtime-lock.mjs",
     "test:runtime": "playwright test tests/mobile-runtime.spec.ts",
     "test:e2e": "playwright test tests/e2e",
+    "test:e2e:api-error": "playwright test --config=playwright.api-error.config.ts",
     "test:e2e:ui": "playwright test tests/e2e --ui",
     "test:e2e:headed": "playwright test tests/e2e --headed",
     "test:all": "playwright test",
@@ -41,7 +42,9 @@
     "@radix-ui/react-dialog": "1.1.19",
     "@radix-ui/react-dropdown-menu": "2.1.20",
     "@radix-ui/react-icons": "1.3.2",
+    "@sentry/react": "^11.1.0",
     "@use-gesture/react": "10.3.1",
+    "modern-screenshot": "^4.7.0",
     "motion": "12.42.2",
     "react": "19.2.7",
     "react-dom": "19.2.7"

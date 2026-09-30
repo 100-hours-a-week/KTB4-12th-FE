@@ -1,6 +1,7 @@
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon, Cross1Icon } from '@radix-ui/react-icons';
 import { useEffect, useState } from 'react';
 
+import { getCategoryIcon } from '../../../entities/category';
 import type { ProductCategory } from '../../../entities/product';
 import { BottomSheet } from '../../../mobile';
 
@@ -8,6 +9,7 @@ type ProductFilterSheetProps = {
   open: boolean;
   options: ProductCategory[];
   selected: number[];
+  loading: boolean;
   error: string;
   onApply: (categoryIds: number[]) => void;
   onRetry: () => void;
@@ -18,6 +20,7 @@ export function ProductFilterSheet({
   open,
   options,
   selected,
+  loading,
   error,
   onApply,
   onRetry,
@@ -75,12 +78,15 @@ export function ProductFilterSheet({
           </div>
         ) : null}
 
-        {!error && options.length === 0 ? (
+        {loading ? <p className="category-filter-state">카테고리를 불러오는 중</p> : null}
+
+        {!loading && !error && options.length === 0 ? (
           <p className="category-filter-state">선택할 수 있는 카테고리가 없어요.</p>
         ) : null}
 
         {options.map((parent) => {
           const expanded = expandedCategoryId === parent.categoryId;
+          const CategoryIcon = getCategoryIcon(parent.categoryId, parent.name);
           const selectedCount = parent.children.filter((child) =>
             draftSelected.includes(child.categoryId),
           ).length;
@@ -99,10 +105,13 @@ export function ProductFilterSheet({
                 }
               >
                 <span>
-                  {expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                  <CategoryIcon />
                   {parent.name}
                 </span>
-                {selectedCount ? <small>{selectedCount}개 선택</small> : null}
+                <span className="category-parent-meta">
+                  {selectedCount ? <small>{selectedCount}개 선택</small> : null}
+                  {expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                </span>
               </button>
 
               {expanded ? (
@@ -134,7 +143,12 @@ export function ProductFilterSheet({
         <button type="button" className="secondary" onClick={() => setDraftSelected([])}>
           초기화
         </button>
-        <button type="button" className="primary" onClick={apply}>
+        <button
+          type="button"
+          className="primary"
+          disabled={loading || Boolean(error)}
+          onClick={apply}
+        >
           {draftSelected.length ? `${draftSelected.length}개 적용하기` : '전체 상품 보기'}
         </button>
       </div>

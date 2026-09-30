@@ -10,6 +10,23 @@ import {
   toAgreementTerms,
   toSignupTermConsents,
 } from '../../../features/accept-signup-terms';
+import { ApiError } from '../../../shared/api/client';
+
+const AGE_REQUIREMENT_MESSAGE = '만 14세 미만은 서비스를 이용할 수 없습니다.';
+
+function getSignupErrorMessage(reason: unknown) {
+  if (
+    reason instanceof ApiError &&
+    reason.code === 'INVALID_REQUEST' &&
+    reason.details?.some(
+      (detail) => detail.field === 'birth' && detail.reason === 'AGE_REQUIREMENT_NOT_MET',
+    )
+  ) {
+    return AGE_REQUIREMENT_MESSAGE;
+  }
+
+  return reason instanceof Error ? reason.message : '회원가입에 실패했습니다. 다시 시도해 주세요.';
+}
 
 export function TermsAgreementPage({
   onBack,
@@ -59,9 +76,7 @@ export function TermsAgreementPage({
     try {
       await onComplete(consents);
     } catch (reason) {
-      setSubmitError(
-        reason instanceof Error ? reason.message : '회원가입에 실패했습니다. 다시 시도해 주세요.',
-      );
+      setSubmitError(getSignupErrorMessage(reason));
       setSubmitting(false);
     }
   };
@@ -89,12 +104,20 @@ export function TermsAgreementPage({
         <SignupTermsAgreement
           terms={terms}
           selected={selected}
-          onChange={setSelected}
+          onChange={(nextSelected) => {
+            setSelected(nextSelected);
+            setSubmitError('');
+          }}
           onOpenDetail={setDetail}
         />
       )}
       <div className="terms-page-footer">
-        <p>동의하고 회원가입을 완료하면 서비스를 바로 이용할 수 있어요.</p>
+        <p>동의하고 회원가입을 완료하면 로그인 화면으로 이동해요.</p>
+        {submitError ? (
+          <p className="signup-submit-error" role="alert">
+            {submitError}
+          </p>
+        ) : null}
         <button
           type="button"
           className="primary terms-continue"
@@ -103,11 +126,6 @@ export function TermsAgreementPage({
         >
           {submitting ? '가입 중' : '동의하고 회원가입'}
         </button>
-        {submitError ? (
-          <p className="field-error" role="alert">
-            {submitError}
-          </p>
-        ) : null}
       </div>
       <TermsDetailSheet detail={detail} onClose={() => setDetail(null)} />
     </section>

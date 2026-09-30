@@ -1,16 +1,12 @@
 import { ApiError, apiGet, apiPost, USE_MOCK_API } from '../../shared/api/client';
 import { loadSession } from '../../shared/api/session';
-import { type LoginResult, mockSignupTerms, type SignupRequest, type SignupTerm } from './model';
+import { type LoginResult, type SignupRequest, type SignupTerm } from './model';
 
 function delay(ms = 240) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 export async function fetchSignupTerms(): Promise<SignupTerm[]> {
-  if (USE_MOCK_API) {
-    await delay();
-    return mockSignupTerms;
-  }
   const data = await apiGet<{ terms: SignupTerm[] }>('/auth/terms');
   return data.terms;
 }
@@ -27,6 +23,12 @@ export async function checkEmailAvailability(email: string): Promise<boolean> {
 export async function signup(payload: SignupRequest): Promise<{ userId: number }> {
   if (USE_MOCK_API) {
     await delay(400);
+    if (new URLSearchParams(window.location.search).get('qa') === 'signup-underage') {
+      throw new ApiError('입력값을 확인해 주세요.', 400, {
+        code: 'INVALID_REQUEST',
+        details: [{ field: 'birth', reason: 'AGE_REQUIREMENT_NOT_MET' }],
+      });
+    }
     return { userId: 1 };
   }
   return apiPost<{ userId: number }>('/auth/signup', payload);
