@@ -1,6 +1,7 @@
 import '@fontsource/roboto/latin-500.css';
 import './styles.css';
 import './prototype.css';
+import './shared/config/sentry';
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
