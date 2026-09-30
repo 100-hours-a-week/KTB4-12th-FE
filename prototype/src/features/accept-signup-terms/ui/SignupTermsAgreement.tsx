@@ -15,12 +15,14 @@ export type AgreementTerm = {
 };
 
 export function toAgreementTerms(signupTerms: SignupTerm[]): AgreementTerm[] {
-  return signupTerms.map((term) => ({
-    id: term.termCode,
-    label: `(${term.isRequired ? '필수' : '선택'}) ${term.title}`,
-    required: term.isRequired,
-    detail: { title: term.title, content: term.content },
-  }));
+  return [...signupTerms]
+    .sort((left, right) => Number(right.isRequired) - Number(left.isRequired))
+    .map((term) => ({
+      id: term.termCode,
+      label: `(${term.isRequired ? '필수' : '선택'}) ${term.title}`,
+      required: term.isRequired,
+      detail: { title: term.title, content: term.content },
+    }));
 }
 
 type SignupTermsAgreementProps = {
@@ -87,6 +89,28 @@ export function SignupTermsAgreement({
 
 type TermsDetailSheetProps = { detail: TermDetail | null; onClose: () => void };
 
+function TermsDetailContent({ content }: { content: string }) {
+  const blocks = content.split(/\n\s*\n/u).filter(Boolean);
+
+  return blocks.map((block, index) => {
+    const [heading, ...bodyLines] = block.split('\n');
+    if (/^\d+\.\s/u.test(heading)) {
+      return (
+        <section key={`${index}-${heading}`}>
+          <h3>{heading}</h3>
+          {bodyLines.length > 0 ? <p>{bodyLines.join('\n')}</p> : null}
+        </section>
+      );
+    }
+
+    return (
+      <p className={index === 0 ? 'terms-detail-lead' : undefined} key={`${index}-${heading}`}>
+        {block}
+      </p>
+    );
+  });
+}
+
 export function TermsDetailSheet({ detail, onClose }: TermsDetailSheetProps) {
   return (
     <BottomSheet
@@ -107,7 +131,7 @@ export function TermsDetailSheet({ detail, onClose }: TermsDetailSheetProps) {
       </button>
       <div className="terms-detail-body">
         <div className="terms-detail-copy">
-          <p>{detail?.content}</p>
+          {detail ? <TermsDetailContent content={detail.content} /> : null}
         </div>
       </div>
     </BottomSheet>

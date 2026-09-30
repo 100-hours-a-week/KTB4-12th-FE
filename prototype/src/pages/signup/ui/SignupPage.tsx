@@ -4,6 +4,17 @@ import { useState } from 'react';
 import { checkEmailAvailability } from '../../../entities/auth';
 import { BottomSheet, KeyboardInput } from '../../../mobile';
 import { BirthdayFields, FormField } from '../../../shared/ui';
+import {
+  isValidSignupEmail,
+  isValidSignupName,
+  isValidSignupPassword,
+  SIGNUP_EMAIL_ERROR,
+  SIGNUP_EMAIL_MAX_LENGTH,
+  SIGNUP_NAME_ERROR,
+  SIGNUP_NAME_MAX_LENGTH,
+  SIGNUP_PASSWORD_ERROR,
+  SIGNUP_PASSWORD_MAX_LENGTH,
+} from '../validation';
 
 export type SignupDraft = {
   name: string;
@@ -22,17 +33,24 @@ type SignupPageProps = {
 };
 
 export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupPageProps) {
-  const [visible, setVisible] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [passwordConfirmationVisible, setPasswordConfirmationVisible] = useState(false);
   const [birthdayPickerOpen, setBirthdayPickerOpen] = useState(false);
   const [pendingBirthday, setPendingBirthday] = useState(draft.birthday || '2000.01.01');
   const [emailChecking, setEmailChecking] = useState(false);
   const [emailError, setEmailError] = useState('');
   const update = <Key extends keyof SignupDraft>(field: Key, value: SignupDraft[Key]) =>
     onDraftChange((current) => ({ ...current, [field]: value }));
+  const validName = isValidSignupName(draft.name);
+  const validEmailFormat = isValidSignupEmail(draft.email);
+  const validPassword = isValidSignupPassword(draft.password);
   const passwordMatches =
-    draft.password.length >= 8 && draft.password === draft.passwordConfirmation;
+    Boolean(draft.passwordConfirmation) && draft.password === draft.passwordConfirmation;
+  const nameInvalid = Boolean(draft.name) && !validName;
+  const emailFormatInvalid = Boolean(draft.email) && !validEmailFormat && !draft.emailVerified;
+  const passwordInvalid = Boolean(draft.password) && !validPassword;
   const ready =
-    draft.name.length > 1 && Boolean(draft.birthday) && draft.emailVerified && passwordMatches;
+    validName && Boolean(draft.birthday) && draft.emailVerified && validPassword && passwordMatches;
 
   const checkEmail = async () => {
     if (emailChecking) return;
@@ -67,8 +85,16 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
           <KeyboardInput
             value={draft.name}
             onChange={(event) => update('name', event.target.value)}
-            placeholder="성이름"
+            placeholder="이름을 입력해주세요"
+            maxLength={SIGNUP_NAME_MAX_LENGTH}
+            aria-invalid={nameInvalid}
+            aria-describedby={nameInvalid ? 'signup-name-error' : undefined}
           />
+          {nameInvalid ? (
+            <small id="signup-name-error" className="field-error" role="alert">
+              {SIGNUP_NAME_ERROR}
+            </small>
+          ) : null}
         </FormField>
         <div className="form-field">
           <span>생년월일</span>
@@ -95,16 +121,24 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
                 emailVerified: false,
               }))
             }
-            placeholder="email@email.com"
+            placeholder="가입에 사용할 이메일 주소를 입력해 주세요"
+            maxLength={SIGNUP_EMAIL_MAX_LENGTH}
+            aria-invalid={emailFormatInvalid}
+            aria-describedby={emailFormatInvalid ? 'signup-email-error' : undefined}
           />
           <button
             type="button"
             className="duplicate-check"
-            disabled={!draft.email.includes('@') || emailChecking}
+            disabled={!validEmailFormat || emailChecking}
             onClick={checkEmail}
           >
             {draft.emailVerified ? '확인 완료' : emailChecking ? '확인 중' : '중복확인'}
           </button>
+          {emailFormatInvalid ? (
+            <small id="signup-email-error" className="field-error" role="alert">
+              {SIGNUP_EMAIL_ERROR}
+            </small>
+          ) : null}
           {draft.emailVerified ? (
             <small className="field-success">사용할 수 있는 이메일입니다.</small>
           ) : null}
@@ -117,33 +151,44 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
         <FormField label="비밀번호">
           <div className="input-with-icon">
             <KeyboardInput
-              type={visible ? 'text' : 'password'}
+              type={passwordVisible ? 'text' : 'password'}
               value={draft.password}
               onChange={(event) => update('password', event.target.value)}
-              placeholder="대문자, 특수문자 포함 8자 이상"
+              placeholder="영문, 숫자, 특수문자 포함 8~64자"
+              maxLength={SIGNUP_PASSWORD_MAX_LENGTH}
+              aria-invalid={passwordInvalid}
+              aria-describedby={passwordInvalid ? 'signup-password-error' : undefined}
             />
             <button
               type="button"
-              aria-label="비밀번호 보기"
-              onClick={() => setVisible((value) => !value)}
+              aria-label={passwordVisible ? '비밀번호 숨기기' : '비밀번호 보기'}
+              onClick={() => setPasswordVisible((value) => !value)}
             >
               <EyeOpenIcon />
             </button>
           </div>
+          {passwordInvalid ? (
+            <small id="signup-password-error" className="field-error" role="alert">
+              {SIGNUP_PASSWORD_ERROR}
+            </small>
+          ) : null}
         </FormField>
         <FormField label="비밀번호 확인">
           <div className="input-with-icon">
             <KeyboardInput
               aria-label="비밀번호 확인"
-              type={visible ? 'text' : 'password'}
+              type={passwordConfirmationVisible ? 'text' : 'password'}
               value={draft.passwordConfirmation}
               onChange={(event) => update('passwordConfirmation', event.target.value)}
               placeholder="비밀번호를 다시 입력해 주세요"
+              maxLength={SIGNUP_PASSWORD_MAX_LENGTH}
             />
             <button
               type="button"
-              aria-label="비밀번호 확인 보기"
-              onClick={() => setVisible((value) => !value)}
+              aria-label={
+                passwordConfirmationVisible ? '비밀번호 확인 숨기기' : '비밀번호 확인 보기'
+              }
+              onClick={() => setPasswordConfirmationVisible((value) => !value)}
             >
               <EyeOpenIcon />
             </button>

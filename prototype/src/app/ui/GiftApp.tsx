@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import {
   login as apiLogin,
@@ -18,6 +18,7 @@ import {
 import { AddFriendSheet } from '../../features/add-friend';
 import { EditBirthdaySheet } from '../../features/edit-birthday';
 import { ProductFilterSheet } from '../../features/filter-products';
+import { BugReportWidget } from '../../features/report-bug';
 import { MobileScroll, useKeyboard, useScreenPortal } from '../../mobile';
 import type { SignupDraft } from '../../pages/signup';
 import { AUTH_FLAG_KEY, clearSession, loadSession, saveSession } from '../../shared/api/session';
@@ -65,13 +66,20 @@ const emptySignupDraft: SignupDraft = {
   passwordConfirmation: '',
 };
 
+const MAIN_TAB_STORAGE_KEY = 'gift-prototype-main-tab';
+
+function getStoredMainTab(): MainTabRoute {
+  const storedTab = window.localStorage.getItem(MAIN_TAB_STORAGE_KEY);
+  return storedTab === 'gifts' || storedTab === 'mypage' ? storedTab : 'friends';
+}
+
 export function GiftApp() {
   const keyboard = useKeyboard();
   const { screenRef } = useScreenPortal();
   const [route, setRoute] = useState<Route>(() => {
     if (window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' || !loadSession())
       return 'login';
-    return getQaInitialRoute() ?? 'friends';
+    return getQaInitialRoute() ?? getStoredMainTab();
   });
   const [history, setHistory] = useState<Route[]>([]);
   const [friendSheetOpen, setFriendSheetOpen] = useState(false);
@@ -85,11 +93,34 @@ export function GiftApp() {
   const [pendingRecipientSelection, setPendingRecipientSelection] = useState(false);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [filterOptions, setFilterOptions] = useState<ProductCategory[]>([]);
+  const [filterLoading, setFilterLoading] = useState(false);
   const [filterError, setFilterError] = useState('');
   const [activeFilterIds, setActiveFilterIds] = useState<number[]>([]);
   const [pendingOnboarding, setPendingOnboarding] = useState(false);
   const [signupDraft, setSignupDraft] = useState<SignupDraft>(emptySignupDraft);
   const [toast, setToast] = useState<string | null>(null);
+  const giftScrollTop = useRef(0);
+  const previousRoute = useRef<Route>(route);
+
+  useLayoutEffect(() => {
+    const priorRoute = previousRoute.current;
+    let restoreFrame: number | undefined;
+    const layoutFrame = window.requestAnimationFrame(() => {
+      restoreFrame = window.requestAnimationFrame(() => {
+        const scroll = screenRef.current?.querySelector<HTMLElement>(
+          '[data-testid="mobile-scroll"]',
+        );
+        if (!scroll) return;
+        scroll.scrollTop =
+          route === 'gifts' && priorRoute === 'product' ? giftScrollTop.current : 0;
+      });
+    });
+    previousRoute.current = route;
+    return () => {
+      window.cancelAnimationFrame(layoutFrame);
+      if (restoreFrame !== undefined) window.cancelAnimationFrame(restoreFrame);
+    };
+  }, [route, screenRef]);
 
   const dismissKeyboard = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -114,6 +145,7 @@ export function GiftApp() {
     dismissKeyboard();
     setHistory([]);
     setRoute(next);
+    window.localStorage.setItem(MAIN_TAB_STORAGE_KEY, next);
     setGiftRecipient(null);
     setPendingRecipientSelection(false);
     if (next === 'mypage') void refreshProfile();
@@ -149,15 +181,13 @@ export function GiftApp() {
   }, [toast]);
 
   const loadProductCategories = useCallback(() => {
+    setFilterLoading(true);
     setFilterError('');
     return fetchProductCategories()
       .then(setFilterOptions)
-      .catch(() => setFilterError('카테고리를 불러오지 못했습니다.'));
+      .catch(() => setFilterError('카테고리를 불러오지 못했습니다.'))
+      .finally(() => setFilterLoading(false));
   }, []);
-
-  useEffect(() => {
-    void loadProductCategories();
-  }, [loadProductCategories]);
 
   const enterApp = (isFirstLogin: boolean) => {
     if (isFirstLogin) setDialog('onboarding');
@@ -197,14 +227,9 @@ export function GiftApp() {
       termConsents: consents,
     });
     setSignupDraft(emptySignupDraft);
-    const result = await apiLogin(draft.email.trim(), draft.password);
-    saveSession({
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken ?? '',
-      expiresIn: result.expiresIn,
-      user: result.user,
-    });
-    enterApp(result.isFirstLogin);
+    setHistory([]);
+    setRoute('login');
+    setToast('회원가입이 완료됐어요. 로그인해 주세요.');
   };
 
   const setBirthdayPublic = (isBirthdayPublic: boolean) => {
@@ -250,18 +275,44 @@ export function GiftApp() {
       );
     if (route === 'terms')
       return <TermsAgreementPage onBack={goBack} onComplete={completeSignup} />;
-    if (route === 'gifts')
+    if (route === 'gifts' || (route === 'product' && selectedProduct))
       return (
-        <GiftsPage
-          filterCount={activeFilterIds.length}
-          filterCategoryIds={activeFilterIds}
-          onFilter={() => setFilterSheetOpen(true)}
-          onProduct={(product) => {
-            setSelectedProduct(product);
-            setQuantity(1);
-            navigate('product');
-          }}
-        />
+        <>
+          <div className={route === 'gifts' ? undefined : 'route-preserved-page'}>
+            <GiftsPage
+              filterCount={activeFilterIds.length}
+              filterCategoryIds={activeFilterIds}
+              onFilter={() => {
+                setFilterSheetOpen(true);
+                if (filterOptions.length === 0 && !filterLoading) void loadProductCategories();
+              }}
+              onProduct={(product) => {
+                giftScrollTop.current =
+                  screenRef.current?.querySelector<HTMLElement>('[data-testid="mobile-scroll"]')
+                    ?.scrollTop ?? 0;
+                setSelectedProduct(product);
+                setQuantity(1);
+                navigate('product');
+              }}
+            />
+          </div>
+          {route === 'product' ? (
+            <ProductPage
+              product={selectedProduct!}
+              quantity={quantity}
+              onDecrease={() => setQuantity((value) => Math.max(1, value - 1))}
+              onIncrease={() => setQuantity((value) => Math.min(MAX_GIFT_QUANTITY, value + 1))}
+              onBack={goBack}
+              onGift={() => {
+                if (!giftRecipient) {
+                  setDialog('selectRecipient');
+                  return;
+                }
+                navigate('complete');
+              }}
+            />
+          ) : null}
+        </>
       );
     if (route === 'mypage')
       return (
@@ -273,23 +324,6 @@ export function GiftApp() {
         />
       );
     if ((route === 'product' || route === 'complete') && !selectedProduct) return null;
-    if (route === 'product' && selectedProduct)
-      return (
-        <ProductPage
-          product={selectedProduct}
-          quantity={quantity}
-          onDecrease={() => setQuantity((value) => Math.max(1, value - 1))}
-          onIncrease={() => setQuantity((value) => Math.min(MAX_GIFT_QUANTITY, value + 1))}
-          onBack={goBack}
-          onGift={() => {
-            if (!giftRecipient) {
-              setDialog('selectRecipient');
-              return;
-            }
-            navigate('complete');
-          }}
-        />
-      );
     if (route === 'complete' && selectedProduct)
       return (
         <CompletePage
@@ -301,7 +335,13 @@ export function GiftApp() {
         />
       );
     if (route === 'received') return <ReceivedGiftsPage onBack={goBack} />;
-    if (route === 'preferences') return <PreferencesPage onBack={goBack} />;
+    if (route === 'preferences')
+      return (
+        <PreferencesPage
+          onBack={goBack}
+          onSaved={() => setToast('비선호 카테고리를 저장했습니다.')}
+        />
+      );
     return (
       <AccountPage
         profile={profile}
@@ -320,7 +360,7 @@ export function GiftApp() {
 
   return (
     <div className="gift-app" data-testid="gift-app" data-route={route}>
-      <MobileScroll key={route} className="app-screen">
+      <MobileScroll className="app-screen">
         <div className={`screen-body ${showBottomNav ? 'has-bottom-nav' : ''}`}>
           <Suspense
             fallback={
@@ -338,6 +378,8 @@ export function GiftApp() {
 
       <Toast message={toast} container={screenRef.current} />
 
+      <BugReportWidget route={route} containerRef={screenRef} raised={showBottomNav} />
+
       <AddFriendSheet
         open={friendSheetOpen}
         onOpenChange={(open) => {
@@ -350,6 +392,7 @@ export function GiftApp() {
         open={filterSheetOpen}
         options={filterOptions}
         selected={activeFilterIds}
+        loading={filterLoading}
         error={filterError}
         onApply={setActiveFilterIds}
         onRetry={() => void loadProductCategories()}
