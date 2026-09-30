@@ -100,6 +100,75 @@ test('상품 목록 이미지는 같은 크기의 카드 이미지 영역을 빈
   expect(new Set(imageAreaSizes).size).toBe(1);
 });
 
+test('모바일 화면 헤더를 고정하고 상품 상세 이미지를 원본 비율로 표시한다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  await page
+    .getByRole('navigation', { name: '하단 메뉴' })
+    .getByRole('button', { name: '선물' })
+    .click();
+  await expect(page.locator('.product-card')).toHaveCount(20);
+  const scroll = page.locator(
+    '.mobile-page:not(.route-preserved-scroll) > [data-testid="mobile-scroll"]',
+  );
+  const assertHeaderPosition = async (header: ReturnType<typeof page.locator>) => {
+    await scroll.evaluate((element) => element.scrollTo({ top: 200 }));
+    await expect.poll(() => scroll.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    await expect(header).toHaveCSS('position', 'sticky');
+    const positions = await Promise.all([
+      scroll.evaluate((element) => element.getBoundingClientRect().top),
+      header.evaluate((element) => element.getBoundingClientRect().top),
+    ]);
+    expect(Math.abs(positions[0] - positions[1])).toBeLessThanOrEqual(1);
+  };
+
+  await assertHeaderPosition(page.locator('.gifts-page > .screen-header'));
+  await scroll.evaluate((element) => element.scrollTo({ top: 0 }));
+  await page.locator('.product-card').first().click();
+
+  const image = page.locator('.product-hero');
+  await expect(image).toBeVisible();
+  const ratios = await image.evaluate((element: HTMLImageElement) => ({
+    natural: element.naturalWidth / element.naturalHeight,
+    rendered: element.clientWidth / element.clientHeight,
+  }));
+  expect(ratios.rendered).toBeCloseTo(ratios.natural, 2);
+  await expect(page.locator('.product-actions')).toHaveCount(0);
+  await assertHeaderPosition(page.locator('.product-detail > .screen-header'));
+});
+
+test('상품 목록의 스크롤 영역을 다른 메인 탭과 공유하지 않는다', async ({ page }) => {
+  const navigation = page.getByRole('navigation', { name: '하단 메뉴' });
+  const scroll = page.getByTestId('mobile-scroll');
+
+  await navigation.getByRole('button', { name: '선물' }).click();
+  await expect(page.locator('.product-card').first()).toBeVisible();
+  await scroll.evaluate((element) => {
+    element.dataset.tabScroll = 'gifts';
+    element.scrollTop = element.scrollHeight;
+  });
+
+  await navigation.getByRole('button', { name: '마이' }).click();
+  await expect(page.locator('.mypage-page')).toBeVisible();
+  await expect(scroll).not.toHaveAttribute('data-tab-scroll');
+  await expect.poll(() => scroll.evaluate((element) => element.scrollTop)).toBe(0);
+});
+
+test('작은 실기기에서도 마이페이지에 불필요한 스크롤이 생기지 않는다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  await page
+    .getByRole('navigation', { name: '하단 메뉴' })
+    .getByRole('button', { name: '마이' })
+    .click();
+
+  await expect(page.locator('.mypage-page')).toBeVisible();
+  const size = await page.getByTestId('mobile-scroll').evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }));
+  expect(size.scrollHeight).toBeLessThanOrEqual(size.clientHeight + 1);
+  await expect(page.locator('.mypage-page')).toHaveCSS('padding-top', '0px');
+});
+
 test('공백만 입력한 상품명으로는 검색하지 않는다', async ({ page }) => {
   await page
     .getByRole('navigation', { name: '하단 메뉴' })
@@ -128,6 +197,30 @@ test('새로고침 후에도 현재 메인 탭을 유지한다', async ({ page }
   ).toHaveAttribute('aria-current', 'page');
 });
 
+test('상품 상세에서 새로고침하면 상세 화면을 복원하고 목록으로 돌아가면 초기화한다', async ({
+  page,
+}) => {
+  await page
+    .getByRole('navigation', { name: '하단 메뉴' })
+    .getByRole('button', { name: '선물' })
+    .click();
+  await page.locator('.product-card').first().click();
+
+  const productName = await page.locator('.product-detail strong').first().textContent();
+  expect(productName).toBeTruthy();
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: '상품 상세' })).toBeVisible();
+  await expect(page.locator('.product-detail strong').first()).toHaveText(productName!);
+
+  await page.getByRole('button', { name: '뒤로 가기' }).click();
+  await expect(page.getByRole('heading', { name: '선물 탐색' })).toBeVisible();
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: '선물 탐색' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '상품 상세' })).toHaveCount(0);
+});
+
 test('상품 상세에서 돌아가면 선물 목록의 스크롤 위치를 복원한다', async ({ page }) => {
   await page
     .getByRole('navigation', { name: '하단 메뉴' })
@@ -136,7 +229,10 @@ test('상품 상세에서 돌아가면 선물 목록의 스크롤 위치를 복�
 
   await expect(page.locator('.product-card')).toHaveCount(20);
   const scroll = page.getByTestId('mobile-scroll');
-  await scroll.evaluate((element) => element.scrollTo({ top: 360 }));
+  await scroll.evaluate((element) => {
+    element.dataset.listScroll = 'true';
+    element.scrollTo({ top: 360 });
+  });
   const before = await scroll.evaluate((element) => element.scrollTop);
   expect(before).toBeGreaterThan(0);
 
@@ -145,6 +241,15 @@ test('상품 상세에서 돌아가면 선물 목록의 스크롤 위치를 복�
     .nth(10)
     .evaluate((element: HTMLElement) => element.click());
   await expect(page.getByRole('heading', { name: '상품 상세' })).toBeVisible();
+  await expect(page.getByTestId('mobile-scroll')).toHaveCount(2);
+  await expect(
+    page.locator('.route-preserved-scroll').getByTestId('mobile-scroll'),
+  ).toHaveAttribute('data-list-scroll', 'true');
+  const detailScroll = page.locator(
+    '.mobile-page:not(.route-preserved-scroll) > [data-testid="mobile-scroll"]',
+  );
+  await expect(detailScroll).not.toHaveAttribute('data-list-scroll');
+  await expect.poll(() => detailScroll.evaluate((element) => element.scrollTop)).toBe(0);
   await page.getByRole('button', { name: '뒤로 가기' }).click();
 
   await expect.poll(() => scroll.evaluate((element) => element.scrollTop)).toBeCloseTo(before, 0);

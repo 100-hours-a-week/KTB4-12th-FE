@@ -1,5 +1,5 @@
 import { Cross1Icon, MagnifyingGlassIcon } from '@radix-ui/react-icons';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { fetchFriends, type Friend } from '../../../entities/friend';
 import { BottomSheet, KeyboardInput } from '../../../mobile';
@@ -14,18 +14,6 @@ type SelectRecipientSheetProps = {
 };
 
 export function SelectRecipientSheet({ open, onOpenChange, onSelect }: SelectRecipientSheetProps) {
-  const [searchInput, setSearchInput] = useState('');
-  const searchQuery = searchInput.trim();
-  const loader = useCallback(
-    (cursor: string | null) => fetchFriends(cursor, searchQuery),
-    [searchQuery],
-  );
-  const list = useCursorList(loader, searchQuery);
-
-  useEffect(() => {
-    if (!open) setSearchInput('');
-  }, [open]);
-
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange} title="받는 사람 선택" snap={0.85}>
       <button
@@ -36,6 +24,22 @@ export function SelectRecipientSheet({ open, onOpenChange, onSelect }: SelectRec
       >
         <Cross1Icon />
       </button>
+      {open ? <RecipientList onSelect={onSelect} /> : null}
+    </BottomSheet>
+  );
+}
+
+function RecipientList({ onSelect }: Pick<SelectRecipientSheetProps, 'onSelect'>) {
+  const [searchInput, setSearchInput] = useState('');
+  const searchQuery = searchInput.trim();
+  const loader = useCallback(
+    (cursor: string | null) => fetchFriends(cursor, searchQuery),
+    [searchQuery],
+  );
+  const list = useCursorList(loader, searchQuery);
+
+  return (
+    <>
       <div className="inline-search">
         <MagnifyingGlassIcon aria-hidden="true" />
         <KeyboardInput
@@ -73,6 +77,6 @@ export function SelectRecipientSheet({ open, onOpenChange, onSelect }: SelectRec
           list.retry();
         }}
       />
-    </BottomSheet>
+    </>
   );
 }

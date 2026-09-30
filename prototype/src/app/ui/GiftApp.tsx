@@ -68,10 +68,77 @@ const emptySignupDraft: SignupDraft = {
 };
 
 const MAIN_TAB_STORAGE_KEY = 'gift-prototype-main-tab';
+const SELECTED_PRODUCT_STORAGE_KEY = 'gift-prototype-selected-product';
+const DETAIL_ROUTE_STORAGE_KEY = 'gift-prototype-detail-route';
+
+type RestorableDetailRoute = 'account' | 'received' | 'preferences';
+type StoredDetailRoute = {
+  route: RestorableDetailRoute;
+  returnRoute: MainTabRoute;
+};
 
 function getStoredMainTab(): MainTabRoute {
   const storedTab = window.localStorage.getItem(MAIN_TAB_STORAGE_KEY);
   return storedTab === 'gifts' || storedTab === 'mypage' ? storedTab : 'friends';
+}
+
+function getStoredProduct(): Product | null {
+  const stored = window.localStorage.getItem(SELECTED_PRODUCT_STORAGE_KEY);
+  if (!stored) return null;
+
+  try {
+    const product = JSON.parse(stored) as Partial<Product>;
+    if (
+      typeof product.productId !== 'number' ||
+      typeof product.brandName !== 'string' ||
+      typeof product.productName !== 'string' ||
+      typeof product.price !== 'number' ||
+      typeof product.thumbnailUrl !== 'string'
+    ) {
+      window.localStorage.removeItem(SELECTED_PRODUCT_STORAGE_KEY);
+      return null;
+    }
+    return product as Product;
+  } catch {
+    window.localStorage.removeItem(SELECTED_PRODUCT_STORAGE_KEY);
+    return null;
+  }
+}
+
+function clearStoredProduct() {
+  window.localStorage.removeItem(SELECTED_PRODUCT_STORAGE_KEY);
+}
+
+function getStoredDetailRoute(): StoredDetailRoute | null {
+  const stored = window.localStorage.getItem(DETAIL_ROUTE_STORAGE_KEY);
+  if (!stored) return null;
+
+  try {
+    const detail = JSON.parse(stored) as Partial<StoredDetailRoute>;
+    if (
+      (detail.route !== 'account' &&
+        detail.route !== 'received' &&
+        detail.route !== 'preferences') ||
+      (detail.returnRoute !== 'friends' &&
+        detail.returnRoute !== 'gifts' &&
+        detail.returnRoute !== 'mypage')
+    ) {
+      window.localStorage.removeItem(DETAIL_ROUTE_STORAGE_KEY);
+      return null;
+    }
+    return detail as StoredDetailRoute;
+  } catch {
+    window.localStorage.removeItem(DETAIL_ROUTE_STORAGE_KEY);
+    return null;
+  }
+}
+
+function clearStoredDetailRoute() {
+  window.localStorage.removeItem(DETAIL_ROUTE_STORAGE_KEY);
+}
+
+function isRestorableDetailRoute(route: Route): route is RestorableDetailRoute {
+  return route === 'account' || route === 'received' || route === 'preferences';
 }
 
 export function GiftApp() {
@@ -80,9 +147,16 @@ export function GiftApp() {
   const [route, setRoute] = useState<Route>(() => {
     if (window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' || !loadSession())
       return 'login';
-    return getQaInitialRoute() ?? getStoredMainTab();
+    const qaRoute = getQaInitialRoute();
+    if (qaRoute) return qaRoute;
+    if (getStoredProduct()) return 'product';
+    return getStoredDetailRoute()?.route ?? getStoredMainTab();
   });
-  const [history, setHistory] = useState<Route[]>([]);
+  const [history, setHistory] = useState<Route[]>(() => {
+    if (getStoredProduct()) return ['gifts'];
+    const detail = getStoredDetailRoute();
+    return detail ? [detail.returnRoute] : [];
+  });
   const [friendSheetOpen, setFriendSheetOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [birthdaySheetOpen, setBirthdaySheetOpen] = useState(false);
@@ -90,7 +164,7 @@ export function GiftApp() {
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [friendsRefreshKey, setFriendsRefreshKey] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(getStoredProduct);
   const [giftRecipient, setGiftRecipient] = useState<SearchedUser | null>(null);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [filterOptions, setFilterOptions] = useState<ProductCategory[]>([]);
@@ -109,7 +183,7 @@ export function GiftApp() {
     const layoutFrame = window.requestAnimationFrame(() => {
       restoreFrame = window.requestAnimationFrame(() => {
         const scroll = screenRef.current?.querySelector<HTMLElement>(
-          '[data-testid="mobile-scroll"]',
+          '[data-testid="mobile-scroll"]:not(.route-preserved-scroll)',
         );
         if (!scroll) return;
         scroll.scrollTop =
@@ -133,12 +207,29 @@ export function GiftApp() {
   const navigate = (next: Route) => {
     dismissKeyboard();
     setHistory((value) => [...value, route]);
+    if (isRestorableDetailRoute(next)) {
+      const returnRoute =
+        route === 'friends' || route === 'gifts' || route === 'mypage' ? route : 'mypage';
+      window.localStorage.setItem(
+        DETAIL_ROUTE_STORAGE_KEY,
+        JSON.stringify({ route: next, returnRoute }),
+      );
+    } else {
+      clearStoredDetailRoute();
+    }
+    if (next !== 'product') clearStoredProduct();
     setRoute(next);
   };
 
   const goBack = () => {
     dismissKeyboard();
-    setRoute(history.at(-1) ?? 'friends');
+    const nextRoute = history.at(-1) ?? 'friends';
+    if (nextRoute === 'gifts' || nextRoute === 'friends') {
+      setSelectedProduct(null);
+      clearStoredProduct();
+    }
+    clearStoredDetailRoute();
+    setRoute(nextRoute);
     setHistory((value) => value.slice(0, -1));
   };
 
@@ -147,8 +238,10 @@ export function GiftApp() {
     setHistory([]);
     setRoute(next);
     window.localStorage.setItem(MAIN_TAB_STORAGE_KEY, next);
+    setSelectedProduct(null);
+    clearStoredProduct();
+    clearStoredDetailRoute();
     setGiftRecipient(null);
-    if (next === 'mypage') void refreshProfile();
     if (pendingOnboarding) {
       setPendingOnboarding(false);
       void completeOnboarding().catch(() => undefined);
@@ -160,6 +253,10 @@ export function GiftApp() {
       .then(setProfile)
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (route === 'mypage' || route === 'account') void refreshProfile();
+  }, [refreshProfile, route]);
 
   useEffect(() => {
     const handleExpired = (event: Event) => {
@@ -212,6 +309,9 @@ export function GiftApp() {
       .catch(() => undefined)
       .finally(() => {
         clearSession();
+        setSelectedProduct(null);
+        clearStoredProduct();
+        clearStoredDetailRoute();
         setHistory([]);
         setRoute('login');
       });
@@ -246,6 +346,26 @@ export function GiftApp() {
     void updateMe({ birth: birthday.replaceAll('.', '-') }).catch(() => refreshProfile());
   };
 
+  const renderGiftsPage = () => (
+    <GiftsPage
+      filterCount={activeFilterIds.length}
+      filterCategoryIds={activeFilterIds}
+      onFilter={() => {
+        setFilterSheetOpen(true);
+        if (filterOptions.length === 0 && !filterLoading) void loadProductCategories();
+      }}
+      onProduct={(product) => {
+        giftScrollTop.current =
+          screenRef.current?.querySelector<HTMLElement>('[data-testid="mobile-scroll"]')
+            ?.scrollTop ?? 0;
+        setSelectedProduct(product);
+        window.localStorage.setItem(SELECTED_PRODUCT_STORAGE_KEY, JSON.stringify(product));
+        setQuantity(1);
+        navigate('product');
+      }}
+    />
+  );
+
   const renderPage = () => {
     if (route === 'friends')
       return (
@@ -270,44 +390,23 @@ export function GiftApp() {
       );
     if (route === 'terms')
       return <TermsAgreementPage onBack={goBack} onComplete={completeSignup} />;
-    if (route === 'gifts' || (route === 'product' && selectedProduct))
+    if (route === 'gifts') return renderGiftsPage();
+    if (route === 'product' && selectedProduct)
       return (
-        <>
-          <div className={route === 'gifts' ? undefined : 'route-preserved-page'}>
-            <GiftsPage
-              filterCount={activeFilterIds.length}
-              filterCategoryIds={activeFilterIds}
-              onFilter={() => {
-                setFilterSheetOpen(true);
-                if (filterOptions.length === 0 && !filterLoading) void loadProductCategories();
-              }}
-              onProduct={(product) => {
-                giftScrollTop.current =
-                  screenRef.current?.querySelector<HTMLElement>('[data-testid="mobile-scroll"]')
-                    ?.scrollTop ?? 0;
-                setSelectedProduct(product);
-                setQuantity(1);
-                navigate('product');
-              }}
-            />
-          </div>
-          {route === 'product' ? (
-            <ProductPage
-              product={selectedProduct!}
-              quantity={quantity}
-              onDecrease={() => setQuantity((value) => Math.max(1, value - 1))}
-              onIncrease={() => setQuantity((value) => Math.min(MAX_GIFT_QUANTITY, value + 1))}
-              onBack={goBack}
-              onGift={() => {
-                if (!giftRecipient) {
-                  setRecipientSheetOpen(true);
-                  return;
-                }
-                navigate('complete');
-              }}
-            />
-          ) : null}
-        </>
+        <ProductPage
+          product={selectedProduct}
+          quantity={quantity}
+          onDecrease={() => setQuantity((value) => Math.max(1, value - 1))}
+          onIncrease={() => setQuantity((value) => Math.min(MAX_GIFT_QUANTITY, value + 1))}
+          onBack={goBack}
+          onGift={() => {
+            if (!giftRecipient) {
+              setRecipientSheetOpen(true);
+              return;
+            }
+            navigate('complete');
+          }}
+        />
       );
     if (route === 'mypage')
       return (
@@ -352,23 +451,36 @@ export function GiftApp() {
   };
 
   const showBottomNav = route === 'friends' || route === 'gifts' || route === 'mypage';
+  const preserveGiftList = route === 'gifts' || route === 'product';
 
   return (
     <div className="gift-app" data-testid="gift-app" data-route={route}>
-      <MobileScroll className="app-screen">
-        <div className={`screen-body ${showBottomNav ? 'has-bottom-nav' : ''}`}>
-          <Suspense
-            fallback={
-              <div className="cursor-status">
-                <span className="loading-dot" />
-                불러오는 중
-              </div>
-            }
-          >
-            {renderPage()}
-          </Suspense>
-        </div>
-      </MobileScroll>
+      {preserveGiftList ? (
+        <MobileScroll
+          key="gifts"
+          className={`app-screen ${route === 'product' ? 'route-preserved-scroll' : ''}`}
+        >
+          <div className="screen-body has-bottom-nav">
+            <Suspense fallback={null}>{renderGiftsPage()}</Suspense>
+          </div>
+        </MobileScroll>
+      ) : null}
+      {route !== 'gifts' ? (
+        <MobileScroll key={route} className="app-screen">
+          <div className={`screen-body ${showBottomNav ? 'has-bottom-nav' : ''}`}>
+            <Suspense
+              fallback={
+                <div className="cursor-status">
+                  <span className="loading-dot" />
+                  불러오는 중
+                </div>
+              }
+            >
+              {renderPage()}
+            </Suspense>
+          </div>
+        </MobileScroll>
+      ) : null}
       {showBottomNav ? <BottomNavigation route={route} onSelect={setTab} /> : null}
 
       <Toast message={toast} container={screenRef.current} />
