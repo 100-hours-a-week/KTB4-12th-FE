@@ -61,8 +61,7 @@ test('사용자가 상품을 검색하고 상세 화면에서 목록으로 돌�
     .getByRole('button', { name: '선물' })
     .click();
 
-  await page.getByPlaceholder('상품명을 입력하고 검색 버튼을 눌러 주세요').fill('프리미엄 티 세트');
-  await page.getByRole('button', { name: '상품 검색' }).click();
+  await page.getByPlaceholder('상품명 또는 브랜드를 입력해 주세요.').fill('프리미엄 티 세트');
   const products = page.locator('.product-card');
   await expect(products).toHaveCount(15);
   await products.first().click();
@@ -76,21 +75,41 @@ test('사용자가 상품을 검색하고 상세 화면에서 목록으로 돌�
   await expect(page.getByRole('heading', { name: '선물 탐색' })).toBeVisible();
 });
 
-test('상품 목록의 모든 이미지가 같은 크기로 표시된다', async ({ page }) => {
+test('상품 목록 이미지는 같은 크기의 카드 이미지 영역을 빈틈없이 채운다', async ({ page }) => {
   await page
     .getByRole('navigation', { name: '하단 메뉴' })
     .getByRole('button', { name: '선물' })
     .click();
-  await expect(page.locator('.product-card img')).toHaveCount(20);
+  const imageArea = page.locator('.product-card-image').first();
+  const image = imageArea.locator('img');
+  await expect(image).toBeVisible();
 
-  const imageSizes = await page.locator('.product-card img').evaluateAll((images) =>
-    images.map((image) => {
-      const { width, height } = image.getBoundingClientRect();
-      return { width, height };
+  const areaBox = await imageArea.boundingBox();
+  const imageBox = await image.boundingBox();
+  expect(areaBox).not.toBeNull();
+  expect(imageBox).not.toBeNull();
+  expect(imageBox!.width).toBeGreaterThanOrEqual(areaBox!.width);
+  expect(imageBox!.height).toBeGreaterThanOrEqual(areaBox!.height);
+
+  const imageAreaSizes = await page.locator('.product-card-image').evaluateAll((areas) =>
+    areas.map((area) => {
+      const { width, height } = area.getBoundingClientRect();
+      return `${width}:${height}`;
     }),
   );
-  expect(new Set(imageSizes.map(({ width, height }) => `${width}:${height}`)).size).toBe(1);
-  expect(imageSizes[0].width).toBe(imageSizes[0].height);
+  expect(new Set(imageAreaSizes).size).toBe(1);
+});
+
+test('공백만 입력한 상품명으로는 검색하지 않는다', async ({ page }) => {
+  await page
+    .getByRole('navigation', { name: '하단 메뉴' })
+    .getByRole('button', { name: '선물' })
+    .click();
+
+  await page.getByPlaceholder('상품명 또는 브랜드를 입력해 주세요.').fill('   ');
+  await page.waitForTimeout(400);
+
+  await expect(page.locator('.product-card')).toHaveCount(20);
 });
 
 test('새로고침 후에도 현재 메인 탭을 유지한다', async ({ page }) => {
@@ -171,10 +190,10 @@ test('[QA 76] 상품을 먼저 선택한 뒤 친구를 선택해 선물을 완�
   await page.locator('.product-card').nth(2).click();
   await page.getByRole('button', { name: /선물하기/ }).click();
 
-  const dialog = page.getByRole('dialog', { name: '받는 사람을 선택해 주세요' });
-  await dialog.getByRole('button', { name: '친구 보기' }).click();
-  const recipient = page.locator('.friend-card').filter({ hasText: '김민지' }).first();
-  await recipient.getByRole('button', { name: '선물하기' }).click();
+  const sheet = page.getByRole('dialog', { name: '받는 사람 선택' });
+  await expect(sheet).toBeVisible();
+  const recipient = sheet.locator('.friend-card').filter({ hasText: '김민지' }).first();
+  await recipient.getByRole('button', { name: '선택' }).click();
 
   await expect(page.getByRole('heading', { name: '완료' })).toBeVisible();
   await expect(page.locator('.summary-card')).toContainText('김민지');
