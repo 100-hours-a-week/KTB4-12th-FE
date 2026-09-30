@@ -69,6 +69,13 @@ const emptySignupDraft: SignupDraft = {
 
 const MAIN_TAB_STORAGE_KEY = 'gift-prototype-main-tab';
 const SELECTED_PRODUCT_STORAGE_KEY = 'gift-prototype-selected-product';
+const DETAIL_ROUTE_STORAGE_KEY = 'gift-prototype-detail-route';
+
+type RestorableDetailRoute = 'account' | 'received' | 'preferences';
+type StoredDetailRoute = {
+  route: RestorableDetailRoute;
+  returnRoute: MainTabRoute;
+};
 
 function getStoredMainTab(): MainTabRoute {
   const storedTab = window.localStorage.getItem(MAIN_TAB_STORAGE_KEY);
@@ -102,16 +109,54 @@ function clearStoredProduct() {
   window.localStorage.removeItem(SELECTED_PRODUCT_STORAGE_KEY);
 }
 
+function getStoredDetailRoute(): StoredDetailRoute | null {
+  const stored = window.localStorage.getItem(DETAIL_ROUTE_STORAGE_KEY);
+  if (!stored) return null;
+
+  try {
+    const detail = JSON.parse(stored) as Partial<StoredDetailRoute>;
+    if (
+      (detail.route !== 'account' &&
+        detail.route !== 'received' &&
+        detail.route !== 'preferences') ||
+      (detail.returnRoute !== 'friends' &&
+        detail.returnRoute !== 'gifts' &&
+        detail.returnRoute !== 'mypage')
+    ) {
+      window.localStorage.removeItem(DETAIL_ROUTE_STORAGE_KEY);
+      return null;
+    }
+    return detail as StoredDetailRoute;
+  } catch {
+    window.localStorage.removeItem(DETAIL_ROUTE_STORAGE_KEY);
+    return null;
+  }
+}
+
+function clearStoredDetailRoute() {
+  window.localStorage.removeItem(DETAIL_ROUTE_STORAGE_KEY);
+}
+
+function isRestorableDetailRoute(route: Route): route is RestorableDetailRoute {
+  return route === 'account' || route === 'received' || route === 'preferences';
+}
+
 export function GiftApp() {
   const keyboard = useKeyboard();
   const { screenRef } = useScreenPortal();
   const [route, setRoute] = useState<Route>(() => {
     if (window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' || !loadSession())
       return 'login';
+    const qaRoute = getQaInitialRoute();
+    if (qaRoute) return qaRoute;
     if (getStoredProduct()) return 'product';
-    return getQaInitialRoute() ?? getStoredMainTab();
+    return getStoredDetailRoute()?.route ?? getStoredMainTab();
   });
-  const [history, setHistory] = useState<Route[]>(() => (getStoredProduct() ? ['gifts'] : []));
+  const [history, setHistory] = useState<Route[]>(() => {
+    if (getStoredProduct()) return ['gifts'];
+    const detail = getStoredDetailRoute();
+    return detail ? [detail.returnRoute] : [];
+  });
   const [friendSheetOpen, setFriendSheetOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [birthdaySheetOpen, setBirthdaySheetOpen] = useState(false);
@@ -162,6 +207,17 @@ export function GiftApp() {
   const navigate = (next: Route) => {
     dismissKeyboard();
     setHistory((value) => [...value, route]);
+    if (isRestorableDetailRoute(next)) {
+      const returnRoute =
+        route === 'friends' || route === 'gifts' || route === 'mypage' ? route : 'mypage';
+      window.localStorage.setItem(
+        DETAIL_ROUTE_STORAGE_KEY,
+        JSON.stringify({ route: next, returnRoute }),
+      );
+    } else {
+      clearStoredDetailRoute();
+    }
+    if (next !== 'product') clearStoredProduct();
     setRoute(next);
   };
 
@@ -172,6 +228,7 @@ export function GiftApp() {
       setSelectedProduct(null);
       clearStoredProduct();
     }
+    clearStoredDetailRoute();
     setRoute(nextRoute);
     setHistory((value) => value.slice(0, -1));
   };
@@ -183,6 +240,7 @@ export function GiftApp() {
     window.localStorage.setItem(MAIN_TAB_STORAGE_KEY, next);
     setSelectedProduct(null);
     clearStoredProduct();
+    clearStoredDetailRoute();
     setGiftRecipient(null);
     if (pendingOnboarding) {
       setPendingOnboarding(false);
@@ -197,7 +255,7 @@ export function GiftApp() {
   }, []);
 
   useEffect(() => {
-    if (route === 'mypage') void refreshProfile();
+    if (route === 'mypage' || route === 'account') void refreshProfile();
   }, [refreshProfile, route]);
 
   useEffect(() => {
@@ -253,6 +311,7 @@ export function GiftApp() {
         clearSession();
         setSelectedProduct(null);
         clearStoredProduct();
+        clearStoredDetailRoute();
         setHistory([]);
         setRoute('login');
       });
