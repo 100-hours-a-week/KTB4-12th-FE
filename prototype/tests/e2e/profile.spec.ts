@@ -17,6 +17,15 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
+test('마이페이지 탭으로 새로고침해도 사용자 정보를 조회한다', async ({ page }) => {
+  await page.evaluate(() => window.localStorage.setItem('gift-prototype-main-tab', 'mypage'));
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: '마이페이지' })).toBeVisible();
+  await expect(page.getByText('홍길동', { exact: true })).toBeVisible();
+  await expect(page.getByText('email@email.com', { exact: true })).toBeVisible();
+});
+
 test('사용자가 비선호 카테고리를 변경하고 저장한다', async ({ page }) => {
   await openMyPage(page);
   await page.getByRole('button', { name: '비선호 카테고리 설정' }).click();

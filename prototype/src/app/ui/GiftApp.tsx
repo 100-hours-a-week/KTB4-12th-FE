@@ -68,10 +68,38 @@ const emptySignupDraft: SignupDraft = {
 };
 
 const MAIN_TAB_STORAGE_KEY = 'gift-prototype-main-tab';
+const SELECTED_PRODUCT_STORAGE_KEY = 'gift-prototype-selected-product';
 
 function getStoredMainTab(): MainTabRoute {
   const storedTab = window.localStorage.getItem(MAIN_TAB_STORAGE_KEY);
   return storedTab === 'gifts' || storedTab === 'mypage' ? storedTab : 'friends';
+}
+
+function getStoredProduct(): Product | null {
+  const stored = window.localStorage.getItem(SELECTED_PRODUCT_STORAGE_KEY);
+  if (!stored) return null;
+
+  try {
+    const product = JSON.parse(stored) as Partial<Product>;
+    if (
+      typeof product.productId !== 'number' ||
+      typeof product.brandName !== 'string' ||
+      typeof product.productName !== 'string' ||
+      typeof product.price !== 'number' ||
+      typeof product.thumbnailUrl !== 'string'
+    ) {
+      window.localStorage.removeItem(SELECTED_PRODUCT_STORAGE_KEY);
+      return null;
+    }
+    return product as Product;
+  } catch {
+    window.localStorage.removeItem(SELECTED_PRODUCT_STORAGE_KEY);
+    return null;
+  }
+}
+
+function clearStoredProduct() {
+  window.localStorage.removeItem(SELECTED_PRODUCT_STORAGE_KEY);
 }
 
 export function GiftApp() {
@@ -80,9 +108,10 @@ export function GiftApp() {
   const [route, setRoute] = useState<Route>(() => {
     if (window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' || !loadSession())
       return 'login';
+    if (getStoredProduct()) return 'product';
     return getQaInitialRoute() ?? getStoredMainTab();
   });
-  const [history, setHistory] = useState<Route[]>([]);
+  const [history, setHistory] = useState<Route[]>(() => (getStoredProduct() ? ['gifts'] : []));
   const [friendSheetOpen, setFriendSheetOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [birthdaySheetOpen, setBirthdaySheetOpen] = useState(false);
@@ -90,7 +119,7 @@ export function GiftApp() {
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [friendsRefreshKey, setFriendsRefreshKey] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(getStoredProduct);
   const [giftRecipient, setGiftRecipient] = useState<SearchedUser | null>(null);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [filterOptions, setFilterOptions] = useState<ProductCategory[]>([]);
@@ -138,7 +167,12 @@ export function GiftApp() {
 
   const goBack = () => {
     dismissKeyboard();
-    setRoute(history.at(-1) ?? 'friends');
+    const nextRoute = history.at(-1) ?? 'friends';
+    if (nextRoute === 'gifts' || nextRoute === 'friends') {
+      setSelectedProduct(null);
+      clearStoredProduct();
+    }
+    setRoute(nextRoute);
     setHistory((value) => value.slice(0, -1));
   };
 
@@ -147,8 +181,9 @@ export function GiftApp() {
     setHistory([]);
     setRoute(next);
     window.localStorage.setItem(MAIN_TAB_STORAGE_KEY, next);
+    setSelectedProduct(null);
+    clearStoredProduct();
     setGiftRecipient(null);
-    if (next === 'mypage') void refreshProfile();
     if (pendingOnboarding) {
       setPendingOnboarding(false);
       void completeOnboarding().catch(() => undefined);
@@ -160,6 +195,10 @@ export function GiftApp() {
       .then(setProfile)
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (route === 'mypage') void refreshProfile();
+  }, [refreshProfile, route]);
 
   useEffect(() => {
     const handleExpired = (event: Event) => {
@@ -212,6 +251,8 @@ export function GiftApp() {
       .catch(() => undefined)
       .finally(() => {
         clearSession();
+        setSelectedProduct(null);
+        clearStoredProduct();
         setHistory([]);
         setRoute('login');
       });
@@ -259,6 +300,7 @@ export function GiftApp() {
           screenRef.current?.querySelector<HTMLElement>('[data-testid="mobile-scroll"]')
             ?.scrollTop ?? 0;
         setSelectedProduct(product);
+        window.localStorage.setItem(SELECTED_PRODUCT_STORAGE_KEY, JSON.stringify(product));
         setQuantity(1);
         navigate('product');
       }}
