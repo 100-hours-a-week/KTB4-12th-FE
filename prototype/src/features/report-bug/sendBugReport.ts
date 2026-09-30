@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '../../shared/api/client';
+import { loadSession } from '../../shared/api/session';
 
 export type ReportCategory = 'bug' | 'suggestion' | 'help';
 
@@ -125,7 +126,18 @@ export async function sendBugReport(payload: BugReportPayload): Promise<void> {
   }
   form.append('files[1]', new Blob([payload.errorsText], { type: 'text/plain' }), 'errors.txt');
 
-  const response = await fetch(ENDPOINT, { method: 'POST', body: form });
+  const accessToken = BUG_REPORT_PATH ? loadSession()?.accessToken : undefined;
+  let response = await fetch(ENDPOINT, {
+    method: 'POST',
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    body: form,
+  });
+
+  // 만료된 토큰 때문에 익명 제보까지 막히지 않도록 인증 없이 한 번만 재시도한다.
+  if (response.status === 401 && accessToken) {
+    response = await fetch(ENDPOINT, { method: 'POST', body: form });
+  }
+
   if (!response.ok) {
     const body = await response.text().catch(() => '');
     throw new Error(`전송 실패 (HTTP ${response.status})${body ? `: ${clamp(body, 200)}` : ''}`);
