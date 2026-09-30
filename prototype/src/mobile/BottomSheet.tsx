@@ -96,6 +96,12 @@ export function BottomSheet({
               <Dialog.Content
                 asChild
                 forceMount
+                onPointerDownOutside={(event) => {
+                  const target = event.detail.originalEvent.target;
+                  if (target instanceof Element && target.closest('[data-bug-report-widget]')) {
+                    event.preventDefault();
+                  }
+                }}
                 onOpenAutoFocus={(event) => {
                   event.preventDefault();
                   window.requestAnimationFrame(() =>

@@ -207,24 +207,33 @@ test('받는 사람 선택 바텀시트 위에서도 의견 남기기 버튼을 
     .click();
   await page.locator('.product-card').first().click();
 
-  const feedbackButton = page.getByRole('button', { name: '의견 남기기' });
   const feedbackFab = page.locator('.bug-report-fab');
-  const beforeSheet = await feedbackFab.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { right: style.right, bottom: style.bottom, width: style.width, height: style.height };
-  });
+  const feedbackPosition = () =>
+    page.evaluate(() => {
+      const screen = document
+        .querySelector<HTMLElement>('[data-testid="device-screen"]')!
+        .getBoundingClientRect();
+      const fab = document.querySelector<HTMLElement>('.bug-report-fab')!.getBoundingClientRect();
+      return {
+        right: screen.right - fab.right,
+        bottom: screen.bottom - fab.bottom,
+        width: fab.width,
+        height: fab.height,
+      };
+    });
+  const beforeSheet = await feedbackPosition();
 
   await page.getByRole('button', { name: /선물하기/ }).click();
   const recipientSheet = page.getByRole('dialog', { name: '받는 사람 선택' });
   await expect(recipientSheet).toBeVisible();
 
-  const withSheet = await feedbackFab.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { right: style.right, bottom: style.bottom, width: style.width, height: style.height };
-  });
-  expect(withSheet).toEqual(beforeSheet);
+  const withSheet = await feedbackPosition();
+  expect(withSheet.right).toBeCloseTo(beforeSheet.right, 0);
+  expect(withSheet.bottom).toBeCloseTo(beforeSheet.bottom, 0);
+  expect(withSheet.width).toBeCloseTo(beforeSheet.width, 0);
+  expect(withSheet.height).toBeCloseTo(beforeSheet.height, 0);
 
-  await feedbackButton.click();
+  await feedbackFab.click();
 
   const feedbackDialog = page.getByRole('dialog', { name: '의견 남기기' });
   await expect(feedbackDialog).toBeVisible();

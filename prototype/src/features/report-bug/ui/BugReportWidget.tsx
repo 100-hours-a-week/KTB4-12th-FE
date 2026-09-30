@@ -1,7 +1,6 @@
-import { type CSSProperties, type RefObject, useCallback, useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { type RefObject, useCallback, useEffect, useState } from 'react';
 
-import { useKeyboard, useMobileDevice } from '../../../mobile';
+import { useKeyboard } from '../../../mobile';
 import { Toast } from '../../../shared/ui';
 import { captureScreen } from '../captureScreen';
 import { formatErrorsAsText, getCollectedErrors } from '../errorCollector';
@@ -26,7 +25,6 @@ export function BugReportWidget({
 }: BugReportWidgetProps) {
   const enabled = import.meta.env.DEV || enabledInProduction;
   const keyboard = useKeyboard();
-  const { device } = useMobileDevice();
   const [open, setOpen] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [screenshot, setScreenshot] = useState<Blob | null>(null);
@@ -119,13 +117,7 @@ export function BugReportWidget({
     <button
       type="button"
       className={raised ? 'bug-report-fab raised' : 'bug-report-fab'}
-      style={
-        {
-          '--app-safe-area-height': `${
-            device.platform === 'ios' ? device.geometry.safeArea.bottom : 0
-          }px`,
-        } as CSSProperties
-      }
+      style={sheetContainer ? { pointerEvents: 'auto' } : undefined}
       data-bug-report-widget
       aria-label="의견 남기기"
       disabled={capturing}
@@ -137,7 +129,7 @@ export function BugReportWidget({
 
   return (
     <>
-      {sheetContainer ? createPortal(trigger, sheetContainer) : trigger}
+      {trigger}
       {open ? (
         <BugReportModal
           screenshot={screenshot}

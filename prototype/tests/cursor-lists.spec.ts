@@ -144,7 +144,7 @@ test('모든 바텀시트는 배경 화면을 이동시키지 않는다', async 
     await openSheet();
     const sheet = page.getByTestId('bottom-sheet');
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByRole('button', { name: '의견 남기기' })).toBeVisible();
+    await expect(page.locator('.bug-report-fab')).toBeVisible();
     const after = await backgroundPosition();
     expect(after.top).toBeCloseTo(before.top, 3);
     expect(after.screenScrollTop).toBe(before.screenScrollTop);

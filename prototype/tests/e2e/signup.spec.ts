@@ -133,7 +133,7 @@ test('회원가입 바텀시트에서도 의견 남기기 버튼을 사용할 �
 
   await page.getByRole('button', { name: '생년월일 선택' }).click();
   const birthdaySheet = page.getByRole('dialog', { name: '생년월일 선택' });
-  await expect(birthdaySheet.getByRole('button', { name: '의견 남기기' })).toBeVisible();
+  await expect(page.locator('.bug-report-fab')).toBeVisible();
   await birthdaySheet.getByRole('button', { name: '취소' }).click();
 
   await fillSignupForm(page);
@@ -146,7 +146,7 @@ test('회원가입 바텀시트에서도 의견 남기기 버튼을 사용할 �
     .click();
 
   const termsSheet = page.getByRole('dialog', { name: '개인정보 수집 및 이용 동의서' });
-  await expect(termsSheet.getByRole('button', { name: '의견 남기기' })).toBeVisible();
+  await expect(page.locator('.bug-report-fab')).toBeVisible();
 });
 
 test('필수 약관만 동의한 신규 사용자가 회원가입을 완료한다', async ({ page }) => {
