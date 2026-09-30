@@ -63,7 +63,7 @@ textarea:focus-visible,
   min-height: 100%;
 }
 
-.route-preserved-page {
+.route-preserved-scroll {
   display: none;
 }
 .screen-body {
@@ -692,9 +692,6 @@ textarea:focus-visible,
 .product-card small {
   margin-top: 5px;
   font-size: 12px;
-}
-.mypage-page {
-  min-height: 660px;
 }
 .profile-card {
   display: flex;

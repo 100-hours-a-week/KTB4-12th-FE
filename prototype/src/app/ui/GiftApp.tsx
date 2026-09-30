@@ -109,7 +109,7 @@ export function GiftApp() {
     const layoutFrame = window.requestAnimationFrame(() => {
       restoreFrame = window.requestAnimationFrame(() => {
         const scroll = screenRef.current?.querySelector<HTMLElement>(
-          '[data-testid="mobile-scroll"]',
+          '[data-testid="mobile-scroll"]:not(.route-preserved-scroll)',
         );
         if (!scroll) return;
         scroll.scrollTop =
@@ -246,6 +246,25 @@ export function GiftApp() {
     void updateMe({ birth: birthday.replaceAll('.', '-') }).catch(() => refreshProfile());
   };
 
+  const renderGiftsPage = () => (
+    <GiftsPage
+      filterCount={activeFilterIds.length}
+      filterCategoryIds={activeFilterIds}
+      onFilter={() => {
+        setFilterSheetOpen(true);
+        if (filterOptions.length === 0 && !filterLoading) void loadProductCategories();
+      }}
+      onProduct={(product) => {
+        giftScrollTop.current =
+          screenRef.current?.querySelector<HTMLElement>('[data-testid="mobile-scroll"]')
+            ?.scrollTop ?? 0;
+        setSelectedProduct(product);
+        setQuantity(1);
+        navigate('product');
+      }}
+    />
+  );
+
   const renderPage = () => {
     if (route === 'friends')
       return (
@@ -270,44 +289,23 @@ export function GiftApp() {
       );
     if (route === 'terms')
       return <TermsAgreementPage onBack={goBack} onComplete={completeSignup} />;
-    if (route === 'gifts' || (route === 'product' && selectedProduct))
+    if (route === 'gifts') return renderGiftsPage();
+    if (route === 'product' && selectedProduct)
       return (
-        <>
-          <div className={route === 'gifts' ? undefined : 'route-preserved-page'}>
-            <GiftsPage
-              filterCount={activeFilterIds.length}
-              filterCategoryIds={activeFilterIds}
-              onFilter={() => {
-                setFilterSheetOpen(true);
-                if (filterOptions.length === 0 && !filterLoading) void loadProductCategories();
-              }}
-              onProduct={(product) => {
-                giftScrollTop.current =
-                  screenRef.current?.querySelector<HTMLElement>('[data-testid="mobile-scroll"]')
-                    ?.scrollTop ?? 0;
-                setSelectedProduct(product);
-                setQuantity(1);
-                navigate('product');
-              }}
-            />
-          </div>
-          {route === 'product' ? (
-            <ProductPage
-              product={selectedProduct!}
-              quantity={quantity}
-              onDecrease={() => setQuantity((value) => Math.max(1, value - 1))}
-              onIncrease={() => setQuantity((value) => Math.min(MAX_GIFT_QUANTITY, value + 1))}
-              onBack={goBack}
-              onGift={() => {
-                if (!giftRecipient) {
-                  setRecipientSheetOpen(true);
-                  return;
-                }
-                navigate('complete');
-              }}
-            />
-          ) : null}
-        </>
+        <ProductPage
+          product={selectedProduct}
+          quantity={quantity}
+          onDecrease={() => setQuantity((value) => Math.max(1, value - 1))}
+          onIncrease={() => setQuantity((value) => Math.min(MAX_GIFT_QUANTITY, value + 1))}
+          onBack={goBack}
+          onGift={() => {
+            if (!giftRecipient) {
+              setRecipientSheetOpen(true);
+              return;
+            }
+            navigate('complete');
+          }}
+        />
       );
     if (route === 'mypage')
       return (
@@ -352,23 +350,36 @@ export function GiftApp() {
   };
 
   const showBottomNav = route === 'friends' || route === 'gifts' || route === 'mypage';
+  const preserveGiftList = route === 'gifts' || route === 'product';
 
   return (
     <div className="gift-app" data-testid="gift-app" data-route={route}>
-      <MobileScroll className="app-screen">
-        <div className={`screen-body ${showBottomNav ? 'has-bottom-nav' : ''}`}>
-          <Suspense
-            fallback={
-              <div className="cursor-status">
-                <span className="loading-dot" />
-                불러오는 중
-              </div>
-            }
-          >
-            {renderPage()}
-          </Suspense>
-        </div>
-      </MobileScroll>
+      {preserveGiftList ? (
+        <MobileScroll
+          key="gifts"
+          className={`app-screen ${route === 'product' ? 'route-preserved-scroll' : ''}`}
+        >
+          <div className="screen-body has-bottom-nav">
+            <Suspense fallback={null}>{renderGiftsPage()}</Suspense>
+          </div>
+        </MobileScroll>
+      ) : null}
+      {route !== 'gifts' ? (
+        <MobileScroll key={route} className="app-screen">
+          <div className={`screen-body ${showBottomNav ? 'has-bottom-nav' : ''}`}>
+            <Suspense
+              fallback={
+                <div className="cursor-status">
+                  <span className="loading-dot" />
+                  불러오는 중
+                </div>
+              }
+            >
+              {renderPage()}
+            </Suspense>
+          </div>
+        </MobileScroll>
+      ) : null}
       {showBottomNav ? <BottomNavigation route={route} onSelect={setTab} /> : null}
 
       <Toast message={toast} container={screenRef.current} />
