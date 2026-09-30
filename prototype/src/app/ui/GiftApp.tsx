@@ -378,7 +378,12 @@ export function GiftApp() {
 
       <Toast message={toast} container={screenRef.current} />
 
-      <BugReportWidget route={route} containerRef={screenRef} raised={showBottomNav} />
+      <BugReportWidget
+        route={route}
+        containerRef={screenRef}
+        enabledInProduction
+        raised={showBottomNav}
+      />
 
       <AddFriendSheet
         open={friendSheetOpen}
