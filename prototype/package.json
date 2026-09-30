@@ -27,6 +27,7 @@
     "check": "npm run format:check && npm run lint && npm run typecheck",
     "predev": "npm run check:runtime",
     "dev": "vite",
+    "serve": "vite preview --host 0.0.0.0",
     "prebuild": "npm run check:runtime",
     "build": "tsc && vite build && node scripts/prepare-sites-build.mjs"
   },
