@@ -197,6 +197,30 @@ test('새로고침 후에도 현재 메인 탭을 유지한다', async ({ page }
   ).toHaveAttribute('aria-current', 'page');
 });
 
+test('상품 상세에서 새로고침하면 상세 화면을 복원하고 목록으로 돌아가면 초기화한다', async ({
+  page,
+}) => {
+  await page
+    .getByRole('navigation', { name: '하단 메뉴' })
+    .getByRole('button', { name: '선물' })
+    .click();
+  await page.locator('.product-card').first().click();
+
+  const productName = await page.locator('.product-detail strong').first().textContent();
+  expect(productName).toBeTruthy();
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: '상품 상세' })).toBeVisible();
+  await expect(page.locator('.product-detail strong').first()).toHaveText(productName!);
+
+  await page.getByRole('button', { name: '뒤로 가기' }).click();
+  await expect(page.getByRole('heading', { name: '선물 탐색' })).toBeVisible();
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: '선물 탐색' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '상품 상세' })).toHaveCount(0);
+});
+
 test('상품 상세에서 돌아가면 선물 목록의 스크롤 위치를 복원한다', async ({ page }) => {
   await page
     .getByRole('navigation', { name: '하단 메뉴' })
