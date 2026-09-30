@@ -45,6 +45,7 @@ const PRODUCT_SORT_OPTIONS: ReadonlyArray<{
 ];
 
 const PRODUCT_SEARCH_MAX_LENGTH = 100;
+const PRODUCT_SEARCH_DEBOUNCE_MS = 300;
 
 export function GiftsPage({
   filterCount,
@@ -60,7 +61,15 @@ export function GiftsPage({
   const [sort, setSort] = useState<ProductSort>('POPULAR');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const submitSearch = () => setSearch(searchInput.trim());
+  const normalizedSearchInput = searchInput.trim();
+  useEffect(() => {
+    if (!normalizedSearchInput && searchInput) return;
+    const timer = window.setTimeout(
+      () => setSearch(normalizedSearchInput),
+      PRODUCT_SEARCH_DEBOUNCE_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [normalizedSearchInput, searchInput]);
   const loader = useCallback(
     (cursor: string | null) => fetchProducts(cursor, search, sort, filterCategoryIds),
     [search, sort, filterCategoryIds],
@@ -72,24 +81,11 @@ export function GiftsPage({
       <ScreenHeader title="선물 탐색" />
       <div className="gift-search-row">
         <div className="inline-search">
-          <button
-            type="button"
-            className="inline-search-submit"
-            aria-label="상품 검색"
-            onClick={submitSearch}
-          >
-            <MagnifyingGlassIcon />
-          </button>
+          <MagnifyingGlassIcon aria-hidden="true" />
           <KeyboardInput
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                submitSearch();
-              }
-            }}
-            placeholder="상품명을 입력하고 검색 버튼을 눌러 주세요"
+            placeholder="상품명 또는 브랜드를 입력해 주세요."
             maxLength={PRODUCT_SEARCH_MAX_LENGTH}
           />
         </div>
@@ -126,11 +122,13 @@ export function GiftsPage({
             onClick={() => onProduct(product)}
             key={product.productId}
           >
-            <img
-              src={product.thumbnailUrl || DEFAULT_PRODUCT_IMAGE}
-              alt={product.productName}
-              draggable={false}
-            />
+            <span className="product-card-image">
+              <img
+                src={product.thumbnailUrl || DEFAULT_PRODUCT_IMAGE}
+                alt={product.productName}
+                draggable={false}
+              />
+            </span>
             <span>{product.brandName}</span>
             <strong>{product.productName}</strong>
             <small>{product.price.toLocaleString()}원</small>

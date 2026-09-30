@@ -78,7 +78,7 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
         <button type="button" aria-label="뒤로 가기" onClick={onBack}>
           <ArrowLeftIcon />
         </button>
-        <strong>선잘알</strong>
+        <strong>회원가입</strong>
       </header>
       <div className="signup-form-body">
         <FormField label="이름">
@@ -112,28 +112,30 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
           </button>
         </div>
         <FormField label="이메일">
-          <KeyboardInput
-            value={draft.email}
-            onChange={(event) =>
-              onDraftChange((current) => ({
-                ...current,
-                email: event.target.value,
-                emailVerified: false,
-              }))
-            }
-            placeholder="가입에 사용할 이메일 주소를 입력해 주세요"
-            maxLength={SIGNUP_EMAIL_MAX_LENGTH}
-            aria-invalid={emailFormatInvalid}
-            aria-describedby={emailFormatInvalid ? 'signup-email-error' : undefined}
-          />
-          <button
-            type="button"
-            className="duplicate-check"
-            disabled={!validEmailFormat || emailChecking}
-            onClick={checkEmail}
-          >
-            {draft.emailVerified ? '확인 완료' : emailChecking ? '확인 중' : '중복확인'}
-          </button>
+          <div className="input-with-icon">
+            <KeyboardInput
+              value={draft.email}
+              onChange={(event) =>
+                onDraftChange((current) => ({
+                  ...current,
+                  email: event.target.value,
+                  emailVerified: false,
+                }))
+              }
+              placeholder="가입에 사용할 이메일 주소를 입력해 주세요"
+              maxLength={SIGNUP_EMAIL_MAX_LENGTH}
+              aria-invalid={emailFormatInvalid}
+              aria-describedby={emailFormatInvalid ? 'signup-email-error' : undefined}
+            />
+            <button
+              type="button"
+              className="duplicate-check"
+              disabled={!validEmailFormat || emailChecking}
+              onClick={checkEmail}
+            >
+              {draft.emailVerified ? '확인 완료' : emailChecking ? '확인 중' : '중복확인'}
+            </button>
+          </div>
           {emailFormatInvalid ? (
             <small id="signup-email-error" className="field-error" role="alert">
               {SIGNUP_EMAIL_ERROR}

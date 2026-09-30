@@ -27,6 +27,7 @@ env:
   IMAGE_NAME: peterj0117/seonjalal-fe
   VITE_USE_MOCK_API: 'false'
   VITE_API_BASE_URL: /api
+  VITE_BUG_REPORT_ENDPOINT: /bug-report
 
 jobs:
   validate:
@@ -78,6 +79,7 @@ jobs:
           docker build
           --build-arg VITE_USE_MOCK_API="${VITE_USE_MOCK_API}"
           --build-arg VITE_API_BASE_URL="${VITE_API_BASE_URL}"
+          --build-arg VITE_BUG_REPORT_ENDPOINT="${VITE_BUG_REPORT_ENDPOINT}"
           --tag seonjalal-fe:ci
           .
 
@@ -191,6 +193,7 @@ jobs:
           build-args: |
             VITE_USE_MOCK_API=${{ env.VITE_USE_MOCK_API }}
             VITE_API_BASE_URL=${{ env.VITE_API_BASE_URL }}
+            VITE_BUG_REPORT_ENDPOINT=${{ env.VITE_BUG_REPORT_ENDPOINT }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

@@ -1,6 +1,6 @@
 import { ApiError, apiGet, apiPost, USE_MOCK_API } from '../../shared/api/client';
 import { type CursorPage, mockPage, type Pagination } from '../../shared/api/pagination';
-import { shouldFailUntilRecovery } from '../../shared/config/qaScenario';
+import { isQaScenario, shouldFailUntilRecovery } from '../../shared/config/qaScenario';
 import { type Friend, mockFriends } from './model';
 
 export async function fetchFriends(
@@ -33,6 +33,9 @@ export async function addFriend(
 ): Promise<{ friendUserId: number; friendName: string }> {
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 300));
+    if (isQaScenario('friend-add-error')) {
+      throw new ApiError('친구 추가에 실패했습니다.', 500, { code: 'INTERNAL_SERVER_ERROR' });
+    }
     const friend = mockFriends.find((item) => item.userId === friendUserId);
     return { friendUserId, friendName: friend?.name ?? '김민정' };
   }

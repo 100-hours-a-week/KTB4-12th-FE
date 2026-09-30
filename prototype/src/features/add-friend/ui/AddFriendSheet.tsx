@@ -9,21 +9,29 @@ type SearchState =
   | { status: 'idle' }
   | { status: 'searching' }
   | { status: 'found'; user: SearchedUser }
-  | { status: 'empty' }
-  | { status: 'error'; message: string };
+  | { status: 'empty' };
 
 type AddFriendSheetProps = {
   open: boolean;
+  currentUserId: number | null;
   onOpenChange: (open: boolean) => void;
   onAdded: () => void;
+  onError: (message: string) => void;
 };
 
-export function AddFriendSheet({ open, onOpenChange, onAdded }: AddFriendSheetProps) {
+export function AddFriendSheet({
+  open,
+  currentUserId,
+  onOpenChange,
+  onAdded,
+  onError,
+}: AddFriendSheetProps) {
   const [editing, setEditing] = useState(false);
   const [query, setQuery] = useState('');
   const [searchState, setSearchState] = useState<SearchState>({ status: 'idle' });
   const [addedUserIds, setAddedUserIds] = useState<number[]>([]);
   const [adding, setAdding] = useState(false);
+  const hasSearchQuery = query.trim().length > 0;
 
   useEffect(() => {
     if (!open) {
@@ -41,10 +49,8 @@ export function AddFriendSheet({ open, onOpenChange, onAdded }: AddFriendSheetPr
       const user = await searchUserByEmail(email);
       setSearchState(user ? { status: 'found', user } : { status: 'empty' });
     } catch (reason) {
-      setSearchState({
-        status: 'error',
-        message: reason instanceof Error ? reason.message : '검색에 실패했습니다.',
-      });
+      setSearchState({ status: 'idle' });
+      onError(reason instanceof Error ? reason.message : '검색에 실패했습니다.');
     }
   };
 
@@ -56,10 +62,7 @@ export function AddFriendSheet({ open, onOpenChange, onAdded }: AddFriendSheetPr
       setAddedUserIds((current) => [...current, user.userId]);
       onAdded();
     } catch (reason) {
-      setSearchState({
-        status: 'error',
-        message: reason instanceof Error ? reason.message : '친구 추가에 실패했습니다.',
-      });
+      onError(reason instanceof Error ? reason.message : '친구 추가에 실패했습니다.');
     } finally {
       setAdding(false);
     }
@@ -98,7 +101,7 @@ export function AddFriendSheet({ open, onOpenChange, onAdded }: AddFriendSheetPr
         <button
           type="button"
           className="search-action"
-          disabled={searchState.status === 'searching'}
+          disabled={!hasSearchQuery || searchState.status === 'searching'}
           onClick={search}
         >
           {searchState.status === 'searching' ? '검색 중' : '검색'}
@@ -111,26 +114,23 @@ export function AddFriendSheet({ open, onOpenChange, onAdded }: AddFriendSheetPr
               <strong>{searchState.user.name}</strong>
               <span>{searchState.user.email}</span>
             </div>
-            <button
-              type="button"
-              className="circle-action"
-              aria-label={`${searchState.user.name} ${
-                addedUserIds.includes(searchState.user.userId) ? '추가됨' : '추가'
-              }`}
-              disabled={adding}
-              onClick={() => add(searchState.user)}
-            >
-              {addedUserIds.includes(searchState.user.userId) ? <CheckIcon /> : <PlusIcon />}
-            </button>
+            {searchState.user.userId !== currentUserId ? (
+              <button
+                type="button"
+                className="circle-action"
+                aria-label={`${searchState.user.name} ${
+                  addedUserIds.includes(searchState.user.userId) ? '추가됨' : '추가'
+                }`}
+                disabled={adding}
+                onClick={() => add(searchState.user)}
+              >
+                {addedUserIds.includes(searchState.user.userId) ? <CheckIcon /> : <PlusIcon />}
+              </button>
+            ) : null}
           </article>
         ) : null}
         {searchState.status === 'empty' ? (
           <p className="cursor-status">일치하는 사용자가 없어요</p>
-        ) : null}
-        {searchState.status === 'error' ? (
-          <p className="cursor-status" role="alert">
-            {searchState.message}
-          </p>
         ) : null}
       </div>
     </BottomSheet>
