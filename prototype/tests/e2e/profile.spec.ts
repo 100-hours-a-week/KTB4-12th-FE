@@ -26,6 +26,37 @@ test('마이페이지 탭으로 새로고침해도 사용자 정보를 조회한
   await expect(page.getByText('email@email.com', { exact: true })).toBeVisible();
 });
 
+test('내 정보 관리 화면을 새로고침해도 화면과 프로필을 복원한다', async ({ page }) => {
+  await openMyPage(page);
+  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await expect(page.getByRole('heading', { name: '내 정보 및 공개 설정' })).toBeVisible();
+
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: '내 정보 및 공개 설정' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /생년월일/ })).toBeVisible();
+});
+
+test('받은 선물 화면을 새로고침해도 화면을 복원한다', async ({ page }) => {
+  await openMyPage(page);
+  await page.getByRole('button', { name: '받은 선물 8건' }).click();
+  await expect(page.getByRole('heading', { name: '받은 선물' })).toBeVisible();
+
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: '받은 선물' })).toBeVisible();
+});
+
+test('비선호 카테고리 설정 화면을 새로고침해도 화면을 복원한다', async ({ page }) => {
+  await openMyPage(page);
+  await page.getByRole('button', { name: '비선호 카테고리 설정' }).click();
+  await expect(page.getByRole('heading', { name: '비선호 카테고리' })).toBeVisible();
+
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: '비선호 카테고리' })).toBeVisible();
+});
+
 test('사용자가 비선호 카테고리를 변경하고 저장한다', async ({ page }) => {
   await openMyPage(page);
   await page.getByRole('button', { name: '비선호 카테고리 설정' }).click();
