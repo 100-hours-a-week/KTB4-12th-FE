@@ -7,6 +7,9 @@
   --accent: #be5a3e;
   --line: #dedbd6;
 }
+html {
+  overflow: hidden;
+}
 /* iOS Safari auto-zooms the page on focus for any text input rendered below
    16px, and doesn't reliably zoom back out afterward (even across a reload). */
 input,
@@ -129,9 +132,13 @@ textarea:focus-visible,
   border-radius: 12px;
   background: var(--surface);
 }
+.inline-search > svg {
+  flex: 0 0 auto;
+}
 .inline-search input {
+  width: 0;
   min-width: 0;
-  flex: 1;
+  flex: 1 1 auto;
   border: 0;
   background: transparent;
   color: var(--ink);
@@ -140,8 +147,9 @@ textarea:focus-visible,
   color: #77746f;
 }
 .inline-search-trigger {
-  flex: 1;
+  width: 0;
   min-width: 0;
+  flex: 1 1 auto;
   padding: 0;
   overflow: hidden;
   background: transparent;
@@ -156,6 +164,7 @@ textarea:focus-visible,
 .clear-search {
   display: grid;
   place-items: center;
+  flex: 0 0 32px;
   width: 32px;
   height: 32px;
   padding: 0;
@@ -744,14 +753,10 @@ textarea:focus-visible,
 .setting-row.static {
   cursor: default;
 }
-.product-detail .screen-header {
-  margin-bottom: 8px;
-}
 .product-hero {
   display: block;
   width: 100%;
-  aspect-ratio: 1.32;
-  object-fit: cover;
+  height: auto;
   border-radius: 10px;
 }
 .detail-card {
@@ -1358,6 +1363,19 @@ textarea:focus-visible,
 @media (max-width: 600px), (hover: none) and (pointer: coarse) {
   .page {
     padding-top: 24px;
+  }
+  .page:has(> .screen-header) {
+    padding-top: 0;
+  }
+  .page > .screen-header {
+    position: sticky;
+    z-index: 5;
+    top: 0;
+    margin-right: -28px;
+    margin-left: -28px;
+    padding: 0 28px;
+    background: #fffaf8;
+    box-shadow: 0 1px 0 var(--line);
   }
 }
 

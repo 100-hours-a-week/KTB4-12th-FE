@@ -100,6 +100,42 @@ test('상품 목록 이미지는 같은 크기의 카드 이미지 영역을 빈
   expect(new Set(imageAreaSizes).size).toBe(1);
 });
 
+test('모바일 화면 헤더를 고정하고 상품 상세 이미지를 원본 비율로 표시한다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  await page
+    .getByRole('navigation', { name: '하단 메뉴' })
+    .getByRole('button', { name: '선물' })
+    .click();
+  await expect(page.locator('.product-card')).toHaveCount(20);
+  const scroll = page.locator(
+    '.mobile-page:not(.route-preserved-scroll) > [data-testid="mobile-scroll"]',
+  );
+  const assertHeaderPosition = async (header: ReturnType<typeof page.locator>) => {
+    await scroll.evaluate((element) => element.scrollTo({ top: 200 }));
+    await expect.poll(() => scroll.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    await expect(header).toHaveCSS('position', 'sticky');
+    const positions = await Promise.all([
+      scroll.evaluate((element) => element.getBoundingClientRect().top),
+      header.evaluate((element) => element.getBoundingClientRect().top),
+    ]);
+    expect(Math.abs(positions[0] - positions[1])).toBeLessThanOrEqual(1);
+  };
+
+  await assertHeaderPosition(page.locator('.gifts-page > .screen-header'));
+  await scroll.evaluate((element) => element.scrollTo({ top: 0 }));
+  await page.locator('.product-card').first().click();
+
+  const image = page.locator('.product-hero');
+  await expect(image).toBeVisible();
+  const ratios = await image.evaluate((element: HTMLImageElement) => ({
+    natural: element.naturalWidth / element.naturalHeight,
+    rendered: element.clientWidth / element.clientHeight,
+  }));
+  expect(ratios.rendered).toBeCloseTo(ratios.natural, 2);
+  await expect(page.locator('.product-actions')).toHaveCount(0);
+  await assertHeaderPosition(page.locator('.product-detail > .screen-header'));
+});
+
 test('상품 목록의 스크롤 영역을 다른 메인 탭과 공유하지 않는다', async ({ page }) => {
   const navigation = page.getByRole('navigation', { name: '하단 메뉴' });
   const scroll = page.getByTestId('mobile-scroll');
@@ -130,7 +166,7 @@ test('작은 실기기에서도 마이페이지에 불필요한 스크롤이 생
     scrollHeight: element.scrollHeight,
   }));
   expect(size.scrollHeight).toBeLessThanOrEqual(size.clientHeight + 1);
-  await expect(page.locator('.mypage-page')).toHaveCSS('padding-top', '24px');
+  await expect(page.locator('.mypage-page')).toHaveCSS('padding-top', '0px');
 });
 
 test('공백만 입력한 상품명으로는 검색하지 않는다', async ({ page }) => {

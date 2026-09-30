@@ -28,48 +28,51 @@ export function FriendsPage({
 
   return (
     <section className="page">
-      <ScreenHeader
-        title="친구"
-        action={
-          <button type="button" className="icon-button dark" aria-label="친구 추가" onClick={onAdd}>
-            <PlusIcon />
-          </button>
-        }
-      />
-      <div className="inline-search">
-        <MagnifyingGlassIcon />
-        {searchEditing ? (
-          <KeyboardInput
-            autoFocus
-            aria-label="친구 이름 검색"
-            placeholder="친구 이름 검색"
-            value={searchInput}
-            onBlur={() => {
-              setSearchEditing(false);
-              keyboard.hide();
-            }}
-            onChange={(event) => setSearchInput(event.target.value)}
-          />
-        ) : (
-          <button
-            type="button"
-            className={`inline-search-trigger ${searchInput ? 'has-value' : ''}`}
-            aria-label="친구 이름 검색"
-            onClick={() => setSearchEditing(true)}
-          >
-            {searchInput || '친구 이름 검색'}
-          </button>
-        )}
-        {searchInput ? (
-          <button
-            type="button"
-            className="clear-search"
-            aria-label="검색어 지우기"
-            onClick={() => setSearchInput('')}
-          >
-            <Cross1Icon />
-          </button>
-        ) : null}
+      <ScreenHeader title="친구" />
+      <div className="gift-search-row">
+        <div className="inline-search">
+          <MagnifyingGlassIcon />
+          {searchEditing ? (
+            <KeyboardInput
+              autoFocus
+              aria-label="친구 이름 검색"
+              placeholder="친구 이름 검색"
+              value={searchInput}
+              onBlur={() => {
+                setSearchEditing(false);
+                keyboard.hide();
+              }}
+              onChange={(event) => setSearchInput(event.target.value)}
+            />
+          ) : (
+            <button
+              type="button"
+              className={`inline-search-trigger ${searchInput ? 'has-value' : ''}`}
+              aria-label="친구 이름 검색"
+              onClick={() => setSearchEditing(true)}
+            >
+              {searchInput || '친구 이름 검색'}
+            </button>
+          )}
+          {searchInput ? (
+            <button
+              type="button"
+              className="clear-search"
+              aria-label="검색어 지우기"
+              onClick={() => setSearchInput('')}
+            >
+              <Cross1Icon />
+            </button>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          className="filter-button friend-add-filter"
+          aria-label="친구 추가"
+          onClick={onAdd}
+        >
+          <PlusIcon />
+        </button>
       </div>
       <div className="friend-list">
         {list.items.map((friend) => (
