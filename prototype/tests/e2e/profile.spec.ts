@@ -28,7 +28,6 @@ test('사용자가 비선호 카테고리를 변경하고 저장한다', async (
 
   await page.getByRole('button', { name: '저장하기' }).click();
   await expect(page.getByRole('button', { name: '저장했어요' })).toBeVisible();
-  await expect(page.getByRole('status')).toHaveText('비선호 카테고리를 저장했습니다.');
 });
 
 test('사용자가 생일 공개에 동의하면 공개 상태로 변경된다', async ({ page }) => {

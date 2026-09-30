@@ -75,7 +75,6 @@ npm run test:runtime
 | 품절 상품                                   | `/?qa=product-sold-out`            |
 | 비선호 카테고리 첫 조회 실패 후 재시도 성공 | `/?qa=dislike-category-load-error` |
 | 비선호 카테고리 첫 저장 실패 후 재시도 성공 | `/?qa=dislike-category-save-error` |
-| 회원가입 시 만 14세 미만 검증 오류          | `/?qa=signup-underage`             |
 
 선택할 수 없는 카테고리 ID 검증은 개발자 도구 Console에서 다음처럼 호출합니다.
 

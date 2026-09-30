@@ -1,4 +1,5 @@
 import {
+  BoxIcon,
   MagnifyingGlassIcon,
   MinusIcon,
   MixerHorizontalIcon,
@@ -25,7 +26,7 @@ import type { SearchedUser } from '../../../entities/user';
 import { KeyboardInput, useScreenPortal } from '../../../mobile';
 import { recoverQaScenario } from '../../../shared/config/qaScenario';
 import { useCursorList } from '../../../shared/lib/useCursorList';
-import { AppDialog, GiftIcon, InfiniteCursor, ScreenHeader, SettingRow } from '../../../shared/ui';
+import { AppDialog, InfiniteCursor, ScreenHeader, SettingRow } from '../../../shared/ui';
 
 // crypto.randomUUID 미지원 환경(구형 브라우저 등)에서도 백엔드가 요구하는 UUID 형식을 지키기 위한 폴백.
 function generateUuidFallback() {
@@ -41,10 +42,9 @@ const PRODUCT_SORT_OPTIONS: ReadonlyArray<{
   value: ProductSort;
 }> = [
   { label: '인기순', value: 'POPULAR' },
+  { label: 'AI 추천순', value: 'AI_RECOMMENDED' },
   { label: '구매순', value: 'MOST_GIFTED' },
 ];
-
-const PRODUCT_SEARCH_MAX_LENGTH = 100;
 
 export function GiftsPage({
   filterCount,
@@ -58,9 +58,7 @@ export function GiftsPage({
   onProduct: (product: Product) => void;
 }) {
   const [sort, setSort] = useState<ProductSort>('POPULAR');
-  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const submitSearch = () => setSearch(searchInput.trim());
   const loader = useCallback(
     (cursor: string | null) => fetchProducts(cursor, search, sort, filterCategoryIds),
     [search, sort, filterCategoryIds],
@@ -72,25 +70,11 @@ export function GiftsPage({
       <ScreenHeader title="선물 탐색" />
       <div className="gift-search-row">
         <div className="inline-search">
-          <button
-            type="button"
-            className="inline-search-submit"
-            aria-label="상품 검색"
-            onClick={submitSearch}
-          >
-            <MagnifyingGlassIcon />
-          </button>
+          <MagnifyingGlassIcon />
           <KeyboardInput
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                submitSearch();
-              }
-            }}
-            placeholder="상품명을 입력하고 검색 버튼을 눌러 주세요"
-            maxLength={PRODUCT_SEARCH_MAX_LENGTH}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="상품명을 입력해 주세요."
           />
         </div>
         <button
@@ -232,7 +216,7 @@ export function ProductPage({
         disabled={soldOut || detail === null || Boolean(detailError)}
         onClick={onGift}
       >
-        <GiftIcon /> 선물하기 <span>{(price * quantity).toLocaleString()}원</span>
+        <BoxIcon /> 선물하기 <span>{(price * quantity).toLocaleString()}원</span>
       </button>
     </section>
   );
