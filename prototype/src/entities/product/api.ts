@@ -44,7 +44,10 @@ export async function fetchProducts(
     categoryIds: categoryIds.length ? categoryIds.join(',') : undefined,
     cursor: cursor ?? undefined,
   });
-  return { items: data.products, pagination: data.pagination };
+  return {
+    items: Array.isArray(data?.products) ? data.products : [],
+    pagination: data?.pagination ?? { nextCursor: null, hasNext: false },
+  };
 }
 
 export async function fetchProductDetail(productId: number): Promise<ProductDetail> {
@@ -80,5 +83,10 @@ export async function fetchProductCategories(): Promise<ProductCategory[]> {
     return categoryTree;
   }
   const data = await apiGet<{ categories: ProductCategory[] }>('/products/categories');
-  return data.categories;
+  return Array.isArray(data?.categories)
+    ? data.categories.map((category) => ({
+        ...category,
+        children: Array.isArray(category.children) ? category.children : [],
+      }))
+    : [];
 }

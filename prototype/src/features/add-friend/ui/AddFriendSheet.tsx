@@ -78,7 +78,13 @@ export function AddFriendSheet({
       >
         <Cross1Icon />
       </button>
-      <div className="friend-search-row">
+      <form
+        className="friend-search-row"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void search();
+        }}
+      >
         <MagnifyingGlassIcon />
         {editing ? (
           <KeyboardInput
@@ -99,14 +105,13 @@ export function AddFriendSheet({
           </button>
         )}
         <button
-          type="button"
+          type="submit"
           className="search-action"
           disabled={!hasSearchQuery || searchState.status === 'searching'}
-          onClick={search}
         >
           {searchState.status === 'searching' ? '검색 중' : '검색'}
         </button>
-      </div>
+      </form>
       <div className="friend-results">
         {searchState.status === 'found' ? (
           <article className="friend-result">

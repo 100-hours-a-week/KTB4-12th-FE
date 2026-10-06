@@ -4,37 +4,26 @@ import {
   MixerHorizontalIcon,
   PlusIcon,
 } from '@radix-ui/react-icons';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 
+import type { SentGiftResult } from '../../../entities/gift';
 import {
-  type GiftPreflight,
-  preflightGift,
-  sendGift,
-  type SentGiftResult,
-} from '../../../entities/gift';
-import {
-  DEFAULT_PRODUCT_IMAGE,
   fetchProductDetail,
   fetchProducts,
   type Product,
-  PRODUCT_IMAGE,
   type ProductSort,
 } from '../../../entities/product';
-import type { SearchedUser } from '../../../entities/user';
-import { KeyboardInput, useScreenPortal } from '../../../mobile';
-import { recoverQaScenario } from '../../../shared/config/qaScenario';
+import { KeyboardInput } from '../../../mobile';
+import { DEFAULT_PRODUCT_IMAGE } from '../../../shared/config/assets';
+import { getAiProfileQaStatus, recoverQaScenario } from '../../../shared/config/qaScenario';
 import { useCursorList } from '../../../shared/lib/useCursorList';
-import { AppDialog, GiftIcon, InfiniteCursor, ScreenHeader, SettingRow } from '../../../shared/ui';
-
-// crypto.randomUUID 미지원 환경(구형 브라우저 등)에서도 백엔드가 요구하는 UUID 형식을 지키기 위한 폴백.
-function generateUuidFallback() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
-    const random = (Math.random() * 16) | 0;
-    const value = char === 'x' ? random : (random & 0x3) | 0x8;
-    return value.toString(16);
-  });
-}
+import {
+  GiftIcon,
+  InfiniteCursor,
+  ProductImage,
+  ScreenHeader,
+  SettingRow,
+} from '../../../shared/ui';
 
 const PRODUCT_SORT_OPTIONS: ReadonlyArray<{
   label: string;
@@ -52,11 +41,15 @@ export function GiftsPage({
   filterCategoryIds,
   onFilter,
   onProduct,
+  recipientName,
+  action,
 }: {
   filterCount: number;
   filterCategoryIds: number[];
   onFilter: () => void;
   onProduct: (product: Product) => void;
+  recipientName?: string;
+  action?: ReactNode;
 }) {
   const [sort, setSort] = useState<ProductSort>('POPULAR');
   const [searchInput, setSearchInput] = useState('');
@@ -78,7 +71,13 @@ export function GiftsPage({
 
   return (
     <section className="page gifts-page">
-      <ScreenHeader title="선물 탐색" />
+      <ScreenHeader title="선물 탐색" action={action} />
+      <AiProfileQaPanel
+        status={getAiProfileQaStatus()}
+        recipientName={recipientName}
+        products={list.items.slice(0, 2)}
+        onProduct={onProduct}
+      />
       <div className="gift-search-row">
         <div className="inline-search">
           <MagnifyingGlassIcon aria-hidden="true" />
@@ -123,11 +122,7 @@ export function GiftsPage({
             key={product.productId}
           >
             <span className="product-card-image">
-              <img
-                src={product.thumbnailUrl || DEFAULT_PRODUCT_IMAGE}
-                alt={product.productName}
-                draggable={false}
-              />
+              <ProductImage src={product.thumbnailUrl} alt={product.productName} />
             </span>
             <span>{product.brandName}</span>
             <strong>{product.productName}</strong>
@@ -149,6 +144,45 @@ export function GiftsPage({
   );
 }
 
+function AiProfileQaPanel({
+  status,
+  recipientName,
+  products,
+  onProduct,
+}: {
+  status: 'NONE' | 'PENDING' | 'COMPLETED' | 'FAILED' | null;
+  recipientName?: string;
+  products: Product[];
+  onProduct: (product: Product) => void;
+}) {
+  if (!status) return null;
+  const name = recipientName ?? '받는 분';
+  return (
+    <section className={`ai-profile-panel ${status.toLowerCase()}`} aria-live="polite">
+      <strong>{name}님을 위한 맞춤 추천</strong>
+      {status === 'NONE' ? <p>아직 맞춤 추천을 준비할 취향 정보가 부족해요.</p> : null}
+      {status === 'PENDING' ? (
+        <p>
+          <span className="loading-dot" /> 취향을 분석하고 있어요.
+        </p>
+      ) : null}
+      {status === 'FAILED' ? (
+        <p>맞춤 추천을 불러오지 못했어요. 일반 상품을 둘러봐 주세요.</p>
+      ) : null}
+      {status === 'COMPLETED' ? (
+        <div className="ai-profile-products">
+          {products.map((product) => (
+            <button type="button" key={product.productId} onClick={() => onProduct(product)}>
+              <ProductImage src={product.thumbnailUrl} alt={product.productName} />
+              <span>{product.productName}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 type ProductPageProps = {
   product: Product;
   quantity: number;
@@ -156,6 +190,7 @@ type ProductPageProps = {
   onIncrease: () => void;
   onBack: () => void;
   onGift: () => void;
+  action?: ReactNode;
 };
 
 export function ProductPage({
@@ -165,6 +200,7 @@ export function ProductPage({
   onIncrease,
   onBack,
   onGift,
+  action,
 }: ProductPageProps) {
   const [detail, setDetail] = useState<Awaited<ReturnType<typeof fetchProductDetail>> | null>(null);
   const [detailError, setDetailError] = useState('');
@@ -194,12 +230,11 @@ export function ProductPage({
 
   return (
     <section className="page product-detail">
-      <ScreenHeader title="상품 상세" onBack={onBack} />
-      <img
+      <ScreenHeader title="상품 상세" onBack={onBack} action={action} />
+      <ProductImage
         className="product-hero"
         src={heroImage}
         alt={`${product.brandName} ${product.productName}`}
-        draggable={false}
       />
       <article className="detail-card">
         <small>{product.brandName}</small>
@@ -237,154 +272,20 @@ export function ProductPage({
 }
 
 type CompletePageProps = {
-  product: Product;
-  quantity: number;
-  recipient: SearchedUser | null;
+  result: SentGiftResult;
   onFriends: () => void;
-  onBack: () => void;
+  onSent: () => void;
+  action?: ReactNode;
 };
 
-type CompleteState =
-  | { status: 'sending' }
-  | { status: 'confirming'; preflight: GiftPreflight }
-  | {
-      status: 'done';
-      result: SentGiftResult;
-      warning: { categoryId: number; categoryName: string } | null;
-    }
-  | { status: 'error'; message: string };
-
-export function CompletePage({
-  product,
-  quantity,
-  recipient,
-  onFriends,
-  onBack,
-}: CompletePageProps) {
-  const [state, setState] = useState<CompleteState>({ status: 'sending' });
-  const idempotencyKey = useRef<string | null>(null);
-  const { screenRef } = useScreenPortal();
-
-  const finalizeGift = useCallback(
-    async (preflight: GiftPreflight) => {
-      if (!recipient || !idempotencyKey.current) return;
-      setState({ status: 'sending' });
-      try {
-        const result = await sendGift(
-          {
-            productId: product.productId,
-            recipientUserId: recipient.userId,
-            quantity,
-            expectedUnitPrice: preflight.product.unitPrice,
-          },
-          idempotencyKey.current,
-        );
-        setState({ status: 'done', result, warning: preflight.preferenceWarning });
-      } catch (reason) {
-        setState({
-          status: 'error',
-          message: reason instanceof Error ? reason.message : '선물 전송에 실패했습니다.',
-        });
-      }
-    },
-    [product.productId, quantity, recipient],
-  );
-
-  const deliver = useCallback(async () => {
-    if (!recipient) return;
-    if (!idempotencyKey.current) {
-      idempotencyKey.current =
-        typeof crypto !== 'undefined' && 'randomUUID' in crypto
-          ? crypto.randomUUID()
-          : generateUuidFallback();
-    }
-    setState({ status: 'sending' });
-    try {
-      const preflight = await preflightGift({
-        productId: product.productId,
-        recipientUserId: recipient.userId,
-        quantity,
-      });
-      if (preflight.preferenceWarning) {
-        setState({ status: 'confirming', preflight });
-        return;
-      }
-      await finalizeGift(preflight);
-    } catch (reason) {
-      setState({
-        status: 'error',
-        message: reason instanceof Error ? reason.message : '선물 전송에 실패했습니다.',
-      });
-    }
-  }, [product.productId, quantity, recipient, finalizeGift]);
-
-  useEffect(() => {
-    void deliver();
-  }, [deliver]);
-
-  if (state.status === 'sending') {
-    return (
-      <section className="page complete-page">
-        <ScreenHeader title="완료" />
-        <div className="cursor-status">
-          <span className="loading-dot" />
-          선물을 전달하는 중
-        </div>
-      </section>
-    );
-  }
-
-  if (state.status === 'confirming') {
-    const { preflight } = state;
-    const warning = preflight.preferenceWarning;
-    return (
-      <section className="page complete-page">
-        <ScreenHeader title="완료" />
-        <p className="cursor-status">선물 전송 전 확인해 주세요</p>
-        {warning
-          ? createPortal(
-              <AppDialog
-                title="정말 보내시겠어요?"
-                body={`${recipient?.name ?? '받는 분'}님이 ${warning.categoryName} 카테고리를 선호하지 않을 수 있어요.`}
-                confirmLabel="그래도 보낼게요"
-                onCancel={onBack}
-                onConfirm={() => void finalizeGift(preflight)}
-              />,
-              screenRef.current ?? document.body,
-            )
-          : null}
-      </section>
-    );
-  }
-
-  if (state.status === 'error') {
-    return (
-      <section className="page complete-page">
-        <ScreenHeader title="완료" />
-        <p className="cursor-status" role="alert">
-          {state.message}
-        </p>
-        <div className="complete-actions">
-          <button type="button" className="primary" onClick={() => void deliver()}>
-            다시 시도
-          </button>
-          <button type="button" className="secondary" onClick={onFriends}>
-            친구 화면으로
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  const { result } = state;
+export function CompletePage({ result, onFriends, onSent, action }: CompletePageProps) {
   return (
     <section className="page complete-page">
-      <ScreenHeader title="완료" />
-      <img
+      <ScreenHeader title="완료" action={action} />
+      <ProductImage
         className="complete-image"
-        src={result.product.imageUrl || product.thumbnailUrl || PRODUCT_IMAGE}
+        src={result.product.imageUrl}
         alt={`선물한 ${result.product.productName}`}
-        draggable={false}
       />
       <p className="delivery-message">
         <strong>{result.product.productName}</strong> 선물이 전달됐어요
@@ -399,14 +300,12 @@ export function CompletePage({
           <dd>{result.product.totalPrice.toLocaleString()}원</dd>
         </dl>
       </article>
-      {state.warning ? (
-        <p className="field-error">
-          {state.warning.categoryName} 카테고리는 {result.recipientName}님이 선호하지 않을 수 있어요
-        </p>
-      ) : null}
       <div className="complete-actions">
         <button type="button" className="primary" onClick={onFriends}>
           친구 화면으로
+        </button>
+        <button type="button" className="secondary" onClick={onSent}>
+          보낸 선물 보기
         </button>
       </div>
     </section>

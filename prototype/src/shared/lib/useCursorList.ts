@@ -38,9 +38,11 @@ export function useCursorList<T>(
       try {
         const page = await loader(reset ? null : cursor);
         if (currentRequest !== requestId.current) return;
-        setItems((current) => (reset ? page.items : [...current, ...page.items]));
-        setCursor(page.pagination.nextCursor);
-        setHasNext(page.pagination.hasNext);
+        const items = Array.isArray(page?.items) ? page.items : [];
+        const pagination = page?.pagination ?? { nextCursor: null, hasNext: false };
+        setItems((current) => (reset ? items : [...current, ...items]));
+        setCursor(pagination.nextCursor);
+        setHasNext(pagination.hasNext);
       } catch (reason) {
         if (currentRequest !== requestId.current) return;
         setError(reason instanceof Error ? reason.message : '목록을 불러오지 못했습니다.');
@@ -60,9 +62,11 @@ export function useCursorList<T>(
       try {
         const page = await loader(null);
         if (currentRequest !== requestId.current) return;
-        setItems(page.items);
-        setCursor(page.pagination.nextCursor);
-        setHasNext(page.pagination.hasNext);
+        const items = Array.isArray(page?.items) ? page.items : [];
+        const pagination = page?.pagination ?? { nextCursor: null, hasNext: false };
+        setItems(items);
+        setCursor(pagination.nextCursor);
+        setHasNext(pagination.hasNext);
       } catch (reason) {
         if (currentRequest !== requestId.current) return;
         setError(reason instanceof Error ? reason.message : '목록을 불러오지 못했습니다.');

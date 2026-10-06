@@ -1,5 +1,6 @@
 import { ApiError, apiGet, apiPost, USE_MOCK_API } from '../../shared/api/client';
 import { loadSession } from '../../shared/api/session';
+import { isQaScenario } from '../../shared/config/qaScenario';
 import { type LoginResult, type SignupRequest, type SignupTerm } from './model';
 
 function delay(ms = 240) {
@@ -8,7 +9,7 @@ function delay(ms = 240) {
 
 export async function fetchSignupTerms(): Promise<SignupTerm[]> {
   const data = await apiGet<{ terms: SignupTerm[] }>('/auth/terms');
-  return data.terms;
+  return Array.isArray(data?.terms) ? data.terms : [];
 }
 
 export async function checkEmailAvailability(email: string): Promise<boolean> {
@@ -47,7 +48,7 @@ export async function login(email: string, password: string): Promise<LoginResul
       refreshToken: 'prototype-refresh-token',
       expiresIn: 3600,
       user: { userId: 1, name: '홍길동', email },
-      isFirstLogin: false,
+      isFirstLogin: isQaScenario('first-login'),
     };
   }
   return apiPost<LoginResult>('/auth/login', { email, password });

@@ -1,5 +1,5 @@
 import { Cross1Icon, MagnifyingGlassIcon, PlusIcon } from '@radix-ui/react-icons';
-import { useCallback, useState } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 
 import { fetchFriends, type Friend } from '../../../entities/friend';
 import { KeyboardInput, useKeyboard } from '../../../mobile';
@@ -9,10 +9,12 @@ import { InfiniteCursor, ScreenHeader } from '../../../shared/ui';
 
 export function FriendsPage({
   refreshKey,
+  action,
   onAdd,
   onGift,
 }: {
   refreshKey: number;
+  action?: ReactNode;
   onAdd: () => void;
   onGift: (friend: Friend) => void;
 }) {
@@ -28,9 +30,9 @@ export function FriendsPage({
 
   return (
     <section className="page">
-      <ScreenHeader title="친구" />
+      <ScreenHeader title="친구" action={action} />
       <div className="gift-search-row">
-        <div className="inline-search">
+        <div className="inline-search friend-search-field">
           <MagnifyingGlassIcon />
           {searchEditing ? (
             <KeyboardInput
@@ -64,15 +66,15 @@ export function FriendsPage({
               <Cross1Icon />
             </button>
           ) : null}
+          <button
+            type="button"
+            className="friend-add-filter"
+            aria-label="친구 추가"
+            onClick={onAdd}
+          >
+            <PlusIcon />
+          </button>
         </div>
-        <button
-          type="button"
-          className="filter-button friend-add-filter"
-          aria-label="친구 추가"
-          onClick={onAdd}
-        >
-          <PlusIcon />
-        </button>
       </div>
       <div className="friend-list">
         {list.items.map((friend) => (

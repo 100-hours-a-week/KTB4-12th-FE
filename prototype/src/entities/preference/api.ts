@@ -10,7 +10,9 @@ export type DislikeCategory = {
 
 export type DislikeCategoryOption = {
   maxSelectableCount: number;
+  selectedCategoryIds: number[];
   categories: DislikeCategory[];
+  pagination: { nextCursor: string | null; hasNext: boolean };
 };
 
 const PREFERENCE_KEY = 'mock-preference';
@@ -53,14 +55,22 @@ export async function fetchDislikeCategories(): Promise<DislikeCategoryOption> {
     );
     return {
       maxSelectableCount: 5,
+      selectedCategoryIds: [...selected].sort((a, b) => a - b),
       categories: categories.map(({ categoryId, name }) => ({
         categoryId,
         name,
         isSelected: selected.has(categoryId),
       })),
+      pagination: { nextCursor: null, hasNext: false },
     };
   }
-  return apiGet<DislikeCategoryOption>('/preferences/dislike-categories');
+  const data = await apiGet<Partial<DislikeCategoryOption>>('/preferences/dislike-categories');
+  return {
+    maxSelectableCount: data?.maxSelectableCount ?? 5,
+    selectedCategoryIds: Array.isArray(data?.selectedCategoryIds) ? data.selectedCategoryIds : [],
+    categories: Array.isArray(data?.categories) ? data.categories : [],
+    pagination: data?.pagination ?? { nextCursor: null, hasNext: false },
+  };
 }
 
 export async function saveDislikeCategories(categoryIds: number[]): Promise<number[]> {

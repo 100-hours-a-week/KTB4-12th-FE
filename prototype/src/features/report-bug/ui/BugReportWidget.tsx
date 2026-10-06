@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useEffect, useState } from 'react';
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 
 import { useKeyboard } from '../../../mobile';
 import { Toast } from '../../../shared/ui';
@@ -15,6 +15,9 @@ type BugReportWidgetProps = {
   enabledInProduction?: boolean;
   /** true면 하단 탭바 위로 버튼을 띄운다. false면 화면 최하단 우측에 붙는다. */
   raised?: boolean;
+  /** 선물 탭에서 AI 챗봇과 버그 리포트를 하나의 메뉴로 묶는다. */
+  showAiAction?: boolean;
+  onOpenAi?: () => void;
 };
 
 export function BugReportWidget({
@@ -22,6 +25,8 @@ export function BugReportWidget({
   containerRef,
   enabledInProduction = false,
   raised = false,
+  showAiAction = false,
+  onOpenAi,
 }: BugReportWidgetProps) {
   const enabled = import.meta.env.DEV || enabledInProduction;
   const keyboard = useKeyboard();
@@ -29,6 +34,8 @@ export function BugReportWidget({
   const [capturing, setCapturing] = useState(false);
   const [screenshot, setScreenshot] = useState<Blob | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!toast) return;
@@ -36,10 +43,22 @@ export function BugReportWidget({
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  // 캡처는 모달을 열기 전에 끝낸다 — 모달이 스크린샷에 찍히면 안 된다.
+  useEffect(() => {
+    if (!showAiAction || !menuOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [menuOpen, showAiAction]);
+
+  // 모달을 먼저 열고 캡처 결과는 뒤늦게 채운다. 캡처 필터가 위젯/모달을 제외한다.
   const openReport = useCallback(async () => {
     keyboard.hide();
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setOpen(true);
     setCapturing(true);
     const shot = await captureScreen(containerRef?.current ?? document.body);
     setScreenshot(shot);
@@ -58,6 +77,15 @@ export function BugReportWidget({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [enabled, open, capturing, openReport]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const handleOpenRequest = () => {
+      if (!open && !capturing) void openReport();
+    };
+    window.addEventListener('prototype:open-report', handleOpenRequest);
+    return () => window.removeEventListener('prototype:open-report', handleOpenRequest);
+  }, [capturing, enabled, open, openReport]);
 
   const handleSubmit = async (
     category: ReportCategory,
@@ -92,16 +120,65 @@ export function BugReportWidget({
 
   return (
     <>
-      <button
-        type="button"
-        className={raised ? 'bug-report-fab raised' : 'bug-report-fab'}
-        data-bug-report-widget
-        aria-label="의견 남기기"
-        disabled={capturing}
-        onClick={() => void openReport()}
-      >
-        {capturing ? <span className="loading-dot" /> : '💬'}
-      </button>
+      {showAiAction ? (
+        <div
+          ref={menuRef}
+          className={raised ? 'floating-action-menu raised' : 'floating-action-menu'}
+          data-bug-report-widget
+        >
+          {menuOpen ? (
+            <div className="floating-action-options">
+              <button
+                type="button"
+                className="floating-action-option ai"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onOpenAi?.();
+                }}
+              >
+                🤖
+              </button>
+              <button
+                type="button"
+                className="floating-action-option report"
+                disabled={capturing}
+                onClick={() => {
+                  setMenuOpen(false);
+                  void openReport();
+                }}
+              >
+                🐞
+              </button>
+            </div>
+          ) : null}
+          <button
+            type="button"
+            className="floating-action-toggle"
+            aria-label={menuOpen ? '빠른 메뉴 닫기' : 'AI 챗봇 및 버그 리포트 열기'}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((openState) => !openState)}
+          >
+            {menuOpen ? '×' : '🤖'}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className={raised ? 'bug-report-fab raised' : 'bug-report-fab'}
+          data-bug-report-widget
+          aria-label="의견 남기기"
+          disabled={capturing}
+          onClick={() => void openReport()}
+        >
+          {capturing ? (
+            <span className="loading-dot" />
+          ) : (
+            <>
+              <span aria-hidden="true">🐞</span>
+            </>
+          )}
+        </button>
+      )}
       {open ? (
         <BugReportModal
           screenshot={screenshot}

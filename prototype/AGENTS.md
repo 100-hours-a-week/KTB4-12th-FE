@@ -69,10 +69,13 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 - Product detail images display uncropped at their original aspect ratio. Keep the quantity controls and gift CTA as separate, non-sticky elements unless explicitly changed later.
 - On phone-sized and coarse-pointer environments, direct `ScreenHeader` children of app pages stay fixed flush to the top while the page body scrolls beneath them. Desktop simulated-device headers remain non-sticky.
 - The feedback widget (formerly bug-report only) supports three categories — 버그 / 제안 / 도움 — chosen via chips in a modal titled "의견 남기기"; the FAB icon is 💬. The screenshot attach toggle is shown only for 버그/제안; 도움 never sends a screenshot. Screen spec lives in `docs/report-categories.md`.
+- V3 expands gift history to include sent/received detail screens. Received-gift detail now composes the gift detail API with the confirmed review API for active review lookup, creation, editing, and soft deletion. Sent-gift detail and product browse detail do not expose review actions. Password changes are still excluded.
+- V3 AI work is a frontend shell only: product detail may open the 100-character AI prompt screen, but submit only shows the unavailable toast. Never invent recommendation results or call BE–AI internal profiling endpoints. Profile statuses (`NONE`, `PENDING`, `COMPLETED`, `FAILED`) appear only through the corresponding `ai-profile-*` QA query.
+- Extract shared app code only after two real use sites exist: primitives belong in `shared/ui`, domain presentation in `entities/*/ui`, repeated user actions in `features`, and cross-screen route/history state in `app`. Keep slice imports on public `index.ts` entry points; do not add a base page, router, modal manager, or global state dependency.
 
 ## Interaction Rules
 
-- The v1 scope includes sent-gift and received-gift lists, but excludes their detail screens and review edit/delete flows. Keep list cards non-interactive until that scope changes explicitly.
+- The current scope includes sent-gift and received-gift lists and detail screens. Keep list cards interactive for navigation. Review actions are available only on eligible received-gift detail screens; backend eligibility remains authoritative.
 - Signup follows `B-02 form → B-03 terms → account creation`. The form action is labeled "다음", its draft survives a round trip back from terms, and no account is created until the terms action labeled "동의하고 회원가입" runs. The terms screen contains required privacy and gift-history consents plus the optional review/rating AI-improvement consent; only the two required consents gate completion.
 - On the signup terms screen, always display every required term before any optional term, regardless of the order returned by the API.
 

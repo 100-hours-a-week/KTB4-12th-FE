@@ -76,7 +76,7 @@ export function BottomSheet({
   const portalContainer = screenRef.current ?? undefined;
 
   return (
-    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
+    <Dialog.Root modal={false} open={open} onOpenChange={handleOpenChange}>
       {/* Keep the portal mounted after `open` flips so AnimatePresence can run
           the sheet and overlay exit animations before Radix removes them. */}
       <Dialog.Portal container={portalContainer} forceMount>
@@ -101,6 +101,12 @@ export function BottomSheet({
                   window.requestAnimationFrame(() =>
                     sheetRef.current?.focus({ preventScroll: true }),
                   );
+                }}
+                onPointerDownOutside={(event) => {
+                  const target = event.target;
+                  if (target instanceof Element && target.closest('[data-bug-report-widget]')) {
+                    event.preventDefault();
+                  }
                 }}
               >
                 <motion.div

@@ -1,1 +1,1 @@
-export { AccountPage, MyPage, PreferencesPage } from './ui/ProfilePages';
+export { AccountPage, GiftPreferencePage, MyPage, PreferencesPage } from './ui/ProfilePages';
