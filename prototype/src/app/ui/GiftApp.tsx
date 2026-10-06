@@ -208,6 +208,7 @@ export function GiftApp() {
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [birthdaySheetOpen, setBirthdaySheetOpen] = useState(false);
   const [recipientSheetOpen, setRecipientSheetOpen] = useState(false);
+  const [recipientSelectionMode, setRecipientSelectionMode] = useState<'gift' | 'browse'>('gift');
   const [notificationSheetOpen, setNotificationSheetOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [dialog, setDialog] = useState<DialogKind>(null);
@@ -335,6 +336,8 @@ export function GiftApp() {
     const expired = (event: Event) => {
       setHistory([]);
       setRoute('login');
+      setGiftRecipient(null);
+      setRecipientSheetOpen(false);
       if ((event as CustomEvent<{ hadSession: boolean }>).detail?.hadSession)
         setToast('세션이 만료됐어요. 다시 로그인해 주세요.');
     };
@@ -354,6 +357,7 @@ export function GiftApp() {
   const beginGift = async (recipient = giftRecipient) => {
     if (!selectedProduct) return;
     if (!recipient) {
+      setRecipientSelectionMode('gift');
       setRecipientSheetOpen(true);
       return;
     }
@@ -427,6 +431,8 @@ export function GiftApp() {
       .catch(() => undefined)
       .finally(() => {
         clearSession();
+        setGiftRecipient(null);
+        setRecipientSheetOpen(false);
         setHistory([]);
         setRoute('login');
       });
@@ -454,6 +460,15 @@ export function GiftApp() {
       filterCount={activeFilterIds.length}
       filterCategoryIds={activeFilterIds}
       recipientName={giftRecipient?.name}
+      recipientUserId={giftRecipient?.userId}
+      onSelectRecipient={() => {
+        setRecipientSelectionMode('browse');
+        setRecipientSheetOpen(true);
+      }}
+      onClearRecipient={() => {
+        setGiftRecipient(null);
+        idempotencyKey.current = null;
+      }}
       action={route === 'gifts' ? notificationAction : undefined}
       onFilter={() => {
         setFilterSheetOpen(true);
@@ -692,7 +707,7 @@ export function GiftApp() {
           setGiftRecipient(friend);
           setRecipientSheetOpen(false);
           idempotencyKey.current = null;
-          void beginGift(friend);
+          if (recipientSelectionMode === 'gift') void beginGift(friend);
         }}
       />
       <NotificationSheet

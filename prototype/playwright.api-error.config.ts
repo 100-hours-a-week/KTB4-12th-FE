@@ -4,7 +4,12 @@ const testPort = 4175;
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: ['**/signup-*-error.spec.ts', '**/login-*-error.spec.ts', '**/gift-*-error.spec.ts'],
+  testMatch: [
+    '**/signup-*-error.spec.ts',
+    '**/login-*-error.spec.ts',
+    '**/gift-*-error.spec.ts',
+    '**/product-recommendation.spec.ts',
+  ],
   timeout: 20_000,
   use: {
     baseURL: `http://127.0.0.1:${testPort}`,

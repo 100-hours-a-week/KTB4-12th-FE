@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { ApiError } from '../api/client';
 import type { CursorPage } from '../api/pagination';
 
-export function useCursorList<T>(
-  loader: (cursor: string | null) => Promise<CursorPage<T>>,
+export function useCursorList<T, M = unknown>(
+  loader: (cursor: string | null) => Promise<CursorPage<T, M>>,
   resetKey: string,
 ) {
   const [items, setItems] = useState<T[]>([]);
@@ -11,7 +12,10 @@ export function useCursorList<T>(
   const [hasNext, setHasNext] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [metadata, setMetadata] = useState<M | null>(null);
   const requestId = useRef(0);
+  const cursorRecoveryUsed = useRef(false);
   const [committedResetKey, setCommittedResetKey] = useState(resetKey);
 
   // resetKey(검색어/정렬/필터 조합)가 바뀌면 렌더 중에 즉시 cursor/loading을 리셋한다.
@@ -26,6 +30,8 @@ export function useCursorList<T>(
     setCursor(null);
     setHasNext(true);
     setError(null);
+    setErrorCode(null);
+    setMetadata(null);
     setLoading(true);
   }
 
@@ -35,16 +41,35 @@ export function useCursorList<T>(
       const currentRequest = ++requestId.current;
       setLoading(true);
       setError(null);
+      setErrorCode(null);
       try {
-        const page = await loader(reset ? null : cursor);
+        let replacing = reset;
+        let page: CursorPage<T, M>;
+        try {
+          page = await loader(reset ? null : cursor);
+        } catch (reason) {
+          if (currentRequest !== requestId.current) return;
+          if (!(reason instanceof ApiError) || reason.code !== 'INVALID_CURSOR' || reset || !cursor)
+            throw reason;
+          // 만료된 커서는 버리고 첫 페이지를 한 번만 다시 요청한다.
+          replacing = true;
+          setItems([]);
+          setCursor(null);
+          setMetadata(null);
+          if (cursorRecoveryUsed.current) throw reason;
+          cursorRecoveryUsed.current = true;
+          page = await loader(null);
+        }
         if (currentRequest !== requestId.current) return;
         const items = Array.isArray(page?.items) ? page.items : [];
         const pagination = page?.pagination ?? { nextCursor: null, hasNext: false };
-        setItems((current) => (reset ? items : [...current, ...items]));
+        setItems((current) => (replacing ? items : [...current, ...items]));
+        setMetadata(page.metadata ?? null);
         setCursor(pagination.nextCursor);
         setHasNext(pagination.hasNext);
       } catch (reason) {
         if (currentRequest !== requestId.current) return;
+        setErrorCode(reason instanceof ApiError ? reason.code : null);
         setError(reason instanceof Error ? reason.message : '목록을 불러오지 못했습니다.');
       } finally {
         if (currentRequest === requestId.current) setLoading(false);
@@ -54,6 +79,7 @@ export function useCursorList<T>(
   );
 
   useEffect(() => {
+    cursorRecoveryUsed.current = false;
     // cursor/loading 리셋은 이미 렌더 중에 끝났다. 여기서는 리셋된 이후의 requestId를
     // 그대로 이어받아, 디바운스 대기 중 더 최신 resetKey가 들어오면 무효화되게 한다.
     const currentRequest = requestId.current;
@@ -65,10 +91,12 @@ export function useCursorList<T>(
         const items = Array.isArray(page?.items) ? page.items : [];
         const pagination = page?.pagination ?? { nextCursor: null, hasNext: false };
         setItems(items);
+        setMetadata(page.metadata ?? null);
         setCursor(pagination.nextCursor);
         setHasNext(pagination.hasNext);
       } catch (reason) {
         if (currentRequest !== requestId.current) return;
+        setErrorCode(reason instanceof ApiError ? reason.code : null);
         setError(reason instanceof Error ? reason.message : '목록을 불러오지 못했습니다.');
       } finally {
         if (currentRequest === requestId.current) setLoading(false);
@@ -85,6 +113,8 @@ export function useCursorList<T>(
     hasNext,
     loading,
     error,
+    errorCode,
+    metadata,
     loadMore: () => void load(false),
     retry: () => void load(items.length === 0),
   };
