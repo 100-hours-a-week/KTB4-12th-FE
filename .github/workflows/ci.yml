@@ -28,6 +28,7 @@ env:
   VITE_USE_MOCK_API: 'false'
   VITE_API_BASE_URL: /api
   VITE_BUG_REPORT_ENDPOINT: /bug-report
+  VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
 
 jobs:
   validate:
@@ -66,7 +67,9 @@ jobs:
         run: npm run typecheck
 
       - name: Build application
-        run: npm run build
+        run: |
+          test -n "$VITE_SENTRY_DSN" || { echo "Repository variable VITE_SENTRY_DSN is required." >&2; exit 1; }
+          npm run build
 
       - name: Verify static output
         run: test -f dist/client/index.html
@@ -80,6 +83,7 @@ jobs:
           --build-arg VITE_USE_MOCK_API="${VITE_USE_MOCK_API}"
           --build-arg VITE_API_BASE_URL="${VITE_API_BASE_URL}"
           --build-arg VITE_BUG_REPORT_ENDPOINT="${VITE_BUG_REPORT_ENDPOINT}"
+          --build-arg VITE_SENTRY_DSN="${VITE_SENTRY_DSN}"
           --tag seonjalal-fe:ci
           .
 
@@ -194,6 +198,7 @@ jobs:
             VITE_USE_MOCK_API=${{ env.VITE_USE_MOCK_API }}
             VITE_API_BASE_URL=${{ env.VITE_API_BASE_URL }}
             VITE_BUG_REPORT_ENDPOINT=${{ env.VITE_BUG_REPORT_ENDPOINT }}
+            VITE_SENTRY_DSN=${{ env.VITE_SENTRY_DSN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

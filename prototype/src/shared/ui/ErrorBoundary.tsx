@@ -1,3 +1,4 @@
+import { captureReactException } from '@sentry/react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 type ErrorBoundaryProps = {
@@ -17,6 +18,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    captureReactException(error, errorInfo);
     console.error('전역 렌더링 오류', error, errorInfo);
   }
 
