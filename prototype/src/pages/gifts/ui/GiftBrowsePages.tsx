@@ -29,6 +29,7 @@ const PRODUCT_SORT_OPTIONS: ReadonlyArray<{
   label: string;
   value: ProductSort;
 }> = [
+  { label: 'AI 추천순', value: 'AI_RECOMMENDED' },
   { label: '인기순', value: 'POPULAR' },
   { label: '구매순', value: 'MOST_GIFTED' },
 ];
@@ -42,6 +43,9 @@ export function GiftsPage({
   onFilter,
   onProduct,
   recipientName,
+  recipientUserId,
+  onSelectRecipient,
+  onClearRecipient,
   action,
 }: {
   filterCount: number;
@@ -49,9 +53,17 @@ export function GiftsPage({
   onFilter: () => void;
   onProduct: (product: Product) => void;
   recipientName?: string;
+  recipientUserId?: number;
+  onSelectRecipient: () => void;
+  onClearRecipient: () => void;
   action?: ReactNode;
 }) {
-  const [sort, setSort] = useState<ProductSort>('POPULAR');
+  const [sort, setSort] = useState<ProductSort>(recipientUserId ? 'AI_RECOMMENDED' : 'POPULAR');
+  const [sortRecipientId, setSortRecipientId] = useState(recipientUserId);
+  if (sortRecipientId !== recipientUserId) {
+    setSortRecipientId(recipientUserId);
+    setSort(recipientUserId ? 'AI_RECOMMENDED' : 'POPULAR');
+  }
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const normalizedSearchInput = searchInput.trim();
@@ -64,14 +76,33 @@ export function GiftsPage({
     return () => window.clearTimeout(timer);
   }, [normalizedSearchInput, searchInput]);
   const loader = useCallback(
-    (cursor: string | null) => fetchProducts(cursor, search, sort, filterCategoryIds),
-    [search, sort, filterCategoryIds],
+    (cursor: string | null) =>
+      fetchProducts(cursor, search, sort, filterCategoryIds, recipientUserId),
+    [search, sort, filterCategoryIds, recipientUserId],
   );
-  const list = useCursorList(loader, `${search}:${sort}:${filterCategoryIds.join(',')}`);
+  const list = useCursorList(
+    loader,
+    JSON.stringify([recipientUserId, search, sort, filterCategoryIds]),
+  );
 
   return (
     <section className="page gifts-page">
       <ScreenHeader title="선물 탐색" action={action} />
+      <div className="browse-recipient-row">
+        <span>
+          {recipientName
+            ? `${recipientName}님에게 줄 선물`
+            : '받는 사람을 선택해 맞춤 상품을 둘러보세요'}
+        </span>
+        <button type="button" className="pill-button" onClick={onSelectRecipient}>
+          {recipientUserId ? '받는 사람 변경' : '받는 사람 선택'}
+        </button>
+        {recipientUserId ? (
+          <button type="button" className="pill-button" onClick={onClearRecipient}>
+            선택 해제
+          </button>
+        ) : null}
+      </div>
       <AiProfileQaPanel
         status={getAiProfileQaStatus()}
         recipientName={recipientName}
@@ -105,6 +136,7 @@ export function GiftsPage({
             type="button"
             role="radio"
             aria-checked={sort === option.value}
+            disabled={option.value === 'AI_RECOMMENDED' && !recipientUserId}
             key={option.value}
             onClick={() => setSort(option.value)}
           >
@@ -113,6 +145,19 @@ export function GiftsPage({
           </button>
         ))}
       </div>
+      {!recipientUserId ? (
+        <p className="browse-sort-notice">AI 추천순은 받는 사람을 선택하면 사용할 수 있어요.</p>
+      ) : null}
+      {sort === 'AI_RECOMMENDED' && list.metadata === 'POPULAR' ? (
+        <p className="browse-sort-notice" role="status">
+          현재 조건에 맞는 AI 추천 상품이 없어 인기순으로 보여드려요.
+        </p>
+      ) : null}
+      {list.errorCode === 'RECIPIENT_NOT_FOUND' ? (
+        <p className="field-error" role="alert">
+          선택한 수신자 정보를 확인할 수 없어요. 받는 사람을 다시 선택해 주세요.
+        </p>
+      ) : null}
       <div className="product-grid">
         {list.items.map((product) => (
           <button

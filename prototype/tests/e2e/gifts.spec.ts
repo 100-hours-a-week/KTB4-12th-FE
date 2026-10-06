@@ -264,7 +264,7 @@ test('사용자가 상품 정렬 조건을 변경한다', async ({ page }) => {
   const popularSort = page.getByRole('radio', { name: '인기순' });
   const purchasedSort = page.getByRole('radio', { name: '구매순' });
 
-  await expect(page.getByRole('radio', { name: 'AI 추천순' })).toHaveCount(0);
+  await expect(page.getByRole('radio', { name: 'AI 추천순' })).toBeDisabled();
   await expect(popularSort).toHaveAttribute('aria-checked', 'true');
 
   await purchasedSort.click();

@@ -15,7 +15,11 @@ export async function fetchProducts(
   query: string,
   sort: ProductSort,
   categoryIds: number[] = [],
-): Promise<CursorPage<Product>> {
+  recipientUserId?: number,
+): Promise<CursorPage<Product, ProductSort>> {
+  if (sort === 'AI_RECOMMENDED' && !recipientUserId) {
+    throw new ApiError('받는 사람을 먼저 선택해 주세요.', 400, { code: 'INVALID_REQUEST' });
+  }
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 220));
     if (shouldFailUntilRecovery('product-list-error')) {
@@ -32,7 +36,7 @@ export async function fetchProducts(
     const products = isQaScenario('product-no-image')
       ? filtered.map((product, index) => (index === 0 ? { ...product, thumbnailUrl: '' } : product))
       : filtered;
-    return mockPage(products, cursor);
+    return { ...mockPage(products, cursor), metadata: sort };
   }
   const data = await apiGet<{
     products: Product[];
@@ -41,10 +45,12 @@ export async function fetchProducts(
   }>('/products', {
     query: query.trim() || undefined,
     sort,
+    recipientUserId: recipientUserId ? String(recipientUserId) : undefined,
     categoryIds: categoryIds.length ? categoryIds.join(',') : undefined,
     cursor: cursor ?? undefined,
   });
   return {
+    metadata: data.appliedSort,
     items: Array.isArray(data?.products) ? data.products : [],
     pagination: data?.pagination ?? { nextCursor: null, hasNext: false },
   };

@@ -2311,3 +2311,24 @@ textarea:focus-visible,
   color: var(--ink);
   font-size: 14px;
 }
+
+.browse-recipient-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+  font-size: 12px;
+}
+.browse-recipient-row > span {
+  flex: 1 1 100%;
+}
+.browse-sort-notice {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 8px 0 12px;
+}
+.sort-row button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
