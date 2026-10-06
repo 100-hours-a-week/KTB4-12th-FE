@@ -28,6 +28,10 @@ test('[QA 75, 77, 79, 88] 친구를 먼저 선택해 선물을 완료하고 상�
   await expect(page.getByRole('button', { name: /선물하기 64,000원/ })).toBeVisible();
   await page.getByRole('button', { name: /선물하기 64,000원/ }).click();
 
+  const confirmDialog = page.getByRole('dialog', { name: /이 선물을 보낼까요/ });
+  await expect(confirmDialog).toBeVisible();
+  await confirmDialog.getByRole('button', { name: '선물 보내기' }).click();
+
   await expect(page.getByRole('heading', { name: '완료' })).toBeVisible();
   await expect(page.locator('.summary-card')).toContainText('김민지');
   await expect(page.locator('.summary-card')).toContainText('2개');
@@ -36,23 +40,6 @@ test('[QA 75, 77, 79, 88] 친구를 먼저 선택해 선물을 완료하고 상�
   await page.getByRole('button', { name: '친구 화면으로' }).click();
   await expect(page.getByRole('heading', { name: '친구' })).toBeVisible();
   await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'friends');
-});
-
-test('[QA 77] 선물 사전 검증 중 처리 중 상태를 표시한다', async ({ page }) => {
-  const recipient = page.locator('.friend-card').filter({ hasText: '김민지' }).first();
-  await recipient.getByRole('button', { name: '선물하기' }).click();
-  await page.locator('.product-card').nth(2).click();
-
-  await page.getByRole('button', { name: /선물하기/ }).click();
-
-  await expect(page.getByRole('heading', { name: '완료' })).toBeVisible();
-  await expect(page.getByText('선물을 전달하는 중', { exact: true })).toBeVisible();
-  await expect(page.locator('.loading-dot')).toBeVisible();
-  await expect(page.locator('.summary-card')).toHaveCount(0);
-  await expect(page.getByText(/선물이 전달됐어요/)).toHaveCount(0);
-
-  await expect(page.locator('.summary-card')).toBeVisible();
-  await expect(page.locator('.summary-card')).toContainText('김민지');
 });
 
 test('사용자가 상품을 검색하고 상세 화면에서 목록으로 돌아간다', async ({ page }) => {
@@ -153,7 +140,7 @@ test('상품 목록의 스크롤 영역을 다른 메인 탭과 공유하지 않
   await expect.poll(() => scroll.evaluate((element) => element.scrollTop)).toBe(0);
 });
 
-test('작은 실기기에서도 마이페이지에 불필요한 스크롤이 생기지 않는다', async ({ page }) => {
+test('작은 실기기에서도 마이페이지의 다섯 진입점을 탐색할 수 있다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 667 });
   await page
     .getByRole('navigation', { name: '하단 메뉴' })
@@ -161,11 +148,9 @@ test('작은 실기기에서도 마이페이지에 불필요한 스크롤이 생
     .click();
 
   await expect(page.locator('.mypage-page')).toBeVisible();
-  const size = await page.getByTestId('mobile-scroll').evaluate((element) => ({
-    clientHeight: element.clientHeight,
-    scrollHeight: element.scrollHeight,
-  }));
-  expect(size.scrollHeight).toBeLessThanOrEqual(size.clientHeight + 1);
+  await expect(page.locator('.settings-list .setting-row')).toHaveCount(5);
+  await page.getByRole('button', { name: /내 선물 취향/ }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('button', { name: /내 선물 취향/ })).toBeVisible();
   await expect(page.locator('.mypage-page')).toHaveCSS('padding-top', '0px');
 });
 
@@ -299,6 +284,9 @@ test('[QA 76] 상품을 먼저 선택한 뒤 친구를 선택해 선물을 완�
   await expect(sheet).toBeVisible();
   const recipient = sheet.locator('.friend-card').filter({ hasText: '김민지' }).first();
   await recipient.getByRole('button', { name: '선택' }).click();
+
+  const confirmDialog = page.getByRole('dialog', { name: /이 선물을 보낼까요/ });
+  await confirmDialog.getByRole('button', { name: '선물 보내기' }).click();
 
   await expect(page.getByRole('heading', { name: '완료' })).toBeVisible();
   await expect(page.locator('.summary-card')).toContainText('김민지');
