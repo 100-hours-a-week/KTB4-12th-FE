@@ -7,5 +7,10 @@ export type Route =
   | 'product'
   | 'complete'
   | 'received'
+  | 'sent'
+  | 'received-detail'
+  | 'sent-detail'
   | 'preferences'
+  | 'gift-preference'
+  | 'ai-chat'
   | 'account';

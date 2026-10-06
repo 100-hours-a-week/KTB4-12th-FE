@@ -25,19 +25,21 @@ export async function fetchFriends(
     query: query.trim() || undefined,
     cursor: cursor ?? undefined,
   });
-  return { items: data.friends, pagination: data.pagination };
+  return {
+    items: Array.isArray(data?.friends) ? data.friends : [],
+    pagination: data?.pagination ?? { nextCursor: null, hasNext: false },
+  };
 }
 
 export async function addFriend(
   friendUserId: number,
-): Promise<{ friendUserId: number; friendName: string }> {
+): Promise<{ requestId: number; receiverId: number }> {
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 300));
     if (isQaScenario('friend-add-error')) {
       throw new ApiError('친구 추가에 실패했습니다.', 500, { code: 'INTERNAL_SERVER_ERROR' });
     }
-    const friend = mockFriends.find((item) => item.userId === friendUserId);
-    return { friendUserId, friendName: friend?.name ?? '김민정' };
+    return { requestId: Date.now(), receiverId: friendUserId };
   }
-  return apiPost('/friends', { friendUserId });
+  return apiPost('/friend-requests', { receiverId: friendUserId });
 }

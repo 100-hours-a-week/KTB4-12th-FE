@@ -80,7 +80,13 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
         </button>
         <strong>회원가입</strong>
       </header>
-      <div className="signup-form-body">
+      <form
+        className="signup-form-body"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (ready) onComplete();
+        }}
+      >
         <FormField label="이름">
           <KeyboardInput
             value={draft.name}
@@ -199,15 +205,10 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
             <small className="field-error">비밀번호가 일치하지 않습니다.</small>
           ) : null}
         </FormField>
-        <button
-          type="button"
-          className="primary signup-submit"
-          disabled={!ready}
-          onClick={onComplete}
-        >
+        <button type="submit" className="primary signup-submit" disabled={!ready}>
           다음
         </button>
-      </div>
+      </form>
       <BottomSheet
         open={birthdayPickerOpen}
         onOpenChange={setBirthdayPickerOpen}

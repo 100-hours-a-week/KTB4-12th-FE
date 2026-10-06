@@ -16,7 +16,10 @@ export async function fetchReceivedGifts(cursor: string | null): Promise<CursorP
   const data = await apiGet<{ items: ReceivedGift[]; pagination: Pagination }>('/gifts/received', {
     cursor: cursor ?? undefined,
   });
-  return { items: data.items, pagination: data.pagination };
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    pagination: data?.pagination ?? { nextCursor: null, hasNext: false },
+  };
 }
 
 export async function fetchSentGifts(cursor: string | null): Promise<CursorPage<SentGift>> {
@@ -27,7 +30,10 @@ export async function fetchSentGifts(cursor: string | null): Promise<CursorPage<
   const data = await apiGet<{ items: SentGift[]; pagination: Pagination }>('/gifts/sent', {
     cursor: cursor ?? undefined,
   });
-  return { items: data.items, pagination: data.pagination };
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    pagination: data?.pagination ?? { nextCursor: null, hasNext: false },
+  };
 }
 
 export async function fetchSentGiftDetail(giftId: number): Promise<SentGift> {

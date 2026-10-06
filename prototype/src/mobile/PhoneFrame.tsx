@@ -12,7 +12,6 @@ import {
 } from 'react';
 
 import { DevicePicker, useMobileDevice } from './Device';
-import { useMobileCursor } from './MobileCursor';
 
 type ScreenPortalContextValue = {
   screenRef: RefObject<HTMLDivElement | null>;
@@ -68,7 +67,6 @@ export function PhoneFrame({ children }: PropsWithChildren) {
   const scale = useDeviceScale(geometry.device.width, geometry.device.height);
   const screenRef = useRef<HTMLDivElement | null>(null);
   const contextValue = useMemo(() => ({ screenRef }), []);
-  const mobileCursor = useMobileCursor();
 
   return (
     <ScreenPortalContext.Provider value={contextValue}>
@@ -104,11 +102,9 @@ export function PhoneFrame({ children }: PropsWithChildren) {
             <div
               ref={screenRef}
               className="device-screen"
-              data-cursor-debug={mobileCursor.cursorDebug ? 'true' : 'false'}
               data-device={device.id}
               data-phone-screen
               data-testid="device-screen"
-              {...mobileCursor.cursorHandlers}
               style={
                 {
                   '--device-safe-area-bottom': `${geometry.safeArea.bottom}px`,
@@ -135,7 +131,6 @@ export function PhoneFrame({ children }: PropsWithChildren) {
                   }}
                 />
               ) : null}
-              {mobileCursor.cursorElement}
             </div>
           </div>
         </div>
