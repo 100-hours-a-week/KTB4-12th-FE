@@ -37,6 +37,15 @@ test.beforeEach(async ({ page }) => {
 test('약관 버전 충돌 시 가입하지 않고 서버 안내를 표시한다', async ({ page }) => {
   let submittedBody: unknown;
   let loginRequested = false;
+  const authenticatedRequests: string[] = [];
+  await page.route(/\/(users\/me|notifications)(\/|\?|$)/, async (route) => {
+    authenticatedRequests.push(route.request().url());
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: { code: 'UNAUTHORIZED' } }),
+    });
+  });
 
   await page.route('**/auth/email-availability', async (route) => {
     await route.fulfill({
@@ -115,4 +124,5 @@ test('약관 버전 충돌 시 가입하지 않고 서버 안내를 표시한다
     ],
   });
   expect(loginRequested).toBe(false);
+  expect(authenticatedRequests).toEqual([]);
 });
