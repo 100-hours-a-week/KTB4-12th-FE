@@ -10,6 +10,7 @@ on:
       - 'docs/**'
   push:
     branches:
+      - develop
       - main
     paths-ignore:
       - '**/*.md'
@@ -25,6 +26,8 @@ concurrency:
 
 env:
   IMAGE_NAME: peterj0117/seonjalal-fe
+  DEV_AWS_REGION: ap-northeast-2
+  DEV_ECR_REPOSITORY: seonjalal/develop/frontend
   VITE_USE_MOCK_API: 'false'
   VITE_API_BASE_URL: /api
   VITE_BUG_REPORT_ENDPOINT: /bug-report
@@ -128,6 +131,88 @@ jobs:
           docker rm --force
           "seonjalal-fe-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           2>/dev/null || true
+
+  publish-develop:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: ${{ github.workflow }}-publish-develop
+      cancel-in-progress: true
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.DEV_ECR_ROLE_ARN }}
+          aws-region: ${{ env.DEV_AWS_REGION }}
+          role-session-name: seonjalal-develop-fe-publish
+          allowed-account-ids: ${{ vars.DEV_AWS_ACCOUNT_ID }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Resolve immutable image
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          IMAGE_TAG="develop-${GITHUB_SHA}"
+          IMAGE_URI="${{ steps.ecr.outputs.registry }}/${DEV_ECR_REPOSITORY}:${IMAGE_TAG}"
+
+          if aws ecr describe-images \
+            --region "${DEV_AWS_REGION}" \
+            --repository-name "${DEV_ECR_REPOSITORY}" \
+            --image-ids "imageTag=${IMAGE_TAG}" \
+            >/dev/null 2>&1; then
+            echo "publish=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "publish=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+          echo "uri=${IMAGE_URI}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Docker Buildx
+        if: steps.image.outputs.publish == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push develop image
+        if: steps.image.outputs.publish == 'true'
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: prototype
+          file: prototype/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.image.outputs.uri }}
+          build-args: |
+            VITE_USE_MOCK_API=${{ env.VITE_USE_MOCK_API }}
+            VITE_API_BASE_URL=${{ env.VITE_API_BASE_URL }}
+            VITE_BUG_REPORT_ENDPOINT=${{ env.VITE_BUG_REPORT_ENDPOINT }}
+            VITE_SENTRY_DSN=${{ env.VITE_SENTRY_DSN }}
+          cache-from: type=gha,scope=develop-frontend
+          cache-to: type=gha,mode=max,scope=develop-frontend
+
+      - name: Record develop image
+        shell: bash
+        run: |
+          {
+            echo "## Develop frontend image"
+            echo
+            echo "- Image: \`${{ steps.image.outputs.uri }}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Published in this run: \`${{ steps.image.outputs.publish }}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
   publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
