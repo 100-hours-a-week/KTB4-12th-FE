@@ -42,7 +42,7 @@ test('친구 목록은 공백만 입력해도 검색 상태로 전환하지 않�
   await expect(page.getByText('검색 결과가 없어요')).toHaveCount(0);
 });
 
-test('기존 사용자가 이메일로 사용자를 찾아 친구로 추가한다', async ({ page }) => {
+test('기존 사용자가 이메일로 사용자를 찾아 친구 요청을 보낸다', async ({ page }) => {
   await page.getByRole('button', { name: '친구 추가', exact: true }).click();
 
   await expect(page.getByRole('heading', { name: '친구 추가' })).toBeVisible();
@@ -54,11 +54,16 @@ test('기존 사용자가 이메일로 사용자를 찾아 친구로 추가한�
   await expect(page.getByText('kakaa@kakao.co.kr')).toBeVisible();
 
   await page.getByRole('button', { name: '김민정 추가', exact: true }).click();
-  await expect(page.getByRole('button', { name: '김민정 추가됨', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '김민정 요청 보냄', exact: true })).toBeDisabled();
+  await expect(page.locator('.app-toast')).toHaveText('친구 요청을 보냈습니다.');
 
   await page.getByRole('button', { name: '친구 추가 닫기' }).click();
   await expect(page.getByRole('heading', { name: '친구 추가' })).toBeHidden();
   await expect(page.getByRole('heading', { name: '친구' })).toBeVisible();
+  await page.getByRole('tab', { name: '보낸 요청' }).click();
+  await expect(page.locator('.friend-card')).toHaveCount(1);
+  await expect(page.locator('.friend-card')).toContainText('김민정');
+  await expect(page.getByRole('button', { name: '요청 취소', exact: true })).toBeVisible();
 });
 
 test('친구 검색은 빈값이나 공백만 입력하면 실행할 수 없다', async ({ page }) => {
@@ -140,4 +145,16 @@ test('친구 목록 조회 실패 후 다시 시도하면 목록을 표시한다
 
   await expect(errorMessage).toBeHidden();
   await expect(page.locator('.friend-card')).toHaveCount(20);
+});
+
+test('목업 받은 요청을 수락하면 친구 목록에서 선물할 수 있다', async ({ page }) => {
+  await page.goto('/?qa=friend-requests');
+  await page.getByRole('tab', { name: '받은 요청' }).click();
+  await page.getByRole('button', { name: '수락', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '친구 요청 수락' });
+  await dialog.getByRole('button', { name: '수락', exact: true }).click();
+  await expect(page.getByText('받은 친구 요청이 없어요')).toBeVisible();
+  await page.getByRole('tab', { name: '친구 목록', exact: true }).click();
+  const friend = page.locator('.friend-card').filter({ hasText: '이서진' });
+  await expect(friend.getByRole('button', { name: '선물하기' })).toBeVisible();
 });

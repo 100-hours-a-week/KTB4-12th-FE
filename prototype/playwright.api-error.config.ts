@@ -9,6 +9,9 @@ export default defineConfig({
     '**/login-*-error.spec.ts',
     '**/gift-*-error.spec.ts',
     '**/product-recommendation.spec.ts',
+    '**/friend-requests-api.spec.ts',
+    '**/friend-request-actions-api.spec.ts',
+    '**/friend-delete-api.spec.ts',
   ],
   timeout: 20_000,
   use: {

@@ -77,6 +77,10 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 
 ## Interaction Rules
 
+- `FRIEND_REQUEST_RECEIVED` 알림을 누르면 알림을 닫고 친구 화면의 '받은 요청' 탭으로 이동하며 최신 요청 목록을 조회한다.
+- 받은 친구 요청은 수락/거절, 보낸 요청은 취소할 수 있다. 확인 모달을 거친 뒤 처리하고, 성공 시 요청 목록과 친구 목록을 갱신한다.
+- 친구 목록의 '친구 삭제'는 확인 모달 후 `DELETE /friends/{friendId}`를 호출한다. 삭제 후 목록을 갱신하고 해당 친구가 선물 수신자로 선택되어 있으면 선택을 해제한다.
+
 - The current scope includes sent-gift and received-gift lists and detail screens. Keep list cards interactive for navigation. Review actions are available only on eligible received-gift detail screens; backend eligibility remains authoritative.
 - Signup follows `B-02 form → B-03 terms → account creation`. The form action is labeled "다음", its draft survives a round trip back from terms, and no account is created until the terms action labeled "동의하고 회원가입" runs. The terms screen contains required privacy and gift-history consents plus the optional review/rating AI-improvement consent; only the two required consents gate completion.
 - On the signup terms screen, always display every required term before any optional term, regardless of the order returned by the API.
@@ -89,3 +93,5 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 - Fixed phone chrome should not animate with pushed screens. Screen content can animate; the status bar, camera cutout, and preview chrome should stay put.
 - Keep the keyboard below the home indicator/safe area layer in z-index, and above ordinary app UI while visible.
 - Keep the home indicator as the topmost safe-area layer in the z-index above everything else in the prototype.
+
+- 친구 삭제는 카드의 우측 상단 더보기 메뉴 안에 둔다. 선물하기 아래에 삭제 버튼을 상시 노출하지 않으며, 메뉴 선택 후 기존 확인 모달을 거친다.
