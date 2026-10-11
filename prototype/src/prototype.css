@@ -2668,3 +2668,51 @@ textarea:focus-visible,
 .recipient-menu-item[data-highlighted] {
   background: var(--surface-strong);
 }
+
+.product-detail-surface {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #fff;
+}
+.product-detail-surface .product-hero {
+  border-radius: 0;
+}
+.product-detail-surface .detail-card {
+  margin: 0;
+  padding: 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.product-detail-heading > strong {
+  font-size: 19px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.product-detail-surface .setting-row {
+  min-height: 32px;
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.product-detail-surface .setting-row > span:first-child {
+  color: var(--muted);
+  font-size: 12px;
+}
+.product-detail-surface .setting-row > span:last-child {
+  font-size: 18px;
+  font-weight: 750;
+}
+.product-detail-surface .product-description {
+  border-top: 1px solid var(--line);
+}
+.product-description p {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}

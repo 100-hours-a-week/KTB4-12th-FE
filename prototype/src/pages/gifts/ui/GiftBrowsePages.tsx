@@ -332,20 +332,22 @@ export function ProductPage({
   return (
     <section className="page product-detail">
       <ScreenHeader title="상품 상세" onBack={onBack} action={action} />
-      <ProductImage
-        className="product-hero"
-        src={heroImage}
-        alt={`${product.brandName} ${product.productName}`}
-      />
-      <article className="detail-card">
-        <small>{product.brandName}</small>
-        <strong>{product.productName}</strong>
-      </article>
-      <article className="detail-card">
-        <small>상품 설명</small>
-        <p>{detail?.description ?? '상품 정보를 불러오는 중이에요.'}</p>
-      </article>
-      <SettingRow label="상품 금액" value={`${price.toLocaleString()}원`} />
+      <div className="product-detail-surface">
+        <ProductImage
+          className="product-hero"
+          src={heroImage}
+          alt={`${product.brandName} ${product.productName}`}
+        />
+        <article className="detail-card product-detail-heading">
+          <small>{product.brandName}</small>
+          <strong>{product.productName}</strong>
+          <SettingRow label="상품 금액" value={`${price.toLocaleString()}원`} />
+        </article>
+        <article className="detail-card product-description">
+          <small>상품 설명</small>
+          <p>{detail?.description ?? '상품 정보를 불러오는 중이에요.'}</p>
+        </article>
+      </div>
       {soldOut ? <p className="field-error">품절된 상품이에요</p> : null}
       {detailError ? <p className="field-error">{detailError}</p> : null}
       <div className="quantity-row">
