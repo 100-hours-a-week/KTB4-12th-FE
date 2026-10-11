@@ -321,7 +321,7 @@ export function GiftApp() {
     [setUnreadCount],
   );
   useEffect(() => {
-    if (route === 'login') return;
+    if (route === 'login' || route === 'signup' || route === 'terms' || !loadSession()) return;
     refreshProfile();
     refreshUnread();
     const timer = window.setInterval(refreshUnread, 10_000);

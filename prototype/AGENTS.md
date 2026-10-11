@@ -64,6 +64,8 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 
 ## Prototype Decisions
 
+- 내 선물 취향은 BE `MAX_PREFERENCE_CODE_POINTS`와 동일하게 이모지 포함 Unicode code point 기준 최대 300자로 제한한다.
+
 - Simulated keyboard disabled: `src/Prototype.tsx` calls `setSimulatedKeyboardEnabled(false)`, so focusing an input never opens the on-screen keyboard. Text entry still uses `KeyboardInput`, `KeyboardTextarea`, or `MobileTextField`; native focus, blur dismissal, and safe-area insets stay intact. Keep this opt-out unless a phone-keyboard demo is explicitly requested.
 - Phone-sized and coarse-pointer environments use a compact 24px app-page top inset when no `ScreenHeader` is present because preview-only status chrome is hidden there. Keep the larger desktop page inset for simulated device chrome.
 - Product detail images display uncropped at their original aspect ratio. Keep the quantity controls and gift CTA as separate, non-sticky elements unless explicitly changed later.

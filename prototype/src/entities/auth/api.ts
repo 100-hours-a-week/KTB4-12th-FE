@@ -8,7 +8,7 @@ function delay(ms = 240) {
 }
 
 export async function fetchSignupTerms(): Promise<SignupTerm[]> {
-  const data = await apiGet<{ terms: SignupTerm[] }>('/auth/terms');
+  const data = await apiGet<{ terms: SignupTerm[] }>('/auth/terms', {}, { authenticated: false });
   return Array.isArray(data?.terms) ? data.terms : [];
 }
 
@@ -17,7 +17,11 @@ export async function checkEmailAvailability(email: string): Promise<boolean> {
     await delay();
     return true;
   }
-  const data = await apiPost<{ available: boolean }>('/auth/email-availability', { email });
+  const data = await apiPost<{ available: boolean }>(
+    '/auth/email-availability',
+    { email },
+    { authenticated: false },
+  );
   return data.available;
 }
 
@@ -32,7 +36,7 @@ export async function signup(payload: SignupRequest): Promise<{ userId: number }
     }
     return { userId: 1 };
   }
-  return apiPost<{ userId: number }>('/auth/signup', payload);
+  return apiPost<{ userId: number }>('/auth/signup', payload, { authenticated: false });
 }
 
 export async function login(email: string, password: string): Promise<LoginResult> {
@@ -51,7 +55,7 @@ export async function login(email: string, password: string): Promise<LoginResul
       isFirstLogin: isQaScenario('first-login'),
     };
   }
-  return apiPost<LoginResult>('/auth/login', { email, password });
+  return apiPost<LoginResult>('/auth/login', { email, password }, { authenticated: false });
 }
 
 export async function logout(): Promise<void> {

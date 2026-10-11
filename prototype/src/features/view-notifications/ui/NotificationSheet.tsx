@@ -20,7 +20,13 @@ export function NotificationSheet({
   onSelect: (notification: Notification) => void;
   onRead: (unreadCount: number) => void;
 }) {
-  const loader = useCallback((cursor: string | null) => fetchNotifications(cursor), []);
+  const loader = useCallback(
+    (cursor: string | null) =>
+      open
+        ? fetchNotifications(cursor)
+        : Promise.resolve({ items: [], pagination: { nextCursor: null, hasNext: false } }),
+    [open],
+  );
   const list = useCursorList(loader, open ? 'notifications-open' : 'notifications-closed');
 
   const select = async (notification: Notification) => {

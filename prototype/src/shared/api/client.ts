@@ -89,8 +89,9 @@ async function request<T>(
   params: Record<string, string | undefined> = {},
   extraHeaders: Record<string, string> = {},
   allowRefresh = true,
+  authenticated = true,
 ): Promise<T> {
-  const session = loadSession();
+  const session = authenticated ? loadSession() : null;
   const headers: Record<string, string> = { ...extraHeaders };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
@@ -105,7 +106,7 @@ async function request<T>(
 
   // UNAUTHORIZED는 "로그인이 필요합니다" (세션이 아예 없거나 서버가 인증을 거부한 경우) 전용 코드다.
   // 로그인 실패(INVALID_CREDENTIALS) 등 다른 401은 호출부에서 직접 처리하므로 여기서 건드리지 않는다.
-  if (response.status === 401 && responseBody.error?.code === 'UNAUTHORIZED') {
+  if (authenticated && response.status === 401 && responseBody.error?.code === 'UNAUTHORIZED') {
     if (allowRefresh && session && isSessionExpired(session)) {
       const newToken = await refreshAccessToken();
       if (newToken) return request<T>(method, path, body, params, extraHeaders, false);
@@ -132,12 +133,17 @@ async function request<T>(
 export function apiGet<T>(
   path: string,
   params: Record<string, string | undefined> = {},
+  options: { authenticated?: boolean } = {},
 ): Promise<T> {
-  return request<T>('GET', path, undefined, params);
+  return request<T>('GET', path, undefined, params, {}, true, options.authenticated ?? true);
 }
 
-export function apiPost<T>(path: string, body?: unknown): Promise<T> {
-  return request<T>('POST', path, body ?? {});
+export function apiPost<T>(
+  path: string,
+  body?: unknown,
+  options: { authenticated?: boolean } = {},
+): Promise<T> {
+  return request<T>('POST', path, body ?? {}, {}, {}, true, options.authenticated ?? true);
 }
 
 export function apiPut<T>(path: string, body?: unknown): Promise<T> {

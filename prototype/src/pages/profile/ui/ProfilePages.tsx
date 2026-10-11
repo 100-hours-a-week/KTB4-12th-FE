@@ -186,6 +186,7 @@ export function GiftPreferencePage({
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
   const [confirmBack, setConfirmBack] = useState(false);
   const dirty = value !== initial;
@@ -193,11 +194,13 @@ export function GiftPreferencePage({
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoaded(false);
     setError('');
     try {
       const result = (await fetchPreference()) ?? '';
       setInitial(result);
       setValue(result);
+      setLoaded(true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '선물 취향을 불러오지 못했습니다.');
     } finally {
@@ -211,7 +214,7 @@ export function GiftPreferencePage({
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
 
   const save = async () => {
-    if (!value.trim()) return;
+    if (!loaded || !dirty || saving) return;
     setSaving(true);
     setError('');
     try {
@@ -237,10 +240,10 @@ export function GiftPreferencePage({
       />
       <AsyncContentState
         loading={loading}
-        error={error && !value ? error : ''}
+        error={!loaded ? error : ''}
         onRetry={() => void load()}
       />
-      {!loading ? (
+      {!loading && loaded ? (
         <>
           <p className="preference-help">
             AI만 보는 비밀 메모예요. 솔직하게 적을수록 취향 저격 선물이 도착해요.
@@ -248,11 +251,10 @@ export function GiftPreferencePage({
           <label className="preference-textarea">
             <KeyboardTextarea
               value={value}
-              maxLength={500}
               placeholder="좋아하는 스타일, 색상, 필요한 물건을 자유롭게 적어주세요."
-              onChange={(event) => setValue([...event.target.value].slice(0, 500).join(''))}
+              onChange={(event) => setValue([...event.target.value].slice(0, 300).join(''))}
             />
-            <span>{preferenceLength}/500</span>
+            <span>{preferenceLength}/300</span>
           </label>
           {error ? <p className="field-error">{error}</p> : null}
           <button
