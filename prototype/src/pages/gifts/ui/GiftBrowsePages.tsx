@@ -62,7 +62,7 @@ export function GiftsPage({
   const [sortRecipientId, setSortRecipientId] = useState(recipientUserId);
   if (sortRecipientId !== recipientUserId) {
     setSortRecipientId(recipientUserId);
-    setSort(recipientUserId ? 'AI_RECOMMENDED' : 'POPULAR');
+    setSort(recipientUserId || sort === 'AI_RECOMMENDED' ? 'AI_RECOMMENDED' : 'POPULAR');
   }
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -75,10 +75,13 @@ export function GiftsPage({
     );
     return () => window.clearTimeout(timer);
   }, [normalizedSearchInput, searchInput]);
+  const needsRecipient = sort === 'AI_RECOMMENDED' && !recipientUserId;
   const loader = useCallback(
     (cursor: string | null) =>
-      fetchProducts(cursor, search, sort, filterCategoryIds, recipientUserId),
-    [search, sort, filterCategoryIds, recipientUserId],
+      needsRecipient
+        ? Promise.resolve({ items: [], pagination: { nextCursor: null, hasNext: false } })
+        : fetchProducts(cursor, search, sort, filterCategoryIds, recipientUserId),
+    [search, sort, filterCategoryIds, recipientUserId, needsRecipient],
   );
   const list = useCursorList(
     loader,
@@ -88,27 +91,14 @@ export function GiftsPage({
   return (
     <section className="page gifts-page">
       <ScreenHeader title="선물 탐색" action={action} />
-      <div className="browse-recipient-row">
-        <span>
-          {recipientName
-            ? `${recipientName}님에게 줄 선물`
-            : '받는 사람을 선택해 맞춤 상품을 둘러보세요'}
-        </span>
-        <button type="button" className="pill-button" onClick={onSelectRecipient}>
-          {recipientUserId ? '받는 사람 변경' : '받는 사람 선택'}
-        </button>
-        {recipientUserId ? (
-          <button type="button" className="pill-button" onClick={onClearRecipient}>
-            선택 해제
-          </button>
-        ) : null}
-      </div>
-      <AiProfileQaPanel
-        status={getAiProfileQaStatus()}
-        recipientName={recipientName}
-        products={list.items.slice(0, 2)}
-        onProduct={onProduct}
-      />
+      {!needsRecipient && (
+        <AiProfileQaPanel
+          status={getAiProfileQaStatus()}
+          recipientName={recipientName}
+          products={list.items.slice(0, 2)}
+          onProduct={onProduct}
+        />
+      )}
       <div className="gift-search-row">
         <div className="inline-search">
           <MagnifyingGlassIcon aria-hidden="true" />
@@ -136,7 +126,6 @@ export function GiftsPage({
             type="button"
             role="radio"
             aria-checked={sort === option.value}
-            disabled={option.value === 'AI_RECOMMENDED' && !recipientUserId}
             key={option.value}
             onClick={() => setSort(option.value)}
           >
@@ -145,46 +134,69 @@ export function GiftsPage({
           </button>
         ))}
       </div>
-      {!recipientUserId ? (
-        <p className="browse-sort-notice">AI 추천순은 받는 사람을 선택하면 사용할 수 있어요.</p>
-      ) : null}
-      {sort === 'AI_RECOMMENDED' && list.metadata === 'POPULAR' ? (
-        <p className="browse-sort-notice" role="status">
-          현재 조건에 맞는 AI 추천 상품이 없어 인기순으로 보여드려요.
-        </p>
-      ) : null}
-      {list.errorCode === 'RECIPIENT_NOT_FOUND' ? (
-        <p className="field-error" role="alert">
-          선택한 수신자 정보를 확인할 수 없어요. 받는 사람을 다시 선택해 주세요.
-        </p>
-      ) : null}
-      <div className="product-grid">
-        {list.items.map((product) => (
-          <button
-            type="button"
-            className="product-card"
-            onClick={() => onProduct(product)}
-            key={product.productId}
-          >
-            <span className="product-card-image">
-              <ProductImage src={product.thumbnailUrl} alt={product.productName} />
-            </span>
-            <span>{product.brandName}</span>
-            <strong>{product.productName}</strong>
-            <small>{product.price.toLocaleString()}원</small>
+      {needsRecipient ? (
+        <div className="browse-recipient-prompt">
+          <GiftIcon />
+          <strong>누구에게 선물할까요?</strong>
+          <p>받는 사람을 선택하면 맞춤 추천 상품을 보여드려요.</p>
+          <button type="button" className="primary" onClick={onSelectRecipient}>
+            받는 사람 선택
           </button>
-        ))}
-      </div>
-      <InfiniteCursor
-        {...list}
-        itemCount={list.items.length}
-        emptyLabel="일치하는 상품이 없어요"
-        onLoadMore={list.loadMore}
-        onRetry={() => {
-          recoverQaScenario('product-list-error');
-          list.retry();
-        }}
-      />
+        </div>
+      ) : (
+        <>
+          {recipientUserId ? (
+            <div className="browse-recipient-row">
+              <span>{recipientName}님에게 줄 선물</span>
+              <button type="button" className="pill-button" onClick={onSelectRecipient}>
+                받는 사람 변경
+              </button>
+              {recipientUserId ? (
+                <button type="button" className="pill-button" onClick={onClearRecipient}>
+                  선택 해제
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {sort === 'AI_RECOMMENDED' && list.metadata === 'POPULAR' ? (
+            <p className="browse-sort-notice" role="status">
+              현재 조건에 맞는 AI 추천 상품이 없어 인기순으로 보여드려요.
+            </p>
+          ) : null}
+          {list.errorCode === 'RECIPIENT_NOT_FOUND' ? (
+            <p className="field-error" role="alert">
+              선택한 수신자 정보를 확인할 수 없어요. 받는 사람을 다시 선택해 주세요.
+            </p>
+          ) : null}
+          <div className="product-grid">
+            {list.items.map((product) => (
+              <button
+                type="button"
+                className="product-card"
+                onClick={() => onProduct(product)}
+                key={product.productId}
+              >
+                <span className="product-card-image">
+                  <ProductImage src={product.thumbnailUrl} alt={product.productName} />
+                </span>
+                <span>{product.brandName}</span>
+                <strong>{product.productName}</strong>
+                <small>{product.price.toLocaleString()}원</small>
+              </button>
+            ))}
+          </div>
+          <InfiniteCursor
+            {...list}
+            itemCount={list.items.length}
+            emptyLabel="일치하는 상품이 없어요"
+            onLoadMore={list.loadMore}
+            onRetry={() => {
+              recoverQaScenario('product-list-error');
+              list.retry();
+            }}
+          />
+        </>
+      )}
     </section>
   );
 }

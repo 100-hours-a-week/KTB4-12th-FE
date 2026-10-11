@@ -88,6 +88,7 @@ async function setup(page: Page, handle: (route: Route, params: URLSearchParams)
   await expect(page.getByRole('heading', { name: '선물 탐색' })).toBeVisible();
 }
 async function select(page: Page, name = '김민지') {
+  await page.getByRole('radio', { name: 'AI 추천순' }).click();
   await page.getByRole('button', { name: /받는 사람 (선택|변경)/ }).click();
   const sheet = page.getByRole('dialog', { name: '받는 사람 선택' });
   await sheet
@@ -117,8 +118,20 @@ test('수신자 선택으로 인증된 AI 조회, 추천·인기 순서와 다�
         : result([1], 'POPULAR'),
     });
   });
-  await expect(page.getByRole('radio', { name: 'AI 추천순' })).toBeDisabled();
-  await select(page);
+  await expect(page.getByRole('radio', { name: 'AI 추천순' })).toBeEnabled();
+  await page.getByRole('radio', { name: 'AI 추천순' }).click();
+  const picker = page.getByRole('dialog', { name: '받는 사람 선택' });
+  await expect(picker).not.toBeVisible();
+  await expect(page.locator('.product-card')).toHaveCount(0);
+  await page.getByRole('button', { name: '받는 사람 선택', exact: true }).click();
+  await expect(picker).toBeVisible();
+  expect(requests.every((params) => params.get('sort') !== 'AI_RECOMMENDED')).toBe(true);
+  await picker
+    .locator('.friend-card')
+    .filter({ hasText: '김민지' })
+    .getByRole('button', { name: '선택', exact: true })
+    .click();
+  await expect(picker).not.toBeVisible();
   await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'gifts');
   await expect(page.getByRole('radio', { name: 'AI 추천순' })).toHaveAttribute(
     'aria-checked',
@@ -138,7 +151,7 @@ test('수신자 선택으로 인증된 AI 조회, 추천·인기 순서와 다�
   expect(requests.at(-1)?.get('recipientUserId')).toBe('27');
   expect(requests.at(-1)?.has('cursor')).toBe(false);
   await page.getByRole('button', { name: '선택 해제' }).click();
-  await expect(page.getByRole('radio', { name: 'AI 추천순' })).toBeDisabled();
+  await expect(page.getByRole('radio', { name: 'AI 추천순' })).toBeEnabled();
   await expect.poll(() => requests.at(-1)?.get('sort')).toBe('POPULAR');
   expect(requests.at(-1)?.has('recipientUserId')).toBe(false);
 });
@@ -294,4 +307,34 @@ test('복구 이후 커서가 다시 만료되면 자동 재조회 반복을 중
   await expect(page.locator('.product-card')).toHaveCount(0);
   expect(firstPages).toBe(2);
   expect(invalidRequests).toBe(2);
+});
+
+test('수신자 없는 AI 정렬은 목록 대신 선택 안내를 보여주고 취소해도 유지한다', async ({ page }) => {
+  const requests: URLSearchParams[] = [];
+  await setup(page, async (route, params) => {
+    requests.push(params);
+    await route.fulfill({ json: result([1], params.get('sort') ?? 'POPULAR') });
+  });
+  await expect(page.locator('.product-card')).toHaveCount(1);
+  await page.getByRole('radio', { name: '구매순' }).click();
+  await expect.poll(() => requests.at(-1)?.get('sort')).toBe('MOST_GIFTED');
+  const count = requests.length;
+  await page.getByRole('radio', { name: 'AI 추천순' }).click();
+  const picker = page.getByRole('dialog', { name: '받는 사람 선택' });
+  await expect(picker).not.toBeVisible();
+  await expect(page.locator('.product-card')).toHaveCount(0);
+  await page.getByRole('button', { name: '받는 사람 선택', exact: true }).click();
+  await expect(picker).toBeVisible();
+  await picker.getByRole('button', { name: '받는 사람 선택 닫기' }).click();
+  await expect(picker).not.toBeVisible();
+  await expect(page.getByRole('radio', { name: 'AI 추천순' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await expect(page.locator('.browse-recipient-prompt')).toBeVisible();
+  await expect(page.locator('.product-card')).toHaveCount(0);
+  expect(requests.length).toBe(count);
+  await page.getByRole('radio', { name: '구매순' }).click();
+  await expect(page.locator('.product-card')).toHaveCount(1);
+  await expect(page.locator('.browse-recipient-prompt')).not.toBeVisible();
 });

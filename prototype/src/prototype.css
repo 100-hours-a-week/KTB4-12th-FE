@@ -2450,3 +2450,26 @@ textarea:focus-visible,
 .friend-delete-item[data-highlighted] {
   background: #fff2f0;
 }
+
+.browse-recipient-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 56px 16px;
+  text-align: center;
+}
+.browse-recipient-prompt > svg {
+  width: 40px;
+  height: 40px;
+  color: var(--accent);
+}
+.browse-recipient-prompt > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.browse-recipient-prompt > button {
+  width: 100%;
+  max-width: 240px;
+}
