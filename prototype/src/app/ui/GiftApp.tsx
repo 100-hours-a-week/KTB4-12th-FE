@@ -7,6 +7,14 @@ import {
   type SignupTermConsent,
 } from '../../entities/auth';
 import {
+  type Friend,
+  type FriendRequest,
+  type FriendRequestAction,
+  type FriendRequestDirection,
+  processFriendRequest,
+  removeFriend,
+} from '../../entities/friend';
+import {
   getGiftConditionError,
   type GiftPreflight,
   MAX_GIFT_QUANTITY,
@@ -213,6 +221,14 @@ export function GiftApp() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [friendsRefreshKey, setFriendsRefreshKey] = useState(0);
+  const [friendsView, setFriendsView] = useState<'friends' | FriendRequestDirection>('friends');
+  const [friendRequestDialog, setFriendRequestDialog] = useState<{
+    request: FriendRequest;
+    action: FriendRequestAction;
+  } | null>(null);
+  const [friendRequestBusy, setFriendRequestBusy] = useState(false);
+  const [friendToRemove, setFriendToRemove] = useState<Friend | null>(null);
+  const [friendRemoveBusy, setFriendRemoveBusy] = useState(false);
   const [filterOptions, setFilterOptions] = useState<ProductCategory[]>([]);
   const [filterLoading, setFilterLoading] = useState(false);
   const [filterError, setFilterError] = useState('');
@@ -425,6 +441,65 @@ export function GiftApp() {
     setTabNow('friends');
     if (result.isFirstLogin) setOnboardingOpen(true);
   };
+  const completeFriendRequest = async () => {
+    if (!friendRequestDialog || friendRequestBusy) return;
+    setFriendRequestBusy(true);
+    try {
+      await processFriendRequest(friendRequestDialog.request.requestId, friendRequestDialog.action);
+      setFriendRequestDialog(null);
+      setFriendsRefreshKey((value) => value + 1);
+      setToast(
+        {
+          accept: '친구 요청을 수락했습니다.',
+          reject: '친구 요청을 거절했습니다.',
+          cancel: '친구 요청을 취소했습니다.',
+        }[friendRequestDialog.action],
+      );
+    } catch (reason) {
+      setToast(
+        reason instanceof Error
+          ? reason.message
+          : '친구 요청을 처리하지 못했습니다. 다시 시도해 주세요.',
+      );
+      if (
+        reason instanceof ApiError &&
+        [
+          'FRIEND_REQUEST_NOT_FOUND',
+          'FRIEND_REQUEST_ALREADY_PROCESSED',
+          'FRIEND_REQUEST_FORBIDDEN',
+        ].includes(reason.code ?? '')
+      ) {
+        setFriendRequestDialog(null);
+        setFriendsRefreshKey((value) => value + 1);
+      }
+    } finally {
+      setFriendRequestBusy(false);
+    }
+  };
+  const deleteFriend = async () => {
+    if (!friendToRemove || friendRemoveBusy) return;
+    setFriendRemoveBusy(true);
+    try {
+      await removeFriend(friendToRemove.friendId);
+      setFriendToRemove(null);
+      setFriendsRefreshKey((value) => value + 1);
+      if (giftRecipient?.userId === friendToRemove.userId) setGiftRecipient(null);
+      setToast('친구를 삭제했습니다.');
+    } catch (reason) {
+      setToast(
+        reason instanceof Error
+          ? reason.message
+          : '친구를 삭제하지 못했습니다. 다시 시도해 주세요.',
+      );
+      if (reason instanceof ApiError && reason.code === 'FRIEND_NOT_FOUND') {
+        setFriendToRemove(null);
+        setFriendsRefreshKey((value) => value + 1);
+        if (giftRecipient?.userId === friendToRemove.userId) setGiftRecipient(null);
+      }
+    } finally {
+      setFriendRemoveBusy(false);
+    }
+  };
   const logout = () => {
     setDialog(null);
     void apiLogout()
@@ -493,6 +568,16 @@ export function GiftApp() {
       return (
         <FriendsPage
           refreshKey={friendsRefreshKey}
+          view={friendsView}
+          onViewChange={setFriendsView}
+          onRemove={(friend) => {
+            dismissKeyboard();
+            setFriendToRemove(friend);
+          }}
+          onRequestAction={(request, action) => {
+            dismissKeyboard();
+            setFriendRequestDialog({ request, action });
+          }}
           action={notificationAction}
           onAdd={() => setFriendSheetOpen(true)}
           onGift={(friend) => {
@@ -678,7 +763,10 @@ export function GiftApp() {
         open={friendSheetOpen}
         currentUserId={profile?.userId ?? loadSession()?.user?.userId ?? null}
         onOpenChange={setFriendSheetOpen}
-        onAdded={() => setFriendsRefreshKey((value) => value + 1)}
+        onAdded={() => {
+          setFriendsRefreshKey((value) => value + 1);
+          setToast('친구 요청을 보냈습니다.');
+        }}
         onError={setToast}
       />
       <ProductFilterSheet
@@ -715,6 +803,12 @@ export function GiftApp() {
         onOpenChange={setNotificationSheetOpen}
         onRead={(count) => setUnreadCount(count)}
         onSelect={(notification: Notification) => {
+          if (notification.type === 'FRIEND_REQUEST_RECEIVED') {
+            setFriendsView('received');
+            setFriendsRefreshKey((value) => value + 1);
+            setTabNow('friends');
+            return;
+          }
           if (notification.referenceType !== 'GIFT' || notification.referenceId == null) return;
           setSelectedGiftId(notification.referenceId);
           navigate('received-detail', notification.referenceId);
@@ -773,6 +867,44 @@ export function GiftApp() {
             setGiftPreferenceDirty(false);
             if (next) setTabNow(next);
           }}
+        />
+      ) : null}
+      {friendRequestDialog ? (
+        <AppDialog
+          title={
+            { accept: '친구 요청 수락', reject: '친구 요청 거절', cancel: '친구 요청 취소' }[
+              friendRequestDialog.action
+            ]
+          }
+          body={
+            friendRequestDialog.action === 'cancel'
+              ? `${friendRequestDialog.request.receiverName}님에게 보낸 친구 요청을 취소할까요?`
+              : `${friendRequestDialog.request.requesterName}님의 친구 요청을 ${friendRequestDialog.action === 'accept' ? '수락' : '거절'}할까요?`
+          }
+          confirmLabel={
+            { accept: '수락', reject: '거절', cancel: '요청 취소' }[friendRequestDialog.action]
+          }
+          cancelLabel="돌아가기"
+          danger={friendRequestDialog.action !== 'accept'}
+          busy={friendRequestBusy}
+          onCancel={() => {
+            if (!friendRequestBusy) setFriendRequestDialog(null);
+          }}
+          onConfirm={() => void completeFriendRequest()}
+        />
+      ) : null}
+      {friendToRemove ? (
+        <AppDialog
+          title="친구 삭제"
+          body={`${friendToRemove.name}님을 친구 목록에서 삭제할까요?`}
+          confirmLabel="삭제"
+          cancelLabel="돌아가기"
+          danger
+          busy={friendRemoveBusy}
+          onCancel={() => {
+            if (!friendRemoveBusy) setFriendToRemove(null);
+          }}
+          onConfirm={() => void deleteFriend()}
         />
       ) : null}
       {giftDialog?.kind === 'preference' ? (

@@ -2,6 +2,7 @@ export type QaScenario =
   | 'friend-list-error'
   | 'friend-search-error'
   | 'friend-add-error'
+  | 'friend-requests'
   | 'product-list-error'
   | 'product-no-image'
   | 'product-detail-error'

@@ -1,5 +1,5 @@
 import { CheckIcon, Cross1Icon, MagnifyingGlassIcon, PlusIcon } from '@radix-ui/react-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { addFriend } from '../../../entities/friend';
 import { type SearchedUser, searchUserByEmail } from '../../../entities/user';
@@ -31,13 +31,16 @@ export function AddFriendSheet({
   const [searchState, setSearchState] = useState<SearchState>({ status: 'idle' });
   const [addedUserIds, setAddedUserIds] = useState<number[]>([]);
   const [adding, setAdding] = useState(false);
+  const searchVersion = useRef(0);
   const hasSearchQuery = query.trim().length > 0;
 
   useEffect(() => {
     if (!open) {
+      searchVersion.current += 1;
       setEditing(false);
       setQuery('');
       setSearchState({ status: 'idle' });
+      setAddedUserIds([]);
     }
   }, [open]);
 
@@ -45,20 +48,23 @@ export function AddFriendSheet({
     const email = query.trim();
     if (!email || searchState.status === 'searching') return;
     setSearchState({ status: 'searching' });
+    const version = ++searchVersion.current;
     try {
       const user = await searchUserByEmail(email);
+      if (version !== searchVersion.current) return;
       setSearchState(user ? { status: 'found', user } : { status: 'empty' });
     } catch (reason) {
+      if (version !== searchVersion.current) return;
       setSearchState({ status: 'idle' });
       onError(reason instanceof Error ? reason.message : '검색에 실패했습니다.');
     }
   };
 
   const add = async (user: SearchedUser) => {
-    if (adding) return;
+    if (adding || addedUserIds.includes(user.userId)) return;
     setAdding(true);
     try {
-      await addFriend(user.userId);
+      await addFriend(user.userId, user.name);
       setAddedUserIds((current) => [...current, user.userId]);
       onAdded();
     } catch (reason) {
@@ -91,7 +97,11 @@ export function AddFriendSheet({
             autoFocus
             aria-label="친구 이메일 검색"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              searchVersion.current += 1;
+              setQuery(event.target.value);
+              setSearchState({ status: 'idle' });
+            }}
             placeholder="이메일을 검색해 주세요"
           />
         ) : (
@@ -124,9 +134,9 @@ export function AddFriendSheet({
                 type="button"
                 className="circle-action"
                 aria-label={`${searchState.user.name} ${
-                  addedUserIds.includes(searchState.user.userId) ? '추가됨' : '추가'
+                  addedUserIds.includes(searchState.user.userId) ? '요청 보냄' : '추가'
                 }`}
-                disabled={adding}
+                disabled={adding || addedUserIds.includes(searchState.user.userId)}
                 onClick={() => add(searchState.user)}
               >
                 {addedUserIds.includes(searchState.user.userId) ? <CheckIcon /> : <PlusIcon />}

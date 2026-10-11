@@ -2332,3 +2332,103 @@ textarea:focus-visible,
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+.friend-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+
+.friend-tabs button {
+  flex: 1;
+  padding: 10px 4px;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  background: #fff;
+  color: #777;
+  font-size: 13px;
+}
+
+.friend-tabs button[aria-selected='true'] {
+  border-color: #222;
+  background: #222;
+  color: #fff;
+}
+
+.friend-request-description {
+  color: #777;
+  font-size: 13px;
+}
+
+.friend-request-description {
+  margin: 0 0 18px;
+}
+
+.friend-request-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.friend-request-actions .friend-request-secondary {
+  background: #f3f3f3;
+  color: #666;
+}
+
+.friend-card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.friend-card:has(.friend-more-trigger) {
+  position: relative;
+}
+.friend-card-actions {
+  padding-top: 20px;
+}
+.friend-more-trigger {
+  position: absolute;
+  top: 0;
+  right: 4px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 10px;
+}
+.friend-more-trigger svg {
+  width: 20px;
+  height: 20px;
+}
+.friend-more-trigger[aria-expanded='true'] {
+  background: var(--surface-strong);
+}
+.friend-action-menu {
+  z-index: 60;
+  min-width: 144px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.friend-delete-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: #b63c3c;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+}
+.friend-delete-item[data-highlighted] {
+  background: #fff2f0;
+}
