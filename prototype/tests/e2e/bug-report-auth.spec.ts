@@ -13,6 +13,7 @@ test('로그인 사용자의 제보에 JWT를 보내고 401이면 익명으로 �
   });
 
   await page.goto('/');
+  await page.getByRole('button', { name: 'AI 챗봇 및 버그 리포트 열기' }).click();
   await page.getByRole('button', { name: '의견 남기기' }).click();
   await page.getByRole('textbox').fill('인증 제보 테스트');
   await page.getByRole('button', { name: '전송', exact: true }).click();

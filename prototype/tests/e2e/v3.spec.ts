@@ -48,12 +48,12 @@ test('비선호 카테고리는 저장값 대비 변경과 전체 초기화를 �
   await expect(save).toBeDisabled();
 });
 
-test('내 선물 취향은 500자 제한과 미저장 이탈 확인을 제공한다', async ({ page }) => {
+test('내 선물 취향은 300자 제한과 미저장 이탈 확인을 제공한다', async ({ page }) => {
   await openMyPage(page);
   await page.getByRole('button', { name: /내 선물 취향/ }).click();
   const input = page.getByPlaceholder('좋아하는 스타일, 색상, 필요한 물건을 자유롭게 적어주세요.');
   await input.fill('실용적이고 미니멀한 선물을 좋아해요.');
-  await expect(page.getByText(/\/500$/)).toBeVisible();
+  await expect(page.getByText(/\/300$/)).toBeVisible();
   await page.getByRole('button', { name: '뒤로 가기' }).click();
   await expect(
     page.getByRole('dialog', { name: '변경사항을 저장하지 않고 나갈까요?' }),
@@ -66,6 +66,7 @@ test('상품 상세의 AI 버튼은 입력을 유지하고 준비 중 토스트�
     .getByRole('button', { name: '선물' })
     .click();
   await page.locator('.product-card').first().click();
+  await page.getByRole('button', { name: 'AI 챗봇 및 버그 리포트 열기' }).click();
   await page.getByRole('button', { name: 'AI 선물 추천 열기' }).click();
 
   const input = page.getByPlaceholder('메시지를 입력하세요...');

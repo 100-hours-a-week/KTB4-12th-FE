@@ -44,7 +44,14 @@ export function InfiniteCursor({
   }, [error, hasNext, loading]);
 
   return (
-    <div ref={target} className="cursor-status" aria-live="polite">
+    <div
+      ref={target}
+      className="cursor-status"
+      data-state={
+        error ? 'error' : loading ? 'loading' : itemCount === 0 ? 'empty' : hasNext ? 'more' : 'end'
+      }
+      aria-live="polite"
+    >
       {error ? (
         <>
           <span>{error}</span>
