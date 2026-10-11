@@ -15,6 +15,42 @@ async function fillSignupForm(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/auth/terms', (route) =>
+    route.fulfill({
+      json: {
+        message: '회원가입 약관을 조회했습니다.',
+        data: {
+          terms: [
+            {
+              termId: 1,
+              termCode: 'PRIVACY_COLLECTION_USE',
+              version: 3,
+              isRequired: true,
+              title: '개인정보 수집 및 이용 동의서',
+              content:
+                '개인정보 수집 및 이용 안내\n\n1. 수집하는 개인정보\n이름, 생년월일, 이메일 주소를 수집합니다.',
+            },
+            {
+              termId: 2,
+              termCode: 'GIFT_HISTORY',
+              version: 1,
+              isRequired: true,
+              title: '선물 송수신 이력 정보 수집 및 이용 동의서',
+              content: '선물 송수신 이력 수집 및 이용 안내',
+            },
+            {
+              termId: 3,
+              termCode: 'REVIEW_AI_IMPROVEMENT',
+              version: 1,
+              isRequired: false,
+              title: '리뷰·별점 AI 개선 동의',
+              content: '선택 리뷰·별점 AI 개선 활용 안내',
+            },
+          ],
+        },
+      },
+    }),
+  );
   await page.addInitScript(() => {
     window.localStorage.setItem('prototype-auth', 'signed-out');
     window.localStorage.removeItem('accessToken');
@@ -119,7 +155,7 @@ test('필수 약관만 동의한 신규 사용자가 회원가입을 완료한�
   await expect(page.getByRole('heading', { name: '약관 동의' })).toBeVisible();
   await expect(page.getByRole('button', { name: '동의하고 회원가입' })).toBeDisabled();
   await expect(
-    page.getByRole('checkbox', { name: '(선택) 마케팅 정보 수신 동의서', exact: true }),
+    page.getByRole('checkbox', { name: '(선택) 리뷰·별점 AI 개선 동의', exact: true }),
   ).not.toBeChecked();
 
   await page
@@ -133,8 +169,9 @@ test('필수 약관만 동의한 신규 사용자가 회원가입을 완료한�
     .check();
   await page.getByRole('button', { name: '동의하고 회원가입' }).click();
 
-  await expect(page.getByRole('heading', { name: '친구' })).toBeVisible();
-  await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'friends');
+  await expect(page.getByRole('button', { name: '로그인', exact: true })).toBeVisible();
+  await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'login');
+  await expect(page.getByRole('status')).toHaveText('회원가입이 완료됐어요. 로그인해 주세요.');
 });
 
 test('약관 화면에서 돌아오면 작성한 회원정보를 유지한다', async ({ page }) => {
@@ -163,6 +200,6 @@ test('전체 동의는 필수 약관과 선택 약관을 모두 선택한다', a
     }),
   ).toBeChecked();
   await expect(
-    page.getByRole('checkbox', { name: '(선택) 마케팅 정보 수신 동의서', exact: true }),
+    page.getByRole('checkbox', { name: '(선택) 리뷰·별점 AI 개선 동의', exact: true }),
   ).toBeChecked();
 });
