@@ -94,4 +94,6 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 - Keep the keyboard below the home indicator/safe area layer in z-index, and above ordinary app UI while visible.
 - Keep the home indicator as the topmost safe-area layer in the z-index above everything else in the prototype.
 
+- 시각 디자인은 전체 리디자인 이전 스타일을 유지한다. 사용자 요청에 따라 색상·타이포그래피·카드·소개 문구를 새 디자인으로 바꾸지 않고, 기존 기능과 API 계약을 보존하면서 포커스·화면 전환·중복 요청 방지·터치 충돌 같은 UX만 개선한다.
+
 - 친구 삭제는 카드의 우측 상단 더보기 메뉴 안에 둔다. 선물하기 아래에 삭제 버튼을 상시 노출하지 않으며, 메뉴 선택 후 기존 확인 모달을 거친다.

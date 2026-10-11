@@ -215,6 +215,7 @@ export function GiftApp() {
   const [friendSheetOpen, setFriendSheetOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [birthdaySheetOpen, setBirthdaySheetOpen] = useState(false);
+  const [birthdaySheetSession, setBirthdaySheetSession] = useState(0);
   const [recipientSheetOpen, setRecipientSheetOpen] = useState(false);
   const [recipientSelectionMode, setRecipientSelectionMode] = useState<'gift' | 'browse'>('gift');
   const [notificationSheetOpen, setNotificationSheetOpen] = useState(false);
@@ -248,15 +249,22 @@ export function GiftApp() {
     [screenRef],
   );
   useLayoutEffect(() => {
+    // Browser focus scrolling must stay inside MobileScroll when a route changes.
+    screenRef.current?.scrollTo({ top: 0, left: 0 });
     const target = scrollTops.current[route] ?? 0;
     const first = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => currentScroll()?.scrollTo({ top: target }));
     });
     return () => window.cancelAnimationFrame(first);
-  }, [currentScroll, route]);
+  }, [currentScroll, route, screenRef]);
 
   const dismissKeyboard = useCallback(() => {
-    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    if (
+      document.activeElement instanceof HTMLElement &&
+      document.activeElement.matches('input, textarea, [contenteditable="true"]')
+    ) {
+      document.activeElement.blur();
+    }
     keyboard.hide();
   }, [keyboard]);
 
@@ -638,7 +646,10 @@ export function GiftApp() {
           profile={profile}
           action={notificationAction}
           onBack={goBack}
-          onBirthday={() => setBirthdaySheetOpen(true)}
+          onBirthday={() => {
+            setBirthdaySheetSession((session) => session + 1);
+            setBirthdaySheetOpen(true);
+          }}
           onBirthdayPublic={() =>
             profile?.isBirthdayPublic
               ? void updateMe({ isBirthdayPublic: false }).then(refreshProfile)
@@ -780,6 +791,7 @@ export function GiftApp() {
         onOpenChange={setFilterSheetOpen}
       />
       <EditBirthdaySheet
+        key={birthdaySheetSession}
         open={birthdaySheetOpen}
         birthday={(profile?.birth ?? '2000-01-01').replaceAll('-', '.')}
         onOpenChange={setBirthdaySheetOpen}

@@ -1,4 +1,4 @@
-import { KeyboardTextarea, useKeyboardInsets } from '../../../mobile';
+import { Carousel, KeyboardTextarea, useKeyboardInsets } from '../../../mobile';
 import { ScreenHeader } from '../../../shared/ui';
 
 export function AiChatPage({
@@ -32,14 +32,18 @@ export function AiChatPage({
           특정 개인을 판단할 수 있는 개인정보는 입력하지 말아주세요.
         </div>
       </div>
-      <div className="ai-chat-suggestions" aria-label="추천 질문">
+      <Carousel
+        className="ai-chat-suggestions"
+        contentClassName="ai-suggestion-track"
+        ariaLabel="추천 질문"
+      >
         <button type="button" onClick={() => onChange('친한 친구의 생일 선물을 추천해줘')}>
           친구 생일 선물
         </button>
         <button type="button" onClick={() => onChange('5만원대 실용적인 선물을 추천해줘')}>
           5만원대 실용적인 선물
         </button>
-      </div>
+      </Carousel>
       <label
         className="ai-composer"
         data-scroll-drag="ignore"

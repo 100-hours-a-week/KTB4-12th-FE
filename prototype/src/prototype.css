@@ -2383,6 +2383,24 @@ textarea:focus-visible,
   flex-shrink: 0;
 }
 
+/* Closing sheets must not intercept the destination screen. */
+.sheet-overlay[data-state='closed'],
+.bottom-sheet[data-state='closed'] {
+  pointer-events: none;
+}
+.ai-suggestion-track {
+  gap: 7px;
+}
+.bug-report-fab.auth {
+  top: 64px;
+  bottom: auto;
+}
+@media (max-width: 600px), (hover: none) and (pointer: coarse) {
+  .bug-report-fab.auth {
+    top: 8px;
+  }
+}
+
 .friend-card:has(.friend-more-trigger) {
   position: relative;
 }

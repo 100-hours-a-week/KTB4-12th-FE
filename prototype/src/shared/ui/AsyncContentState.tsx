@@ -9,13 +9,13 @@ export function AsyncContentState({
 }) {
   if (loading)
     return (
-      <div className="cursor-status">
+      <div className="cursor-status" data-state="loading" role="status">
         <span className="loading-dot" /> 불러오는 중
       </div>
     );
   if (!error) return null;
   return (
-    <div className="cursor-status" role="alert">
+    <div className="cursor-status" data-state="error" role="alert">
       <span>{error}</span>
       <button type="button" onClick={onRetry}>
         다시 시도
