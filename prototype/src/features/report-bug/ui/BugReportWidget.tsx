@@ -131,6 +131,7 @@ export function BugReportWidget({
               <button
                 type="button"
                 className="floating-action-option ai"
+                aria-label="AI 선물 추천 열기"
                 onClick={() => {
                   setMenuOpen(false);
                   onOpenAi?.();
@@ -141,13 +142,14 @@ export function BugReportWidget({
               <button
                 type="button"
                 className="floating-action-option report"
+                aria-label="의견 남기기"
                 disabled={capturing}
                 onClick={() => {
                   setMenuOpen(false);
                   void openReport();
                 }}
               >
-                🐞
+                💬
               </button>
             </div>
           ) : null}
@@ -164,7 +166,7 @@ export function BugReportWidget({
       ) : (
         <button
           type="button"
-          className={raised ? 'bug-report-fab raised' : 'bug-report-fab'}
+          className={`bug-report-fab${raised ? ' raised' : ''}${['login', 'signup', 'terms'].includes(route) ? ' auth' : ''}`}
           data-bug-report-widget
           aria-label="의견 남기기"
           disabled={capturing}
@@ -174,7 +176,7 @@ export function BugReportWidget({
             <span className="loading-dot" />
           ) : (
             <>
-              <span aria-hidden="true">🐞</span>
+              <span aria-hidden="true">💬</span>
             </>
           )}
         </button>
