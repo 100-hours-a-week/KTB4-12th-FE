@@ -89,7 +89,13 @@ async function setup(page: Page, handle: (route: Route, params: URLSearchParams)
 }
 async function select(page: Page, name = '김민지') {
   await page.getByRole('radio', { name: 'AI 추천순' }).click();
-  await page.getByRole('button', { name: /받는 사람 (선택|변경)/ }).click();
+  const menu = page.getByRole('button', { name: '받는 사람 메뉴' });
+  if (await menu.isVisible()) {
+    await menu.click();
+    await page.getByRole('menuitem', { name: '받는 사람 변경' }).click();
+  } else {
+    await page.getByRole('button', { name: '받는 사람 선택', exact: true }).click();
+  }
   const sheet = page.getByRole('dialog', { name: '받는 사람 선택' });
   await sheet
     .locator('.friend-card')
@@ -150,7 +156,10 @@ test('수신자 선택으로 인증된 AI 조회, 추천·인기 순서와 다�
   await expect.poll(() => requests.at(-1)?.get('sort')).toBe('MOST_GIFTED');
   expect(requests.at(-1)?.get('recipientUserId')).toBe('27');
   expect(requests.at(-1)?.has('cursor')).toBe(false);
-  await page.getByRole('button', { name: '선택 해제' }).click();
+  await expect(page.getByRole('button', { name: '받는 사람 변경' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '선택 해제' })).toHaveCount(0);
+  await page.getByRole('button', { name: '받는 사람 메뉴' }).click();
+  await page.getByRole('menuitem', { name: '선택 해제' }).click();
   await expect(page.getByRole('radio', { name: 'AI 추천순' })).toBeEnabled();
   await expect.poll(() => requests.at(-1)?.get('sort')).toBe('POPULAR');
   expect(requests.at(-1)?.has('recipientUserId')).toBe(false);

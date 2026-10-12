@@ -1,10 +1,14 @@
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
+  Cross1Icon,
+  DotsHorizontalIcon,
   MagnifyingGlassIcon,
   MinusIcon,
   MixerHorizontalIcon,
+  Pencil1Icon,
   PlusIcon,
 } from '@radix-ui/react-icons';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 
 import type { SentGiftResult } from '../../../entities/gift';
 import {
@@ -13,7 +17,7 @@ import {
   type Product,
   type ProductSort,
 } from '../../../entities/product';
-import { KeyboardInput } from '../../../mobile';
+import { KeyboardInput, useKeyboard, useScreenPortal } from '../../../mobile';
 import { DEFAULT_PRODUCT_IMAGE } from '../../../shared/config/assets';
 import { getAiProfileQaStatus, recoverQaScenario } from '../../../shared/config/qaScenario';
 import { useCursorList } from '../../../shared/lib/useCursorList';
@@ -58,6 +62,10 @@ export function GiftsPage({
   onClearRecipient: () => void;
   action?: ReactNode;
 }) {
+  const keyboard = useKeyboard();
+  const { screenRef } = useScreenPortal();
+  const [menuContainer, setMenuContainer] = useState<HTMLElement | null>(null);
+  const choosingRecipient = useRef(false);
   const [sort, setSort] = useState<ProductSort>(recipientUserId ? 'AI_RECOMMENDED' : 'POPULAR');
   const [sortRecipientId, setSortRecipientId] = useState(recipientUserId);
   if (sortRecipientId !== recipientUserId) {
@@ -148,14 +156,50 @@ export function GiftsPage({
           {recipientUserId ? (
             <div className="browse-recipient-row">
               <span>{recipientName}님에게 줄 선물</span>
-              <button type="button" className="pill-button" onClick={onSelectRecipient}>
-                받는 사람 변경
-              </button>
-              {recipientUserId ? (
-                <button type="button" className="pill-button" onClick={onClearRecipient}>
-                  선택 해제
-                </button>
-              ) : null}
+              <DropdownMenu.Root
+                modal={false}
+                onOpenChange={(open) => {
+                  if (open) {
+                    keyboard.hide();
+                    setMenuContainer(screenRef.current);
+                    choosingRecipient.current = false;
+                  }
+                }}
+              >
+                <DropdownMenu.Trigger asChild>
+                  <button
+                    type="button"
+                    className="recipient-more-trigger"
+                    aria-label="받는 사람 메뉴"
+                  >
+                    <DotsHorizontalIcon aria-hidden="true" />
+                  </button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal container={menuContainer ?? undefined}>
+                  <DropdownMenu.Content
+                    className="recipient-action-menu"
+                    align="end"
+                    sideOffset={4}
+                    collisionBoundary={menuContainer ?? undefined}
+                    onCloseAutoFocus={(event) => {
+                      if (choosingRecipient.current) event.preventDefault();
+                    }}
+                  >
+                    <DropdownMenu.Item
+                      className="recipient-menu-item"
+                      onSelect={() => {
+                        choosingRecipient.current = true;
+                        onSelectRecipient();
+                      }}
+                    >
+                      <Pencil1Icon aria-hidden="true" /> 받는 사람 변경
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item className="recipient-menu-item" onSelect={onClearRecipient}>
+                      <Cross1Icon aria-hidden="true" /> 선택 해제
+                    </DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
             </div>
           ) : null}
           {sort === 'AI_RECOMMENDED' && list.metadata === 'POPULAR' ? (
@@ -288,20 +332,22 @@ export function ProductPage({
   return (
     <section className="page product-detail">
       <ScreenHeader title="상품 상세" onBack={onBack} action={action} />
-      <ProductImage
-        className="product-hero"
-        src={heroImage}
-        alt={`${product.brandName} ${product.productName}`}
-      />
-      <article className="detail-card">
-        <small>{product.brandName}</small>
-        <strong>{product.productName}</strong>
-      </article>
-      <article className="detail-card">
-        <small>상품 설명</small>
-        <p>{detail?.description ?? '상품 정보를 불러오는 중이에요.'}</p>
-      </article>
-      <SettingRow label="상품 금액" value={`${price.toLocaleString()}원`} />
+      <div className="product-detail-surface">
+        <ProductImage
+          className="product-hero"
+          src={heroImage}
+          alt={`${product.brandName} ${product.productName}`}
+        />
+        <article className="detail-card product-detail-heading">
+          <small>{product.brandName}</small>
+          <strong>{product.productName}</strong>
+          <SettingRow label="상품 금액" value={`${price.toLocaleString()}원`} />
+        </article>
+        <article className="detail-card product-description">
+          <small>상품 설명</small>
+          <p>{detail?.description ?? '상품 정보를 불러오는 중이에요.'}</p>
+        </article>
+      </div>
       {soldOut ? <p className="field-error">품절된 상품이에요</p> : null}
       {detailError ? <p className="field-error">{detailError}</p> : null}
       <div className="quantity-row">

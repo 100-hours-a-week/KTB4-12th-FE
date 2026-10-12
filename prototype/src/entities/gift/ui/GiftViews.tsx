@@ -44,21 +44,29 @@ export function GiftDetailContent({ gift }: { gift: HistoryGift }) {
         <strong>{person || '알 수 없음'}</strong>
         <time dateTime={date}>{new Date(date).toLocaleDateString('ko-KR')}</time>
       </article>
-      <ProductImage
-        className="gift-detail-image"
-        src={getGiftImage(gift)}
-        alt={gift.product.name}
-      />
       <article className="gift-detail-card">
-        <small>{gift.product.brand || '알 수 없음'}</small>
-        <strong>{gift.product.name || '알 수 없음'}</strong>
+        <div className="gift-product-summary">
+          <ProductImage
+            className="gift-detail-image"
+            src={getGiftImage(gift)}
+            alt={gift.product.name}
+          />
+          <div className="gift-product-identity">
+            <small>{gift.product.brand || '알 수 없음'}</small>
+            <strong>{gift.product.name || '알 수 없음'}</strong>
+          </div>
+        </div>
         <dl>
           <dt>수량</dt>
           <dd>{gift.quantity}개</dd>
-          <dt>단일 가격</dt>
-          <dd>{gift.unitPrice.toLocaleString()}원</dd>
-          <dt>총 가격</dt>
-          <dd>{gift.totalPrice.toLocaleString()}원</dd>
+          {!received ? (
+            <>
+              <dt>단일 가격</dt>
+              <dd>{gift.unitPrice.toLocaleString()}원</dd>
+              <dt>총 가격</dt>
+              <dd>{gift.totalPrice.toLocaleString()}원</dd>
+            </>
+          ) : null}
         </dl>
       </article>
     </div>

@@ -133,10 +133,10 @@ function GiftDetailPage({
       />
       <AsyncContentState loading={loading} error={error} onRetry={() => void load()} />
       {gift ? (
-        <>
+        <div className="gift-detail-surface">
           <GiftDetailContent gift={gift} />
           {received ? <GiftReviewSection giftId={giftId} /> : null}
-        </>
+        </div>
       ) : null}
     </section>
   );
