@@ -211,6 +211,7 @@ export function GiftApp() {
   const [giftBusy, setGiftBusy] = useState(false);
   const idempotencyKey = useRef<string | null>(null);
   const [profile, setProfile] = useState<MyProfile | null>(null);
+  const profileSessionVersion = useRef(0);
   const [quantity, setQuantity] = useState(1);
   const [friendSheetOpen, setFriendSheetOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
@@ -330,13 +331,15 @@ export function GiftApp() {
     navigate('ai-chat');
   };
 
-  const refreshProfile = useCallback(
-    () =>
-      void fetchMe()
-        .then(setProfile)
-        .catch(() => undefined),
-    [],
-  );
+  const refreshProfile = useCallback(() => {
+    if (!loadSession()) return;
+    const version = profileSessionVersion.current;
+    void fetchMe()
+      .then((nextProfile) => {
+        if (version === profileSessionVersion.current) setProfile(nextProfile);
+      })
+      .catch(() => undefined);
+  }, []);
   const refreshUnread = useCallback(
     () =>
       void fetchUnreadNotificationCount()
@@ -358,6 +361,8 @@ export function GiftApp() {
   }, [toast]);
   useEffect(() => {
     const expired = (event: Event) => {
+      profileSessionVersion.current += 1;
+      setProfile(null);
       setHistory([]);
       setRoute('login');
       setGiftRecipient(null);
@@ -440,6 +445,8 @@ export function GiftApp() {
 
   const login = async (email: string, password: string) => {
     const result = await apiLogin(email, password);
+    profileSessionVersion.current += 1;
+    setProfile(null);
     saveSession({
       accessToken: result.accessToken,
       refreshToken: result.refreshToken ?? '',
@@ -514,6 +521,8 @@ export function GiftApp() {
       .catch(() => undefined)
       .finally(() => {
         clearSession();
+        profileSessionVersion.current += 1;
+        setProfile(null);
         setGiftRecipient(null);
         setRecipientSheetOpen(false);
         setHistory([]);
@@ -772,7 +781,7 @@ export function GiftApp() {
       />
       <AddFriendSheet
         open={friendSheetOpen}
-        currentUserId={profile?.userId ?? loadSession()?.user?.userId ?? null}
+        currentUserId={loadSession()?.user?.userId ?? profile?.userId ?? null}
         onOpenChange={setFriendSheetOpen}
         onAdded={() => {
           setFriendsRefreshKey((value) => value + 1);
