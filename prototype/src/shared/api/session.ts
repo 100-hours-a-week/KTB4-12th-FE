@@ -16,6 +16,11 @@ const REFRESH_TOKEN_KEY = 'refreshToken';
 const EXPIRES_AT_KEY = 'accessTokenExpiresAt';
 const USER_KEY = 'authUser';
 export const AUTH_FLAG_KEY = 'prototype-auth';
+let sessionVersion = 0;
+
+export function getSessionVersion() {
+  return sessionVersion;
+}
 
 export function loadSession(): Session | null {
   const accessToken = window.localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -37,6 +42,7 @@ export function saveSession(data: {
   expiresIn?: number;
   user?: SessionUser;
 }) {
+  sessionVersion += 1;
   window.localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
   window.localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
   if (data.expiresIn != null) {
@@ -57,6 +63,7 @@ export function updateSessionTokens(
 }
 
 export function clearSession() {
+  sessionVersion += 1;
   // 세션이 아니어도 남아있던 프로토타입 캐시(선호도, mock 프로필 등)까지
   // 다음 로그인 사용자에게 새어나가지 않도록 스토리지를 전부 비운다.
   window.localStorage.clear();

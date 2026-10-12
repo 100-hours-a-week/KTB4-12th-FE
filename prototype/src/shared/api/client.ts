@@ -1,4 +1,4 @@
-import { clearSession, loadSession, updateSessionTokens } from './session';
+import { clearSession, getSessionVersion, loadSession, updateSessionTokens } from './session';
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
@@ -56,7 +56,7 @@ async function parseBody<T>(response: Response): Promise<ApiResponse<T>> {
 
 // refresh token은 HttpOnly 쿠키(Path=/auth)로만 오가므로 credentials를 포함해 호출한다.
 // 응답 body에 refreshToken이 오는 서버라면 함께 갱신한다.
-async function refreshAccessToken(): Promise<string | null> {
+async function refreshAccessToken(version: number): Promise<string | null> {
   const session = loadSession();
   if (!session) return null;
   const response = await fetch(buildUrl('/auth/refresh'), {
@@ -68,6 +68,7 @@ async function refreshAccessToken(): Promise<string | null> {
   const body = await parseBody<{ accessToken: string; refreshToken?: string; expiresIn: number }>(
     response,
   );
+  if (version !== getSessionVersion()) return null;
   if (!response.ok || !body.data) return null;
   updateSessionTokens(body.data.accessToken, body.data.refreshToken, body.data.expiresIn);
   return body.data.accessToken;
@@ -91,6 +92,7 @@ async function request<T>(
   allowRefresh = true,
   authenticated = true,
 ): Promise<T> {
+  const version = getSessionVersion();
   const session = authenticated ? loadSession() : null;
   const headers: Record<string, string> = { ...extraHeaders };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -104,11 +106,20 @@ async function request<T>(
   });
   const responseBody = await parseBody<T>(response);
 
+  if (authenticated && version !== getSessionVersion())
+    throw new ApiError('로그인 계정이 변경되어 이전 요청을 취소했습니다.', 0, {
+      code: 'SESSION_CHANGED',
+    });
+
   // UNAUTHORIZED는 "로그인이 필요합니다" (세션이 아예 없거나 서버가 인증을 거부한 경우) 전용 코드다.
   // 로그인 실패(INVALID_CREDENTIALS) 등 다른 401은 호출부에서 직접 처리하므로 여기서 건드리지 않는다.
   if (authenticated && response.status === 401 && responseBody.error?.code === 'UNAUTHORIZED') {
     if (allowRefresh && session && isSessionExpired(session)) {
-      const newToken = await refreshAccessToken();
+      const newToken = await refreshAccessToken(version);
+      if (version !== getSessionVersion())
+        throw new ApiError('로그인 계정이 변경되어 이전 요청을 취소했습니다.', 0, {
+          code: 'SESSION_CHANGED',
+        });
       if (newToken) return request<T>(method, path, body, params, extraHeaders, false);
     }
     // 원래 세션이 있었을 때만 "만료됨" 토스트를 띄운다. 애초에 로그인한 적이 없는

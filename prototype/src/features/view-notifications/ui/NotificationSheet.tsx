@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 import {
   fetchNotifications,
@@ -6,6 +6,7 @@ import {
   type Notification,
 } from '../../../entities/notification';
 import { BottomSheet } from '../../../mobile';
+import { getSessionVersion } from '../../../shared/api/session';
 import { useCursorList } from '../../../shared/lib/useCursorList';
 import { InfiniteCursor } from '../../../shared/ui';
 
@@ -20,6 +21,7 @@ export function NotificationSheet({
   onSelect: (notification: Notification) => void;
   onRead: (unreadCount: number) => void;
 }) {
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const loader = useCallback(
     (cursor: string | null) =>
       open
@@ -30,12 +32,20 @@ export function NotificationSheet({
   const list = useCursorList(loader, open ? 'notifications-open' : 'notifications-closed');
 
   const select = async (notification: Notification) => {
-    if (!notification.isRead) {
-      const result = await markNotificationRead(notification.notificationId);
-      onRead(result.unreadCount);
+    const version = getSessionVersion();
+    setSelectionError(null);
+    try {
+      if (!notification.isRead) {
+        const result = await markNotificationRead(notification.notificationId);
+        if (version !== getSessionVersion()) return;
+        onRead(result.unreadCount);
+      }
+      onOpenChange(false);
+      onSelect(notification);
+    } catch (reason) {
+      if (version !== getSessionVersion()) return;
+      setSelectionError(reason instanceof Error ? reason.message : '알림을 읽지 못했습니다.');
     }
-    onOpenChange(false);
-    onSelect(notification);
   };
 
   return (
@@ -64,10 +74,14 @@ export function NotificationSheet({
       </div>
       <InfiniteCursor
         {...list}
+        error={selectionError ?? list.error}
         itemCount={list.items.length}
         emptyLabel="새로운 알림이 없어요"
         onLoadMore={list.loadMore}
-        onRetry={list.retry}
+        onRetry={() => {
+          setSelectionError(null);
+          list.retry();
+        }}
       />
     </BottomSheet>
   );

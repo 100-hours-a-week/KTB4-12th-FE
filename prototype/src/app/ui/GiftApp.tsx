@@ -210,8 +210,9 @@ export function GiftApp() {
   const [giftDialog, setGiftDialog] = useState<GiftDialog>(null);
   const [giftBusy, setGiftBusy] = useState(false);
   const idempotencyKey = useRef<string | null>(null);
+  const [sessionKey, setSessionKey] = useState(0);
   const [profile, setProfile] = useState<MyProfile | null>(null);
-  const profileSessionVersion = useRef(0);
+  const sessionVersion = useRef(0);
   const [quantity, setQuantity] = useState(1);
   const [friendSheetOpen, setFriendSheetOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
@@ -268,6 +269,42 @@ export function GiftApp() {
     }
     keyboard.hide();
   }, [keyboard]);
+
+  const resetSessionState = useCallback(() => {
+    dismissKeyboard();
+    sessionVersion.current += 1;
+    setSessionKey((value) => value + 1);
+    setProfile(null);
+    setUnreadCount(0);
+    setGiftRecipient(null);
+    setSelectedProduct(null);
+    setSelectedGiftId(null);
+    setGiftResult(null);
+    setGiftDialog(null);
+    setGiftBusy(false);
+    idempotencyKey.current = null;
+    setQuantity(1);
+    setFriendSheetOpen(false);
+    setFilterSheetOpen(false);
+    setBirthdaySheetOpen(false);
+    setRecipientSheetOpen(false);
+    setNotificationSheetOpen(false);
+    setOnboardingOpen(false);
+    setDialog(null);
+    setFriendRequestDialog(null);
+    setFriendRequestBusy(false);
+    setFriendToRemove(null);
+    setFriendRemoveBusy(false);
+    setFriendsView('friends');
+    setActiveFilterIds([]);
+    setAiDraft('');
+    setGiftPreferenceDirty(false);
+    setPendingTab(null);
+    setSignupDraft(emptySignupDraft);
+    setToast(null);
+    setHistory([]);
+    scrollTops.current = {};
+  }, [dismissKeyboard]);
 
   const navigate = (next: Route, giftId = selectedGiftId) => {
     dismissKeyboard();
@@ -333,20 +370,32 @@ export function GiftApp() {
 
   const refreshProfile = useCallback(() => {
     if (!loadSession()) return;
-    const version = profileSessionVersion.current;
+    const version = sessionVersion.current;
     void fetchMe()
       .then((nextProfile) => {
-        if (version === profileSessionVersion.current) setProfile(nextProfile);
+        if (version === sessionVersion.current) setProfile(nextProfile);
       })
       .catch(() => undefined);
   }, []);
-  const refreshUnread = useCallback(
-    () =>
-      void fetchUnreadNotificationCount()
-        .then(setUnreadCount)
-        .catch(() => undefined),
-    [setUnreadCount],
-  );
+  const refreshUnread = useCallback(() => {
+    if (!loadSession()) return;
+    const version = sessionVersion.current;
+    void fetchUnreadNotificationCount()
+      .then((count) => {
+        if (version === sessionVersion.current) setUnreadCount(count);
+      })
+      .catch(() => undefined);
+  }, []);
+  const updateProfile = async (updates: Parameters<typeof updateMe>[0]) => {
+    const version = sessionVersion.current;
+    try {
+      await updateMe(updates);
+      if (version === sessionVersion.current) refreshProfile();
+    } catch (reason) {
+      if (version !== sessionVersion.current) return;
+      setToast(reason instanceof Error ? reason.message : '내 정보를 저장하지 못했습니다.');
+    }
+  };
   useEffect(() => {
     if (route === 'login' || route === 'signup' || route === 'terms' || !loadSession()) return;
     refreshProfile();
@@ -361,18 +410,14 @@ export function GiftApp() {
   }, [toast]);
   useEffect(() => {
     const expired = (event: Event) => {
-      profileSessionVersion.current += 1;
-      setProfile(null);
-      setHistory([]);
+      resetSessionState();
       setRoute('login');
-      setGiftRecipient(null);
-      setRecipientSheetOpen(false);
       if ((event as CustomEvent<{ hadSession: boolean }>).detail?.hadSession)
         setToast('세션이 만료됐어요. 다시 로그인해 주세요.');
     };
     window.addEventListener('prototype:session-expired', expired);
     return () => window.removeEventListener('prototype:session-expired', expired);
-  }, []);
+  }, [resetSessionState]);
 
   const loadProductCategories = useCallback(() => {
     setFilterLoading(true);
@@ -390,6 +435,7 @@ export function GiftApp() {
       setRecipientSheetOpen(true);
       return;
     }
+    const version = sessionVersion.current;
     setGiftBusy(true);
     try {
       const preflight = await preflightGift({
@@ -397,21 +443,24 @@ export function GiftApp() {
         recipientUserId: recipient.userId,
         quantity,
       });
+      if (version !== sessionVersion.current) return;
       setGiftDialog(
         preflight.preferenceWarning
           ? { kind: 'preference', preflight }
           : { kind: 'confirm', preflight },
       );
     } catch (reason) {
+      if (version !== sessionVersion.current) return;
       setToast(reason instanceof Error ? reason.message : '선물 조건을 확인하지 못했습니다.');
     } finally {
-      setGiftBusy(false);
+      if (version === sessionVersion.current) setGiftBusy(false);
     }
   };
 
   const finalizeGift = async (preflight: GiftPreflight) => {
     if (!selectedProduct || !giftRecipient) return;
     idempotencyKey.current ??= makeIdempotencyKey();
+    const version = sessionVersion.current;
     setGiftBusy(true);
     try {
       const result = await sendGift(
@@ -423,11 +472,13 @@ export function GiftApp() {
         },
         idempotencyKey.current,
       );
+      if (version !== sessionVersion.current) return;
       setGiftResult(result);
       setGiftRecipient(null);
       setGiftDialog(null);
       navigate('complete');
     } catch (reason) {
+      if (version !== sessionVersion.current) return;
       const conditionError = reason instanceof ApiError ? getGiftConditionError(reason.code) : null;
       if (conditionError) {
         setGiftDialog({ kind: 'conditions', ...conditionError });
@@ -439,14 +490,13 @@ export function GiftApp() {
         );
       }
     } finally {
-      setGiftBusy(false);
+      if (version === sessionVersion.current) setGiftBusy(false);
     }
   };
 
   const login = async (email: string, password: string) => {
     const result = await apiLogin(email, password);
-    profileSessionVersion.current += 1;
-    setProfile(null);
+    resetSessionState();
     saveSession({
       accessToken: result.accessToken,
       refreshToken: result.refreshToken ?? '',
@@ -458,9 +508,11 @@ export function GiftApp() {
   };
   const completeFriendRequest = async () => {
     if (!friendRequestDialog || friendRequestBusy) return;
+    const version = sessionVersion.current;
     setFriendRequestBusy(true);
     try {
       await processFriendRequest(friendRequestDialog.request.requestId, friendRequestDialog.action);
+      if (version !== sessionVersion.current) return;
       setFriendRequestDialog(null);
       setFriendsRefreshKey((value) => value + 1);
       setToast(
@@ -471,6 +523,7 @@ export function GiftApp() {
         }[friendRequestDialog.action],
       );
     } catch (reason) {
+      if (version !== sessionVersion.current) return;
       setToast(
         reason instanceof Error
           ? reason.message
@@ -488,19 +541,22 @@ export function GiftApp() {
         setFriendsRefreshKey((value) => value + 1);
       }
     } finally {
-      setFriendRequestBusy(false);
+      if (version === sessionVersion.current) setFriendRequestBusy(false);
     }
   };
   const deleteFriend = async () => {
     if (!friendToRemove || friendRemoveBusy) return;
+    const version = sessionVersion.current;
     setFriendRemoveBusy(true);
     try {
       await removeFriend(friendToRemove.friendId);
+      if (version !== sessionVersion.current) return;
       setFriendToRemove(null);
       setFriendsRefreshKey((value) => value + 1);
       if (giftRecipient?.userId === friendToRemove.userId) setGiftRecipient(null);
       setToast('친구를 삭제했습니다.');
     } catch (reason) {
+      if (version !== sessionVersion.current) return;
       setToast(
         reason instanceof Error
           ? reason.message
@@ -512,20 +568,18 @@ export function GiftApp() {
         if (giftRecipient?.userId === friendToRemove.userId) setGiftRecipient(null);
       }
     } finally {
-      setFriendRemoveBusy(false);
+      if (version === sessionVersion.current) setFriendRemoveBusy(false);
     }
   };
   const logout = () => {
+    const version = sessionVersion.current;
     setDialog(null);
     void apiLogout()
       .catch(() => undefined)
       .finally(() => {
+        if (version !== sessionVersion.current) return;
         clearSession();
-        profileSessionVersion.current += 1;
-        setProfile(null);
-        setGiftRecipient(null);
-        setRecipientSheetOpen(false);
-        setHistory([]);
+        resetSessionState();
         setRoute('login');
       });
   };
@@ -661,7 +715,7 @@ export function GiftApp() {
           }}
           onBirthdayPublic={() =>
             profile?.isBirthdayPublic
-              ? void updateMe({ isBirthdayPublic: false }).then(refreshProfile)
+              ? void updateProfile({ isBirthdayPublic: false })
               : setDialog('birthdayConsent')
           }
           onLogout={() => setDialog('logout')}
@@ -780,6 +834,7 @@ export function GiftApp() {
         onOpenAi={openAiChat}
       />
       <AddFriendSheet
+        key={`friend-${sessionKey}`}
         open={friendSheetOpen}
         currentUserId={loadSession()?.user?.userId ?? profile?.userId ?? null}
         onOpenChange={setFriendSheetOpen}
@@ -790,6 +845,7 @@ export function GiftApp() {
         onError={setToast}
       />
       <ProductFilterSheet
+        key={`filter-${sessionKey}`}
         open={filterSheetOpen}
         options={filterOptions}
         selected={activeFilterIds}
@@ -800,16 +856,17 @@ export function GiftApp() {
         onOpenChange={setFilterSheetOpen}
       />
       <EditBirthdaySheet
-        key={birthdaySheetSession}
+        key={`birthday-${sessionKey}-${birthdaySheetSession}`}
         open={birthdaySheetOpen}
         birthday={(profile?.birth ?? '2000-01-01').replaceAll('-', '.')}
         onOpenChange={setBirthdaySheetOpen}
         onSave={(birthday) => {
           setBirthdaySheetOpen(false);
-          void updateMe({ birth: birthday.replaceAll('.', '-') }).then(refreshProfile);
+          void updateProfile({ birth: birthday.replaceAll('.', '-') });
         }}
       />
       <SelectRecipientSheet
+        key={`recipient-${sessionKey}`}
         open={recipientSheetOpen}
         onOpenChange={setRecipientSheetOpen}
         onSelect={(friend) => {
@@ -820,6 +877,7 @@ export function GiftApp() {
         }}
       />
       <NotificationSheet
+        key={`notification-${sessionKey}`}
         open={notificationSheetOpen}
         onOpenChange={setNotificationSheetOpen}
         onRead={(count) => setUnreadCount(count)}
@@ -857,7 +915,7 @@ export function GiftApp() {
           onCancel={() => setDialog(null)}
           onConfirm={() => {
             setDialog(null);
-            void updateMe({ isBirthdayPublic: true }).then(refreshProfile);
+            void updateProfile({ isBirthdayPublic: true });
           }}
         />
       ) : null}
