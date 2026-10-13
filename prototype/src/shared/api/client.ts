@@ -91,6 +91,7 @@ async function request<T>(
   extraHeaders: Record<string, string> = {},
   allowRefresh = true,
   authenticated = true,
+  streamSignal?: AbortSignal,
 ): Promise<T> {
   const version = getSessionVersion();
   const session = authenticated ? loadSession() : null;
@@ -103,8 +104,9 @@ async function request<T>(
     headers,
     credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal: streamSignal,
   });
-  const responseBody = await parseBody<T>(response);
+  const responseBody = streamSignal && response.ok ? {} : await parseBody<T>(response);
 
   if (authenticated && version !== getSessionVersion())
     throw new ApiError('로그인 계정이 변경되어 이전 요청을 취소했습니다.', 0, {
@@ -120,7 +122,17 @@ async function request<T>(
         throw new ApiError('로그인 계정이 변경되어 이전 요청을 취소했습니다.', 0, {
           code: 'SESSION_CHANGED',
         });
-      if (newToken) return request<T>(method, path, body, params, extraHeaders, false);
+      if (newToken)
+        return request<T>(
+          method,
+          path,
+          body,
+          params,
+          extraHeaders,
+          false,
+          authenticated,
+          streamSignal,
+        );
     }
     // 원래 세션이 있었을 때만 "만료됨" 토스트를 띄운다. 애초에 로그인한 적이 없는
     // 상태(예: 로그인 화면에서 인증이 필요한 백그라운드 요청이 401을 받는 경우)까지
@@ -138,7 +150,7 @@ async function request<T>(
       responseBody.error,
     );
   }
-  return responseBody.data as T;
+  return (streamSignal ? response : responseBody.data) as T;
 }
 
 export function apiGet<T>(
@@ -175,4 +187,17 @@ export function apiPostWithHeaders<T>(
   extraHeaders: Record<string, string>,
 ): Promise<T> {
   return request<T>('POST', path, body, {}, extraHeaders, false);
+}
+
+export function apiEventStream(path: string, signal: AbortSignal): Promise<Response> {
+  return request<Response>(
+    'GET',
+    path,
+    undefined,
+    {},
+    { Accept: 'text/event-stream' },
+    true,
+    true,
+    signal,
+  );
 }
