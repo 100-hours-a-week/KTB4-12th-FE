@@ -22,7 +22,12 @@ import {
   sendGift,
   type SentGiftResult,
 } from '../../entities/gift';
-import { fetchUnreadNotificationCount, type Notification } from '../../entities/notification';
+import {
+  fetchUnreadNotificationCount,
+  markNotificationRead,
+  type Notification,
+  subscribeNotifications,
+} from '../../entities/notification';
 import { fetchProductCategories, type Product, type ProductCategory } from '../../entities/product';
 import {
   completeOnboarding,
@@ -37,7 +42,11 @@ import { OnboardingPreferenceSheet } from '../../features/edit-dislike-categorie
 import { ProductFilterSheet } from '../../features/filter-products';
 import { BugReportWidget } from '../../features/report-bug';
 import { SelectRecipientSheet } from '../../features/select-gift-recipient';
-import { NotificationButton, NotificationSheet } from '../../features/view-notifications';
+import {
+  NotificationBanner,
+  NotificationButton,
+  NotificationSheet,
+} from '../../features/view-notifications';
 import { MobileScroll, useKeyboard, useScreenPortal } from '../../mobile';
 import { AiChatPage } from '../../pages/ai-chat';
 import type { SignupDraft } from '../../pages/signup';
@@ -220,6 +229,10 @@ export function GiftApp() {
   const [birthdaySheetSession, setBirthdaySheetSession] = useState(0);
   const [recipientSheetOpen, setRecipientSheetOpen] = useState(false);
   const [recipientSelectionMode, setRecipientSelectionMode] = useState<'gift' | 'browse'>('gift');
+  const [notificationBanner, setNotificationBanner] = useState<Notification | null>(null);
+  const [notificationRefreshKey, setNotificationRefreshKey] = useState(0);
+  const [notificationBannerBusy, setNotificationBannerBusy] = useState(false);
+  const notificationSelectionBusy = useRef(false);
   const [notificationSheetOpen, setNotificationSheetOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [dialog, setDialog] = useState<DialogKind>(null);
@@ -276,6 +289,9 @@ export function GiftApp() {
     setSessionKey((value) => value + 1);
     setProfile(null);
     setUnreadCount(0);
+    setNotificationBanner(null);
+    setNotificationBannerBusy(false);
+    notificationSelectionBusy.current = false;
     setGiftRecipient(null);
     setSelectedProduct(null);
     setSelectedGiftId(null);
@@ -400,9 +416,22 @@ export function GiftApp() {
     if (route === 'login' || route === 'signup' || route === 'terms' || !loadSession()) return;
     refreshProfile();
     refreshUnread();
-    const timer = window.setInterval(refreshUnread, 10_000);
-    return () => window.clearInterval(timer);
   }, [route, refreshProfile, refreshUnread]);
+  const notificationsEnabled =
+    route !== 'login' && route !== 'signup' && route !== 'terms' && Boolean(loadSession());
+  useEffect(() => {
+    if (!notificationsEnabled) return;
+    return subscribeNotifications((notification) => {
+      setNotificationBanner(notification);
+      setNotificationRefreshKey((value) => value + 1);
+      refreshUnread();
+    }, refreshUnread);
+  }, [notificationsEnabled, sessionKey, refreshUnread]);
+  useEffect(() => {
+    if (!notificationBanner || notificationBannerBusy) return;
+    const timer = window.setTimeout(() => setNotificationBanner(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [notificationBanner, notificationBannerBusy]);
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(null), 2500);
@@ -595,6 +624,44 @@ export function GiftApp() {
     setHistory([]);
     setRoute('login');
     setToast('회원가입이 완료됐어요. 로그인해 주세요.');
+  };
+
+  const selectNotification = (notification: Notification) => {
+    if (notification.type === 'FRIEND_REQUEST_RECEIVED') {
+      setFriendsView('received');
+      setFriendsRefreshKey((value) => value + 1);
+      setTabNow('friends');
+      return;
+    }
+    if (notification.referenceType !== 'GIFT' || notification.referenceId == null) return;
+    setSelectedGiftId(notification.referenceId);
+    navigate('received-detail', notification.referenceId);
+  };
+  const selectBanner = async () => {
+    if (!notificationBanner || notificationSelectionBusy.current) return;
+    const version = sessionVersion.current;
+    const selected = notificationBanner;
+    notificationSelectionBusy.current = true;
+    setNotificationBannerBusy(true);
+    try {
+      const result = await markNotificationRead(selected.notificationId);
+      if (version !== sessionVersion.current) return;
+      setUnreadCount(result.unreadCount);
+      setNotificationRefreshKey((value) => value + 1);
+      setNotificationBanner((current) =>
+        current?.notificationId === selected.notificationId ? null : current,
+      );
+      setNotificationSheetOpen(false);
+      selectNotification(selected);
+    } catch (reason) {
+      if (version === sessionVersion.current)
+        setToast(reason instanceof Error ? reason.message : '알림을 읽지 못했습니다.');
+    } finally {
+      if (version === sessionVersion.current) {
+        notificationSelectionBusy.current = false;
+        setNotificationBannerBusy(false);
+      }
+    }
   };
 
   const notificationAction =
@@ -823,6 +890,12 @@ export function GiftApp() {
         </MobileScroll>
       ) : null}
       {showBottomNav ? <BottomNavigation route={bottomRoute} onSelect={setTab} /> : null}
+      <NotificationBanner
+        notification={notificationBanner}
+        busy={notificationBannerBusy}
+        onSelect={() => void selectBanner()}
+        onDismiss={() => setNotificationBanner(null)}
+      />
       <Toast message={toast} container={screenRef.current} />
       <BugReportWidget
         key={`bug-report-${route}`}
@@ -881,17 +954,8 @@ export function GiftApp() {
         open={notificationSheetOpen}
         onOpenChange={setNotificationSheetOpen}
         onRead={(count) => setUnreadCount(count)}
-        onSelect={(notification: Notification) => {
-          if (notification.type === 'FRIEND_REQUEST_RECEIVED') {
-            setFriendsView('received');
-            setFriendsRefreshKey((value) => value + 1);
-            setTabNow('friends');
-            return;
-          }
-          if (notification.referenceType !== 'GIFT' || notification.referenceId == null) return;
-          setSelectedGiftId(notification.referenceId);
-          navigate('received-detail', notification.referenceId);
-        }}
+        refreshKey={notificationRefreshKey}
+        onSelect={selectNotification}
       />
       {onboardingOpen ? (
         <OnboardingPreferenceSheet
