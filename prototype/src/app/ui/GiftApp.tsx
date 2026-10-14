@@ -195,11 +195,28 @@ export function GiftApp() {
   const [route, setRoute] = useState<Route>(() => {
     if (window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' || !loadSession())
       return 'login';
+    try {
+      if (
+        sessionStorage.getItem('gift-chat-active') === String(loadSession()?.user?.userId ?? 'mock')
+      )
+        return 'ai-chat';
+    } catch {
+      /* Storage may be disabled. */
+    }
     return (
       getQaInitialRoute() ??
       (storedProduct ? 'product' : (storedDetail?.route ?? getStoredMainTab()))
     );
   });
+  useEffect(() => {
+    try {
+      if (route === 'ai-chat')
+        sessionStorage.setItem('gift-chat-active', String(loadSession()?.user?.userId ?? 'mock'));
+      else sessionStorage.removeItem('gift-chat-active');
+    } catch {
+      /* Navigation remains usable without storage. */
+    }
+  }, [route]);
   const [history, setHistory] = useState<Route[]>(
     storedProduct ? ['gifts'] : storedDetail ? [storedDetail.returnRoute] : [],
   );
@@ -219,7 +236,9 @@ export function GiftApp() {
   const [birthdaySheetOpen, setBirthdaySheetOpen] = useState(false);
   const [birthdaySheetSession, setBirthdaySheetSession] = useState(0);
   const [recipientSheetOpen, setRecipientSheetOpen] = useState(false);
-  const [recipientSelectionMode, setRecipientSelectionMode] = useState<'gift' | 'browse'>('gift');
+  const [recipientSelectionMode, setRecipientSelectionMode] = useState<'gift' | 'browse' | 'chat'>(
+    'gift',
+  );
   const [notificationSheetOpen, setNotificationSheetOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [dialog, setDialog] = useState<DialogKind>(null);
@@ -239,7 +258,6 @@ export function GiftApp() {
   const [signupDraft, setSignupDraft] = useState<SignupDraft>(emptySignupDraft);
   const [toast, setToast] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [aiDraft, setAiDraft] = useState('');
   const [giftPreferenceDirty, setGiftPreferenceDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState<MainTabRoute | null>(null);
   const scrollTops = useRef<Partial<Record<Route, number>>>({});
@@ -253,6 +271,7 @@ export function GiftApp() {
   useLayoutEffect(() => {
     // Browser focus scrolling must stay inside MobileScroll when a route changes.
     screenRef.current?.scrollTo({ top: 0, left: 0 });
+    if (route === 'ai-chat') return;
     const target = scrollTops.current[route] ?? 0;
     const first = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => currentScroll()?.scrollTo({ top: target }));
@@ -297,7 +316,6 @@ export function GiftApp() {
     setFriendRemoveBusy(false);
     setFriendsView('friends');
     setActiveFilterIds([]);
-    setAiDraft('');
     setGiftPreferenceDirty(false);
     setPendingTab(null);
     setSignupDraft(emptySignupDraft);
@@ -415,8 +433,16 @@ export function GiftApp() {
       if ((event as CustomEvent<{ hadSession: boolean }>).detail?.hadSession)
         setToast('세션이 만료됐어요. 다시 로그인해 주세요.');
     };
+    const changed = () => {
+      resetSessionState();
+      setRoute(loadSession() ? 'friends' : 'login');
+    };
     window.addEventListener('prototype:session-expired', expired);
-    return () => window.removeEventListener('prototype:session-expired', expired);
+    window.addEventListener('prototype:session-changed', changed);
+    return () => {
+      window.removeEventListener('prototype:session-expired', expired);
+      window.removeEventListener('prototype:session-changed', changed);
+    };
   }, [resetSessionState]);
 
   const loadProductCategories = useCallback(() => {
@@ -685,10 +711,14 @@ export function GiftApp() {
     if (route === 'ai-chat')
       return (
         <AiChatPage
-          value={aiDraft}
-          onChange={setAiDraft}
+          key={`${sessionKey}:${loadSession()?.user?.userId ?? profile?.userId ?? 'loading'}`}
+          userId={loadSession()?.user?.userId ?? profile?.userId ?? null}
+          recipient={giftRecipient}
           onBack={goBack}
-          onUnavailable={() => setToast('AI 추천 기능은 준비 중이에요.')}
+          onSelectRecipient={() => {
+            setRecipientSelectionMode('chat');
+            setRecipientSheetOpen(true);
+          }}
         />
       );
     if (route === 'mypage')
