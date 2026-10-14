@@ -1,0 +1,324 @@
+import { expect, type Page, type Route, test } from '@playwright/test';
+
+const userA = { userId: 1, name: '계정 A', email: 'account-a@example.com' };
+const userB = { userId: 2, name: '계정 B', email: 'account-b@example.com' };
+const profile = (user: typeof userA) => ({
+  ...user,
+  birth: '2000-01-01',
+  isBirthdayPublic: false,
+  giftSummary: { sentCount: 0, receivedCount: 0, period: { from: '2026-01-01', to: '2026-12-31' } },
+});
+
+async function setup(page: Page, bProfileFails = false) {
+  const state = { holdA: false, heldA: 0 };
+  let releaseA!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    releaseA = resolve;
+  });
+  await page.addInitScript((user) => {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem('accessToken', 'token-a');
+    localStorage.setItem('refreshToken', 'refresh-a');
+    localStorage.setItem('authUser', JSON.stringify(user));
+    localStorage.setItem('prototype-auth', 'signed-in');
+  }, userA);
+  await page.route('**/users/me', async (route) => {
+    const isA = route.request().headers().authorization === 'Bearer token-a';
+    if (isA && state.holdA) {
+      state.heldA++;
+      await gate;
+    }
+    if (!isA && bProfileFails)
+      return route.fulfill({ status: 500, json: { error: { code: 'INTERNAL_SERVER_ERROR' } } });
+    return route.fulfill({ json: { data: profile(isA ? userA : userB) } });
+  });
+  await page.route('**/notifications/unread-count', (route) =>
+    route.fulfill({ json: { data: { unreadCount: 0 } } }),
+  );
+  await page.route(/\/friends(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: { data: { friends: [], pagination: { nextCursor: null, hasNext: false } } },
+    }),
+  );
+  await page.route('**/auth/logout', (route) => route.fulfill({ json: { data: {} } }));
+  await page.route('**/auth/login', (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          accessToken: 'token-b',
+          refreshToken: 'refresh-b',
+          expiresIn: 3600,
+          user: userB,
+          isFirstLogin: false,
+        },
+      },
+    }),
+  );
+  await page.route('**/users/search?**', (route) =>
+    route.fulfill({ json: { data: { user: userA } } }),
+  );
+  await page.goto('/');
+  await page.getByRole('navigation').getByRole('button', { name: '마이', exact: true }).click();
+  await expect(page.locator('.profile-card')).toContainText(userA.name);
+  return { state, releaseA };
+}
+
+async function logout(page: Page) {
+  await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: '로그아웃하시겠어요?' })
+    .getByRole('button', { name: '로그아웃', exact: true })
+    .click();
+  await expect(page.getByRole('button', { name: '로그인', exact: true })).toBeVisible();
+}
+async function loginB(page: Page) {
+  await page.getByLabel('이메일').fill(userB.email);
+  await page.getByLabel('비밀번호').fill('Password123!');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '친구', exact: true })).toBeVisible();
+}
+async function searchA(page: Page) {
+  await page.getByRole('button', { name: '친구 추가', exact: true }).click();
+  await page.getByRole('button', { name: '친구 이메일 검색' }).click();
+  await page.getByRole('textbox', { name: '친구 이메일 검색' }).fill(userA.email);
+  await page.getByRole('button', { name: '검색', exact: true }).click();
+  await expect(page.getByRole('button', { name: '계정 A 추가', exact: true })).toBeVisible();
+}
+
+test('B 프로필 조회가 실패해도 A를 본인으로 오인하지 않는다', async ({ page }) => {
+  const { releaseA } = await setup(page, true);
+  releaseA();
+  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await logout(page);
+  await loginB(page);
+  await searchA(page);
+  await page.getByRole('button', { name: '친구 추가 닫기' }).click();
+  await page.getByRole('navigation').getByRole('button', { name: '마이', exact: true }).click();
+  await expect(page.locator('.profile-card')).not.toContainText(userA.name);
+});
+
+test('계정 전환 뒤 도착한 A 프로필 응답이 B 프로필을 덮어쓰지 않는다', async ({ page }) => {
+  const { state, releaseA } = await setup(page);
+  state.holdA = true;
+  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await expect.poll(() => state.heldA).toBeGreaterThan(0);
+  await logout(page);
+  await loginB(page);
+  await page.getByRole('navigation').getByRole('button', { name: '마이', exact: true }).click();
+  await expect(page.locator('.profile-card')).toContainText(userB.name);
+  const oldResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/users/me') &&
+      response.request().headers().authorization === 'Bearer token-a',
+  );
+  releaseA();
+  await (await oldResponse).finished();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await expect(page.locator('.profile-card')).toContainText(userB.name);
+  await expect(page.locator('.profile-card')).not.toContainText(userA.name);
+});
+
+test('세션 만료 후 B로 로그인해도 이전 프로필이 남지 않는다', async ({ page }) => {
+  const { releaseA } = await setup(page, true);
+  releaseA();
+  const unauthorized = (route: Route) =>
+    route.fulfill({ status: 401, json: { error: { code: 'UNAUTHORIZED' } } });
+  await page.route('**/notifications/unread-count', unauthorized);
+  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await expect(page.getByRole('button', { name: '로그인', exact: true })).toBeVisible();
+  await page.unroute('**/notifications/unread-count', unauthorized);
+  await loginB(page);
+  await searchA(page);
+  await page.getByRole('button', { name: '친구 추가 닫기' }).click();
+  await page.getByRole('navigation').getByRole('button', { name: '마이', exact: true }).click();
+  await expect(page.locator('.profile-card')).not.toContainText(userA.name);
+});
+
+test('세션 만료 시 친구 추가 시트를 닫는다', async ({ page }) => {
+  const { releaseA } = await setup(page);
+  releaseA();
+  await page.getByRole('navigation').getByRole('button', { name: '친구', exact: true }).click();
+  await page.getByRole('button', { name: '친구 추가', exact: true }).click();
+  await page.route('**/users/search?**', (route) =>
+    route.fulfill({ status: 401, json: { error: { code: 'UNAUTHORIZED' } } }),
+  );
+  await page.getByRole('button', { name: '친구 이메일 검색' }).click();
+  await page.getByRole('textbox', { name: '친구 이메일 검색' }).fill(userA.email);
+  await page.getByRole('button', { name: '검색', exact: true }).click();
+  await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'login');
+  await expect(page.getByRole('button', { name: '친구 추가 닫기' })).not.toBeVisible();
+});
+
+test('B 알림 조회 실패 시 A의 알림 숫자를 초기화한다', async ({ page }) => {
+  const { releaseA } = await setup(page);
+  releaseA();
+  await page.route('**/notifications/unread-count', (route) =>
+    route.fulfill({ json: { data: { unreadCount: 9 } } }),
+  );
+  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await expect(page.locator('.notification-button span')).toHaveText('9');
+  await logout(page);
+  await page.route('**/notifications/unread-count', (route) =>
+    route.fulfill({ status: 500, json: { error: { code: 'INTERNAL_SERVER_ERROR' } } }),
+  );
+  await loginB(page);
+  await expect(page.getByRole('button', { name: '알림 0개, 알림 목록 열기' })).toBeVisible();
+});
+
+test('이전 계정의 늦은 401은 B 세션을 종료하지 않는다', async ({ page }) => {
+  const { releaseA } = await setup(page);
+  releaseA();
+  let held = false;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/users/me', async (route) => {
+    if (route.request().headers().authorization === 'Bearer token-a') {
+      held = true;
+      await gate;
+      await route.fulfill({ status: 401, json: { error: { code: 'UNAUTHORIZED' } } });
+    } else await route.fulfill({ json: { data: profile(userB) } });
+  });
+  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await expect.poll(() => held).toBe(true);
+  await logout(page);
+  await loginB(page);
+  const response = page.waitForResponse((r) => r.url().endsWith('/users/me') && r.status() === 401);
+  release();
+  await (await response).finished();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'friends');
+  expect(await page.evaluate(() => localStorage.getItem('accessToken'))).toBe('token-b');
+});
+
+test('AI 입력 초안을 다음 계정에 남기지 않는다', async ({ page }) => {
+  const { releaseA } = await setup(page);
+  releaseA();
+  const openAi = async () => {
+    await page.getByRole('button', { name: 'AI 챗봇 및 버그 리포트 열기' }).click();
+    await page.getByRole('button', { name: 'AI 선물 추천 열기' }).click();
+  };
+  await openAi();
+  await page.getByPlaceholder('메시지를 입력하세요...').fill('계정 A의 선물 고민');
+  await page.getByRole('button', { name: '뒤로 가기', exact: true }).click();
+  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await logout(page);
+  await loginB(page);
+  await openAi();
+  await expect(page.getByPlaceholder('메시지를 입력하세요...')).toHaveValue('');
+});
+
+test('계정 전환 후 늦게 도착한 알림 숫자는 무시한다', async ({ page }) => {
+  const { releaseA } = await setup(page);
+  releaseA();
+  let held = false;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/notifications/unread-count', async (route) => {
+    const isA = route.request().headers().authorization === 'Bearer token-a';
+    if (isA) {
+      held = true;
+      await gate;
+    }
+    await route.fulfill({ json: { data: { unreadCount: isA ? 9 : 2 } } });
+  });
+  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await expect.poll(() => held).toBe(true);
+  await logout(page);
+  await loginB(page);
+  await expect(page.getByRole('button', { name: '알림 2개, 알림 목록 열기' })).toBeVisible();
+  const response = page.waitForResponse(
+    (r) =>
+      r.url().endsWith('/notifications/unread-count') &&
+      r.request().headers().authorization === 'Bearer token-a',
+  );
+  release();
+  await (await response).finished();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await expect(page.getByRole('button', { name: '알림 2개, 알림 목록 열기' })).toBeVisible();
+});
+
+test('이전 계정의 토큰 갱신 응답은 새 계정 토큰을 덮어쓰지 않는다', async ({ page }) => {
+  const { releaseA } = await setup(page);
+  releaseA();
+  await page.evaluate(() =>
+    localStorage.setItem('accessTokenExpiresAt', String(Date.now() - 1000)),
+  );
+  let held = false;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/users/me', (route) =>
+    route.request().headers().authorization === 'Bearer token-a'
+      ? route.fulfill({ status: 401, json: { error: { code: 'UNAUTHORIZED' } } })
+      : route.fulfill({ json: { data: profile(userB) } }),
+  );
+  await page.route('**/auth/refresh', async (route) => {
+    held = true;
+    await gate;
+    await route.fulfill({
+      json: {
+        data: { accessToken: 'refreshed-a', refreshToken: 'refreshed-refresh-a', expiresIn: 3600 },
+      },
+    });
+  });
+  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await expect.poll(() => held).toBe(true);
+  await logout(page);
+  await loginB(page);
+  const response = page.waitForResponse('**/auth/refresh');
+  release();
+  await (await response).finished();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  expect(await page.evaluate(() => localStorage.getItem('accessToken'))).toBe('token-b');
+  expect(await page.evaluate(() => localStorage.getItem('refreshToken'))).toBe('refresh-b');
+  await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'friends');
+});
+
+test('현재 계정의 만료된 토큰은 갱신하고 원래 요청을 재시도한다', async ({ page }) => {
+  const { releaseA } = await setup(page);
+  releaseA();
+  await page.evaluate(() =>
+    localStorage.setItem('accessTokenExpiresAt', String(Date.now() - 1000)),
+  );
+  await page.route('**/users/me', (route) =>
+    route.request().headers().authorization === 'Bearer token-a'
+      ? route.fulfill({ status: 401, json: { error: { code: 'UNAUTHORIZED' } } })
+      : route.fulfill({ json: { data: profile({ ...userA, name: '갱신된 계정 A' }) } }),
+  );
+  await page.route('**/auth/refresh', (route) =>
+    route.fulfill({ json: { data: { accessToken: 'refreshed-a', expiresIn: 3600 } } }),
+  );
+  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'account');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('accessToken')))
+    .toBe('refreshed-a');
+  await page.getByRole('button', { name: '뒤로 가기' }).click();
+  await expect(page.locator('.profile-card')).toContainText('갱신된 계정 A');
+});

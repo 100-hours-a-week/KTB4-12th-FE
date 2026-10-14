@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { addFriend } from '../../../entities/friend';
 import { type SearchedUser, searchUserByEmail } from '../../../entities/user';
 import { BottomSheet, KeyboardInput } from '../../../mobile';
+import { getSessionVersion } from '../../../shared/api/session';
 
 type SearchState =
   | { status: 'idle' }
@@ -49,12 +50,13 @@ export function AddFriendSheet({
     if (!email || searchState.status === 'searching') return;
     setSearchState({ status: 'searching' });
     const version = ++searchVersion.current;
+    const sessionVersion = getSessionVersion();
     try {
       const user = await searchUserByEmail(email);
-      if (version !== searchVersion.current) return;
+      if (version !== searchVersion.current || sessionVersion !== getSessionVersion()) return;
       setSearchState(user ? { status: 'found', user } : { status: 'empty' });
     } catch (reason) {
-      if (version !== searchVersion.current) return;
+      if (version !== searchVersion.current || sessionVersion !== getSessionVersion()) return;
       setSearchState({ status: 'idle' });
       onError(reason instanceof Error ? reason.message : '검색에 실패했습니다.');
     }
@@ -63,14 +65,17 @@ export function AddFriendSheet({
   const add = async (user: SearchedUser) => {
     if (adding || addedUserIds.includes(user.userId)) return;
     setAdding(true);
+    const version = getSessionVersion();
     try {
       await addFriend(user.userId, user.name);
+      if (version !== getSessionVersion()) return;
       setAddedUserIds((current) => [...current, user.userId]);
       onAdded();
     } catch (reason) {
+      if (version !== getSessionVersion()) return;
       onError(reason instanceof Error ? reason.message : '친구 추가에 실패했습니다.');
     } finally {
-      setAdding(false);
+      if (version === getSessionVersion()) setAdding(false);
     }
   };
 
