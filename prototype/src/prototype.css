@@ -2754,3 +2754,37 @@ textarea:focus-visible,
   border-radius: 10px;
   background: white;
 }
+.ai-chat-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 170px;
+}
+.ai-chat-product-image {
+  flex: 0 0 72px;
+  width: 72px;
+  height: 84px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: var(--surface);
+}
+.ai-chat-product-placeholder {
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+}
+.ai-chat-product-info {
+  flex: 1;
+  min-width: 0;
+}
+.ai-chat-product-info p {
+  margin: 6px 0;
+}
+.ai-chat-product-status {
+  color: var(--muted);
+  font-size: 12px;
+}
+.ai-chat-product-info button {
+  min-height: 44px;
+  margin-top: 6px;
+}

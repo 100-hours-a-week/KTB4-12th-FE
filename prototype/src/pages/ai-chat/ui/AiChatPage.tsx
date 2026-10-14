@@ -10,7 +10,9 @@ import {
 import { createPortal } from 'react-dom';
 
 import { type ChatRecipient, loadChat } from '../../../entities/chat';
+import type { Product } from '../../../entities/product';
 import { ChatSession } from '../../../features/chat';
+import { ChatProductCards, ChatProducts } from '../../../features/chat-product-cards';
 import { Carousel, KeyboardTextarea, useKeyboardInsets } from '../../../mobile';
 import { ScreenHeader } from '../../../shared/ui';
 
@@ -18,11 +20,13 @@ export function AiChatPage({
   userId,
   recipient,
   onSelectRecipient,
+  onProduct,
   onBack,
 }: {
   userId: number | null;
   recipient: ChatRecipient | null;
   onSelectRecipient: () => void;
+  onProduct: (product: Product, recipient: ChatRecipient) => void;
   onBack: () => void;
 }) {
   const [stored] = useState(() => (userId ? loadChat(userId) : null));
@@ -44,6 +48,7 @@ export function AiChatPage({
       key={`${userId}:${selected.userId}`}
       userId={userId}
       recipient={selected}
+      onProduct={onProduct}
       onBack={onBack}
     />
   );
@@ -52,16 +57,40 @@ export function AiChatPage({
 function ChatPage({
   userId,
   recipient,
+  onProduct,
   onBack,
 }: {
   userId: number;
   recipient: ChatRecipient;
+  onProduct: (product: Product, recipient: ChatRecipient) => void;
   onBack: () => void;
 }) {
   const [chat] = useState(() => new ChatSession(userId, recipient));
   const { snapshot, busy, notice } = useSyncExternalStore(chat.subscribe, chat.getSnapshot);
+  const [products] = useState(() => new ChatProducts());
+  const productStates = useSyncExternalStore(products.subscribe, products.getSnapshot);
+  const productIds = [
+    ...new Set(
+      snapshot.turns.flatMap((turn) =>
+        turn.blocks.flatMap((block) =>
+          block.type === 'cards' ? block.products.map((product) => product.productId) : [],
+        ),
+      ),
+    ),
+  ].join(',');
+  useEffect(() => products.start(), [products]);
+  useEffect(() => {
+    products.ensure(productIds ? productIds.split(',').map(Number) : []);
+  }, [products, productIds]);
+  const viewProduct = (product: Product) => {
+    chat.setScroll(scrollRef.current?.scrollTop ?? snapshot.scrollTop);
+    chat.flush();
+    onProduct(product, snapshot.recipient);
+  };
   const { bottomInset } = useKeyboardInsets();
   const [host, setHost] = useState<Element | null>(null);
+  const controlsRef = useRef<HTMLDivElement | null>(null);
+  const [controlsHeight, setControlsHeight] = useState(240);
   const pageRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef<HTMLElement | null>(null);
   const restoring = useRef(true);
@@ -72,16 +101,44 @@ function ChatPage({
   }, []);
   useEffect(() => chat.start(), [chat]);
   useLayoutEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    const measure = () => setControlsHeight(controls.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(controls);
+    return () => observer.disconnect();
+  }, [host]);
+  useLayoutEffect(() => {
     const scroll = pageRef.current?.closest<HTMLElement>('[data-testid="mobile-scroll"]');
     if (!scroll) return;
     scrollRef.current = scroll;
     const target = chat.getSnapshot().snapshot.scrollTop;
     let second = 0;
+    let finishTimer = 0;
+    const restore = () => {
+      if (!restoring.current) return;
+      scroll.scrollTop = target;
+      if (scroll.scrollHeight - scroll.clientHeight >= target) {
+        restoring.current = false;
+        follow.current = scroll.scrollHeight - scroll.clientHeight - scroll.scrollTop < 80;
+      }
+    };
+    const observer = new ResizeObserver(restore);
+    if (pageRef.current) observer.observe(pageRef.current);
+    const stopRestore = () => {
+      restoring.current = false;
+    };
+    scroll.addEventListener('pointerdown', stopRestore);
+    scroll.addEventListener('wheel', stopRestore);
+    scroll.addEventListener('keydown', stopRestore);
     const first = requestAnimationFrame(() => {
       second = requestAnimationFrame(() => {
-        scroll.scrollTop = target;
-        follow.current = scroll.scrollHeight - scroll.clientHeight - scroll.scrollTop < 80;
-        restoring.current = false;
+        restore();
+        finishTimer = window.setTimeout(() => {
+          restore();
+          restoring.current = false;
+        }, 15_500);
       });
     });
     const onScroll = () => {
@@ -91,6 +148,11 @@ function ChatPage({
     };
     scroll.addEventListener('scroll', onScroll);
     return () => {
+      observer.disconnect();
+      clearTimeout(finishTimer);
+      scroll.removeEventListener('pointerdown', stopRestore);
+      scroll.removeEventListener('wheel', stopRestore);
+      scroll.removeEventListener('keydown', stopRestore);
       cancelAnimationFrame(first);
       cancelAnimationFrame(second);
       scroll.removeEventListener('scroll', onScroll);
@@ -99,8 +161,8 @@ function ChatPage({
   }, [chat]);
   useLayoutEffect(() => {
     if (restoring.current || !follow.current || !scrollRef.current) return;
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [snapshot.turns, snapshot.pending]);
+    scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight });
+  }, [snapshot.turns, snapshot.pending, controlsHeight, bottomInset]);
   const processing = snapshot.turns.some((t) => t.status === 'PROCESSING');
   const blocked =
     busy || processing || (!!snapshot.pending && snapshot.pending.state !== 'rejected');
@@ -115,7 +177,11 @@ function ChatPage({
       : null;
   return (
     <>
-      <section ref={bindPage} className="page ai-chat-page">
+      <section
+        ref={bindPage}
+        className="page ai-chat-page"
+        style={{ paddingBottom: controlsHeight + bottomInset + 32 }}
+      >
         <ScreenHeader title="AI 챗봇" onBack={onBack} />
         <p className="ai-chat-recipient">{snapshot.recipient.name}님에게 줄 선물</p>
         <div className="ai-chat-thread" aria-live="polite" aria-relevant="additions text">
@@ -154,14 +220,13 @@ function ChatPage({
                     block.type === 'text' ? (
                       <p key={index}>{block.text}</p>
                     ) : (
-                      <div className="ai-chat-cards" key={index}>
-                        {block.products.map((product) => (
-                          <div className="ai-chat-card" key={product.productId}>
-                            <strong>추천 상품 #{product.productId}</strong>
-                            <p>{product.reason}</p>
-                          </div>
-                        ))}
-                      </div>
+                      <ChatProductCards
+                        key={index}
+                        products={block.products}
+                        states={productStates}
+                        store={products}
+                        onProduct={viewProduct}
+                      />
                     ),
                   )}
                   {turn.progressMessage ? (
@@ -208,7 +273,11 @@ function ChatPage({
       </section>
       {host
         ? createPortal(
-            <div className="ai-chat-controls" style={{ bottom: bottomInset + 16 }}>
+            <div
+              ref={controlsRef}
+              className="ai-chat-controls"
+              style={{ bottom: bottomInset + 16 }}
+            >
               <Carousel
                 className="ai-chat-suggestions"
                 contentClassName="ai-suggestion-track"

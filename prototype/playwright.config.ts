@@ -9,6 +9,7 @@ export default defineConfig({
     '**/product-recommendation.spec.ts',
     '**/login-account-switch-error.spec.ts',
     '**/chat-api.spec.ts',
+    '**/chat-products-api.spec.ts',
   ],
   timeout: 20_000,
   use: {

@@ -6,6 +6,7 @@ import {
   signup as apiSignup,
   type SignupTermConsent,
 } from '../../entities/auth';
+import { type ChatRecipient, loadChat } from '../../entities/chat';
 import {
   type Friend,
   type FriendRequest,
@@ -144,6 +145,19 @@ function getStoredProduct(): Product | null {
   }
 }
 
+function getChatProductOrigin(product: Product | null): boolean {
+  try {
+    const value = JSON.parse(sessionStorage.getItem('gift-chat-product') ?? 'null');
+    return (
+      !!product &&
+      value?.userId === loadSession()?.user?.userId &&
+      value?.productId === product.productId
+    );
+  } catch {
+    return false;
+  }
+}
+
 function getStoredDetailRoute(): StoredDetailRoute | null {
   try {
     const raw = window.localStorage.getItem(DETAIL_ROUTE_STORAGE_KEY);
@@ -192,6 +206,9 @@ export function GiftApp() {
   const { screenRef } = useScreenPortal();
   const storedProduct = getStoredProduct();
   const storedDetail = getStoredDetailRoute();
+  const [chatProductOrigin, setChatProductOrigin] = useState(() =>
+    getChatProductOrigin(storedProduct),
+  );
   const [route, setRoute] = useState<Route>(() => {
     if (window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' || !loadSession())
       return 'login';
@@ -218,11 +235,19 @@ export function GiftApp() {
     }
   }, [route]);
   const [history, setHistory] = useState<Route[]>(
-    storedProduct ? ['gifts'] : storedDetail ? [storedDetail.returnRoute] : [],
+    storedProduct
+      ? [chatProductOrigin ? 'ai-chat' : 'gifts']
+      : storedDetail
+        ? [storedDetail.returnRoute]
+        : [],
   );
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(storedProduct);
   const [selectedGiftId, setSelectedGiftId] = useState<number | null>(storedDetail?.giftId ?? null);
-  const [giftRecipient, setGiftRecipient] = useState<SearchedUser | null>(null);
+  const [giftRecipient, setGiftRecipient] = useState<SearchedUser | null>(() => {
+    const userId = loadSession()?.user?.userId;
+    const recipient = chatProductOrigin && userId ? loadChat(userId)?.recipient : null;
+    return recipient ? { ...recipient, email: '' } : null;
+  });
   const [giftResult, setGiftResult] = useState<SentGiftResult | null>(null);
   const [giftDialog, setGiftDialog] = useState<GiftDialog>(null);
   const [giftBusy, setGiftBusy] = useState(false);
@@ -321,6 +346,7 @@ export function GiftApp() {
     setSignupDraft(emptySignupDraft);
     setToast(null);
     setHistory([]);
+    setChatProductOrigin(false);
     scrollTops.current = {};
   }, [dismissKeyboard]);
 
@@ -627,6 +653,29 @@ export function GiftApp() {
     route === 'login' || route === 'signup' || route === 'terms' ? undefined : (
       <NotificationButton count={unreadCount} onClick={() => setNotificationSheetOpen(true)} />
     );
+  const openProduct = (product: Product, recipient?: ChatRecipient) => {
+    setSelectedProduct(product);
+    window.localStorage.setItem(SELECTED_PRODUCT_STORAGE_KEY, JSON.stringify(product));
+    setChatProductOrigin(!!recipient);
+    if (recipient) setGiftRecipient({ ...recipient, email: giftRecipient?.email ?? '' });
+    try {
+      if (recipient)
+        sessionStorage.setItem(
+          'gift-chat-product',
+          JSON.stringify({
+            userId: loadSession()?.user?.userId ?? profile?.userId,
+            productId: product.productId,
+          }),
+        );
+      else sessionStorage.removeItem('gift-chat-product');
+    } catch {
+      /* In-memory navigation still preserves the return route. */
+    }
+    setQuantity(1);
+    idempotencyKey.current = null;
+    navigate('product');
+  };
+
   const renderGiftsPage = () => (
     <GiftsPage
       filterCount={activeFilterIds.length}
@@ -646,13 +695,7 @@ export function GiftApp() {
         setFilterSheetOpen(true);
         if (!filterOptions.length && !filterLoading) void loadProductCategories();
       }}
-      onProduct={(product) => {
-        setSelectedProduct(product);
-        window.localStorage.setItem(SELECTED_PRODUCT_STORAGE_KEY, JSON.stringify(product));
-        setQuantity(1);
-        idempotencyKey.current = null;
-        navigate('product');
-      }}
+      onProduct={(product) => openProduct(product)}
     />
   );
 
@@ -714,6 +757,7 @@ export function GiftApp() {
           key={`${sessionKey}:${loadSession()?.user?.userId ?? profile?.userId ?? 'loading'}`}
           userId={loadSession()?.user?.userId ?? profile?.userId ?? null}
           recipient={giftRecipient}
+          onProduct={openProduct}
           onBack={goBack}
           onSelectRecipient={() => {
             setRecipientSelectionMode('chat');
@@ -821,7 +865,7 @@ export function GiftApp() {
       : route === 'gift-preference'
         ? 'mypage'
         : (route as MainTabRoute);
-  const preserveGiftList = route === 'gifts' || route === 'product';
+  const preserveGiftList = route === 'gifts' || (route === 'product' && !chatProductOrigin);
   const showFloatingAiMenu =
     route !== 'login' && route !== 'signup' && route !== 'terms' && route !== 'ai-chat';
 
