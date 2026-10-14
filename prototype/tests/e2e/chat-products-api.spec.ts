@@ -436,3 +436,36 @@ for (const width of [390, 1100]) {
       });
   });
 }
+
+for (const width of [390, 1100]) {
+  test(`채팅 하단에서도 뒤로가기와 제목이 상단에 고정되고 바로 나갈 수 있다 (${width}px)`, async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width, height: 1100 });
+    const turn = completed();
+    turn.blocks.unshift({ type: 'text', text: '긴 대화 내용입니다.\n'.repeat(60) });
+    await setup(page, [turn]);
+    await page.goto('/');
+    await expect(card(page, 101)).toContainText('최신 상품 101');
+    const scroll = page.locator('[data-testid=mobile-scroll]:not(.route-preserved-scroll)');
+    await scroll.evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+    });
+    await expect
+      .poll(async () => {
+        const viewport = await scroll.boundingBox();
+        const header = await page.locator('.ai-chat-page > .screen-header').boundingBox();
+        return (
+          !!viewport && !!header && Math.abs(header.y - viewport.y - (width === 390 ? 0 : 64)) <= 1
+        );
+      })
+      .toBe(true);
+    await expect(page.getByRole('heading', { name: '선잘알 봇', exact: true })).toBeVisible();
+    if (width === 1100)
+      await page
+        .getByTestId('gift-app')
+        .screenshot({ path: testInfo.outputPath('chat-sticky-header.png') });
+    await page.getByRole('button', { name: '뒤로 가기', exact: true }).click();
+    await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'friends');
+  });
+}

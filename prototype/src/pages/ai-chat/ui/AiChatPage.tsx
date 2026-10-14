@@ -14,6 +14,7 @@ import type { Product } from '../../../entities/product';
 import { ChatSession } from '../../../features/chat';
 import { ChatProductCards, ChatProducts } from '../../../features/chat-product-cards';
 import { Carousel, KeyboardTextarea, useKeyboardInsets } from '../../../mobile';
+import { SUNJALAL_BOT_IMAGE } from '../../../shared/config/assets';
 import { ScreenHeader } from '../../../shared/ui';
 
 export function AiChatPage({
@@ -34,13 +35,51 @@ export function AiChatPage({
   if (!userId || !selected)
     return (
       <section className="page ai-chat-page">
-        <ScreenHeader title="AI 챗봇" onBack={onBack} />
-        <p>
-          {userId ? '선물을 받을 사람을 먼저 선택해 주세요.' : '로그인 정보를 확인하고 있어요.'}
+        <ScreenHeader title="선잘알 봇" onBack={onBack} />
+        <div className="sunjalal-welcome">
+          <span className="sunjalal-welcome-badge">당신의 AI 선물 메이트</span>
+          <img
+            className="sunjalal-welcome-character"
+            src={SUNJALAL_BOT_IMAGE}
+            alt="선잘알 캐릭터"
+            draggable={false}
+          />
+          <h2>
+            선물 고민,
+            <br />
+            같이 풀어볼까요?
+          </h2>
+          <p>
+            생일도, 새로운 시작도, 고마운 마음도.
+            <br />
+            마음을 전할 선물을 함께 찾아드릴게요.
+          </p>
+          <div className="sunjalal-welcome-occasions" aria-label="선물 추천 상황">
+            <span>🎂 생일</span>
+            <span>🎉 취업·승진</span>
+            <span>💌 감사 인사</span>
+          </div>
+        </div>
+        <div className="sunjalal-start-card">
+          <span className="sunjalal-start-step">STEP 01</span>
+          <h3>누구에게 마음을 전할까요?</h3>
+          <p>
+            {userId
+              ? '받는 사람을 고르고, 상황과 예산을 알려주세요.'
+              : '로그인 정보를 확인하고 있어요.'}
+          </p>
+          <button
+            type="button"
+            className="primary sunjalal-start-button"
+            onClick={onSelectRecipient}
+            disabled={!userId}
+          >
+            받는 사람 선택 <span aria-hidden="true">→</span>
+          </button>
+        </div>
+        <p className="sunjalal-welcome-footnote">
+          AI 추천은 참고용이에요. 상품 정보는 카드에서 확인해 주세요.
         </p>
-        <button className="primary-button" onClick={onSelectRecipient} disabled={!userId}>
-          받는 사람 선택
-        </button>
       </section>
     );
   return (
@@ -182,17 +221,19 @@ function ChatPage({
         className="page ai-chat-page"
         style={{ paddingBottom: controlsHeight + bottomInset + 32 }}
       >
-        <ScreenHeader title="AI 챗봇" onBack={onBack} />
+        <ScreenHeader title="선잘알 봇" onBack={onBack} />
         <p className="ai-chat-recipient">{snapshot.recipient.name}님에게 줄 선물</p>
         <div className="ai-chat-thread" aria-live="polite" aria-relevant="additions text">
           <div className="ai-chat-message assistant">
             <span className="ai-chat-avatar" aria-hidden="true">
-              🤖
+              <img src={SUNJALAL_BOT_IMAGE} alt="" draggable={false} />
             </span>
             <div>
-              <strong>AI 챗봇</strong>
-              <p>안녕하세요! 선물 고민을 같이 해결해드릴게요.</p>
-              <p>누구에게, 어떤 상황의 선물인지 알려주세요.</p>
+              <strong>선잘알 봇</strong>
+              <p>안녕하세요, 선잘알 봇이에요! 🎁</p>
+              <p>
+                누구에게, 어떤 마음을 전하고 싶으세요? 상황과 예산을 알려주시면 같이 찾아볼게요.
+              </p>
             </div>
           </div>
           <div className="ai-chat-notice">
@@ -212,10 +253,10 @@ function ChatPage({
                 data-status={turn.status}
               >
                 <span className="ai-chat-avatar" aria-hidden="true">
-                  🤖
+                  <img src={SUNJALAL_BOT_IMAGE} alt="" draggable={false} />
                 </span>
                 <div>
-                  <strong>AI 챗봇</strong>
+                  <strong>선잘알 봇</strong>
                   {turn.blocks.map((block, index) =>
                     block.type === 'text' ? (
                       <p key={index}>{block.text}</p>

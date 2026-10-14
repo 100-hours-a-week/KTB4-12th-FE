@@ -61,8 +61,8 @@ async function setup(page: Page) {
 }
 async function open(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'AI 챗봇 및 버그 리포트 열기' }).click();
-  await page.getByRole('button', { name: 'AI 선물 추천 열기' }).click();
+  await page.getByRole('button', { name: '선잘알 봇 및 의견 메뉴 열기' }).click();
+  await page.getByRole('button', { name: '선잘알 봇 열기' }).click();
   await page.getByRole('button', { name: '받는 사람 선택', exact: true }).click();
   await page
     .getByRole('dialog', { name: '받는 사람 선택', exact: true })
@@ -271,7 +271,7 @@ for (const fault of ['gap', 'malformed', 'eof', 'duplicate']) {
     await open(page);
     await send(page);
     await expect(page.locator('.ai-chat-message[data-status=COMPLETED]')).toHaveText(
-      '🤖AI 챗봇부분 답변 <b>🎁</b>',
+      '선잘알 봇부분 답변 <b>🎁</b>',
     );
     expect(gets).toBe(fault === 'duplicate' ? 0 : 1);
   });

@@ -14,6 +14,7 @@ export default defineConfig({
     '**/friend-delete-api.spec.ts',
     '**/chat-api.spec.ts',
     '**/chat-products-api.spec.ts',
+    '**/dislike-categories-api.spec.ts',
   ],
   timeout: 20_000,
   use: {
