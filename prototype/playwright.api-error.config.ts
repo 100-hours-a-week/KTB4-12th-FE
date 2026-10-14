@@ -12,6 +12,7 @@ export default defineConfig({
     '**/friend-requests-api.spec.ts',
     '**/friend-request-actions-api.spec.ts',
     '**/friend-delete-api.spec.ts',
+    '**/notification-sse.spec.ts',
   ],
   timeout: 20_000,
   use: {
