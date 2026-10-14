@@ -60,7 +60,7 @@ test('내 선물 취향은 300자 제한과 미저장 이탈 확인을 제공한
   ).toBeVisible();
 });
 
-test('상품 상세의 AI 버튼은 입력을 유지하고 준비 중 토스트를 표시한다', async ({ page }) => {
+test('상품 상세의 AI 버튼은 수신자 선택 후 채팅을 전송한다', async ({ page }) => {
   await page
     .getByRole('navigation', { name: '하단 메뉴' })
     .getByRole('button', { name: '선물' })
@@ -69,11 +69,21 @@ test('상품 상세의 AI 버튼은 입력을 유지하고 준비 중 토스트�
   await page.getByRole('button', { name: 'AI 챗봇 및 버그 리포트 열기' }).click();
   await page.getByRole('button', { name: 'AI 선물 추천 열기' }).click();
 
+  await page.getByRole('button', { name: '받는 사람 선택', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: '받는 사람 선택', exact: true })
+    .getByRole('button', { name: '선택', exact: true })
+    .first()
+    .click();
   const input = page.getByPlaceholder('메시지를 입력하세요...');
   await input.fill('직장 동료에게 줄 실용적인 승진 선물을 추천해줘');
   await expect(page.locator('.ai-composer > span')).toHaveText(/\/100$/);
   await page.getByRole('button', { name: '메시지 전송' }).click();
-  await expect(page.getByRole('status')).toHaveText('AI 추천 기능은 준비 중이에요.');
+  await expect(page.locator('.ai-chat-message.user')).toHaveText(
+    '직장 동료에게 줄 실용적인 승진 선물을 추천해줘',
+  );
+  await expect(page.locator('.ai-chat-message[data-status=COMPLETED]')).toBeVisible();
+  await expect(input).toHaveValue('');
 });
 
 test('알림을 읽고 받은 선물 상세로 이동한다', async ({ page }) => {

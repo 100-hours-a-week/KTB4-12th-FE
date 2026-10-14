@@ -70,3 +70,17 @@ export function clearSession() {
   window.sessionStorage.clear();
   window.localStorage.setItem(AUTH_FLAG_KEY, 'signed-out');
 }
+
+// Other tabs can change the shared login while this tab still has a live chat stream.
+window.addEventListener('storage', (event) => {
+  if (
+    event.storageArea !== window.localStorage ||
+    (event.key !== null &&
+      event.key !== USER_KEY &&
+      event.key !== ACCESS_TOKEN_KEY &&
+      event.key !== AUTH_FLAG_KEY)
+  )
+    return;
+  sessionVersion += 1;
+  window.dispatchEvent(new Event('prototype:session-changed'));
+});

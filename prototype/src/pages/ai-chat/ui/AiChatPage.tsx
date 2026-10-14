@@ -1,72 +1,268 @@
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import { createPortal } from 'react-dom';
+
+import { type ChatRecipient, loadChat } from '../../../entities/chat';
+import { ChatSession } from '../../../features/chat';
 import { Carousel, KeyboardTextarea, useKeyboardInsets } from '../../../mobile';
 import { ScreenHeader } from '../../../shared/ui';
 
 export function AiChatPage({
-  value,
-  onChange,
+  userId,
+  recipient,
+  onSelectRecipient,
   onBack,
-  onUnavailable,
 }: {
-  value: string;
-  onChange: (value: string) => void;
+  userId: number | null;
+  recipient: ChatRecipient | null;
+  onSelectRecipient: () => void;
   onBack: () => void;
-  onUnavailable: () => void;
 }) {
-  const { bottomInset } = useKeyboardInsets();
-
+  const [stored] = useState(() => (userId ? loadChat(userId) : null));
+  const selected = recipient ?? stored?.recipient;
+  if (!userId || !selected)
+    return (
+      <section className="page ai-chat-page">
+        <ScreenHeader title="AI 챗봇" onBack={onBack} />
+        <p>
+          {userId ? '선물을 받을 사람을 먼저 선택해 주세요.' : '로그인 정보를 확인하고 있어요.'}
+        </p>
+        <button className="primary-button" onClick={onSelectRecipient} disabled={!userId}>
+          받는 사람 선택
+        </button>
+      </section>
+    );
   return (
-    <section className="page ai-chat-page">
-      <ScreenHeader title="AI 챗봇" onBack={onBack} />
-      <div className="ai-chat-thread" aria-live="polite">
-        <div className="ai-chat-message assistant">
-          <span className="ai-chat-avatar" aria-hidden="true">
-            🤖
-          </span>
-          <div>
-            <strong>AI 챗봇</strong>
-            <p>안녕하세요! 선물 고민을 같이 해결해드릴게요.</p>
-            <p>누구에게, 어떤 상황의 선물인지 알려주세요.</p>
+    <ChatPage
+      key={`${userId}:${selected.userId}`}
+      userId={userId}
+      recipient={selected}
+      onBack={onBack}
+    />
+  );
+}
+
+function ChatPage({
+  userId,
+  recipient,
+  onBack,
+}: {
+  userId: number;
+  recipient: ChatRecipient;
+  onBack: () => void;
+}) {
+  const [chat] = useState(() => new ChatSession(userId, recipient));
+  const { snapshot, busy, notice } = useSyncExternalStore(chat.subscribe, chat.getSnapshot);
+  const { bottomInset } = useKeyboardInsets();
+  const [host, setHost] = useState<Element | null>(null);
+  const pageRef = useRef<HTMLElement | null>(null);
+  const scrollRef = useRef<HTMLElement | null>(null);
+  const restoring = useRef(true);
+  const follow = useRef(false);
+  const bindPage = useCallback((node: HTMLElement | null) => {
+    pageRef.current = node;
+    setHost(node?.closest('.gift-app') ?? null);
+  }, []);
+  useEffect(() => chat.start(), [chat]);
+  useLayoutEffect(() => {
+    const scroll = pageRef.current?.closest<HTMLElement>('[data-testid="mobile-scroll"]');
+    if (!scroll) return;
+    scrollRef.current = scroll;
+    const target = chat.getSnapshot().snapshot.scrollTop;
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => {
+        scroll.scrollTop = target;
+        follow.current = scroll.scrollHeight - scroll.clientHeight - scroll.scrollTop < 80;
+        restoring.current = false;
+      });
+    });
+    const onScroll = () => {
+      if (restoring.current) return;
+      follow.current = scroll.scrollHeight - scroll.clientHeight - scroll.scrollTop < 80;
+      chat.setScroll(scroll.scrollTop);
+    };
+    scroll.addEventListener('scroll', onScroll);
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+      scroll.removeEventListener('scroll', onScroll);
+      chat.flush();
+    };
+  }, [chat]);
+  useLayoutEffect(() => {
+    if (restoring.current || !follow.current || !scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [snapshot.turns, snapshot.pending]);
+  const processing = snapshot.turns.some((t) => t.status === 'PROCESSING');
+  const blocked =
+    busy || processing || (!!snapshot.pending && snapshot.pending.state !== 'rejected');
+  const count = Array.from(snapshot.draft).length;
+  const send = () => {
+    follow.current = true;
+    void chat.send();
+  };
+  const pending =
+    snapshot.pending && !snapshot.turns.some((t) => t.turnId === snapshot.pending?.turnId)
+      ? snapshot.pending
+      : null;
+  return (
+    <>
+      <section ref={bindPage} className="page ai-chat-page">
+        <ScreenHeader title="AI 챗봇" onBack={onBack} />
+        <p className="ai-chat-recipient">{snapshot.recipient.name}님에게 줄 선물</p>
+        <div className="ai-chat-thread" aria-live="polite" aria-relevant="additions text">
+          <div className="ai-chat-message assistant">
+            <span className="ai-chat-avatar" aria-hidden="true">
+              🤖
+            </span>
+            <div>
+              <strong>AI 챗봇</strong>
+              <p>안녕하세요! 선물 고민을 같이 해결해드릴게요.</p>
+              <p>누구에게, 어떤 상황의 선물인지 알려주세요.</p>
+            </div>
           </div>
+          <div className="ai-chat-notice">
+            AI 답변은 참고용이며 정확하지 않을 수 있어요. 특정 개인을 판단할 수 있는 개인정보는
+            입력하지 말아주세요.
+          </div>
+          {snapshot.turns.map((turn) => (
+            <Fragment key={turn.turnId}>
+              <div className="ai-chat-message user">
+                <div>
+                  <p>{turn.message}</p>
+                </div>
+              </div>
+              <div
+                className="ai-chat-message assistant"
+                data-turn-id={turn.turnId}
+                data-status={turn.status}
+              >
+                <span className="ai-chat-avatar" aria-hidden="true">
+                  🤖
+                </span>
+                <div>
+                  <strong>AI 챗봇</strong>
+                  {turn.blocks.map((block, index) =>
+                    block.type === 'text' ? (
+                      <p key={index}>{block.text}</p>
+                    ) : (
+                      <div className="ai-chat-cards" key={index}>
+                        {block.products.map((product) => (
+                          <div className="ai-chat-card" key={product.productId}>
+                            <strong>추천 상품 #{product.productId}</strong>
+                            <p>{product.reason}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ),
+                  )}
+                  {turn.progressMessage ? (
+                    <p className="ai-chat-progress">{turn.progressMessage}</p>
+                  ) : turn.status === 'PROCESSING' && !turn.blocks.length ? (
+                    <p>답변을 준비하고 있어요.</p>
+                  ) : null}
+                  {turn.status === 'FAILED' ? (
+                    <p>{turn.error?.message}</p>
+                  ) : turn.status === 'CANCELLED' ? (
+                    <p>답변 생성을 중지했습니다.</p>
+                  ) : null}
+                </div>
+              </div>
+            </Fragment>
+          ))}
+          {pending ? (
+            <>
+              <div className="ai-chat-message user">
+                <div>
+                  <p>{pending.body.message}</p>
+                </div>
+              </div>
+              <p>
+                {pending.state === 'unknown'
+                  ? '접수 여부 확인 필요'
+                  : pending.state === 'rejected'
+                    ? '질문이 접수되지 않았습니다.'
+                    : '질문을 접수하고 있어요.'}
+              </p>
+            </>
+          ) : null}
         </div>
-        <div className="ai-chat-notice">
-          특정 개인을 판단할 수 있는 개인정보는 입력하지 말아주세요.
-        </div>
-      </div>
-      <Carousel
-        className="ai-chat-suggestions"
-        contentClassName="ai-suggestion-track"
-        ariaLabel="추천 질문"
-      >
-        <button type="button" onClick={() => onChange('친한 친구의 생일 선물을 추천해줘')}>
-          친구 생일 선물
-        </button>
-        <button type="button" onClick={() => onChange('5만원대 실용적인 선물을 추천해줘')}>
-          5만원대 실용적인 선물
-        </button>
-      </Carousel>
-      <label
-        className="ai-composer"
-        data-scroll-drag="ignore"
-        style={{ marginBottom: `calc(${bottomInset}px + 16px)` }}
-      >
-        <KeyboardTextarea
-          value={value}
-          maxLength={100}
-          placeholder="메시지를 입력하세요..."
-          onChange={(event) => onChange(event.target.value)}
-        />
-        <span className={value.length >= 100 ? 'limit' : value.length >= 90 ? 'warning' : ''}>
-          {value.length}/100
-        </span>
-        <button
-          type="button"
-          aria-label="메시지 전송"
-          disabled={!value.trim()}
-          onClick={onUnavailable}
-        >
-          ↑
-        </button>
-      </label>
-    </section>
+        {notice ? (
+          <p className="ai-chat-status" role="status">
+            {notice}
+          </p>
+        ) : null}
+        {!busy && (snapshot.pending || processing) ? (
+          <button type="button" className="secondary-button" onClick={() => void chat.retry()}>
+            {snapshot.pending?.state === 'rejected' ? '같은 질문 다시 보내기' : '상태 확인'}
+          </button>
+        ) : null}
+      </section>
+      {host
+        ? createPortal(
+            <div className="ai-chat-controls" style={{ bottom: bottomInset + 16 }}>
+              <Carousel
+                className="ai-chat-suggestions"
+                contentClassName="ai-suggestion-track"
+                ariaLabel="추천 질문"
+              >
+                <button
+                  type="button"
+                  disabled={blocked}
+                  onClick={() => chat.setDraft('친한 친구의 생일 선물을 추천해줘')}
+                >
+                  친구 생일 선물
+                </button>
+                <button
+                  type="button"
+                  disabled={blocked}
+                  onClick={() => chat.setDraft('5만원대 실용적인 선물을 추천해줘')}
+                >
+                  5만원대 실용적인 선물
+                </button>
+              </Carousel>
+              <div className="ai-composer" data-scroll-drag="ignore">
+                <KeyboardTextarea
+                  value={snapshot.draft}
+                  aria-label="채팅 메시지"
+                  placeholder="메시지를 입력하세요..."
+                  disabled={blocked}
+                  onChange={(event) => chat.setDraft(event.target.value)}
+                />
+                <span className={count >= 100 ? 'limit' : count >= 90 ? 'warning' : ''}>
+                  {count}/100
+                </span>
+                {processing ? (
+                  <button
+                    type="button"
+                    aria-label="답변 생성 정지"
+                    onClick={() => void chat.cancel()}
+                  >
+                    ■
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label="메시지 전송"
+                    disabled={blocked || !snapshot.draft.trim()}
+                    onClick={send}
+                  >
+                    ↑
+                  </button>
+                )}
+              </div>
+            </div>,
+            host,
+          )
+        : null}
+    </>
   );
 }

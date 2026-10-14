@@ -56,10 +56,11 @@ async function parseBody<T>(response: Response): Promise<ApiResponse<T>> {
 
 // refresh token은 HttpOnly 쿠키(Path=/auth)로만 오가므로 credentials를 포함해 호출한다.
 // 응답 body에 refreshToken이 오는 서버라면 함께 갱신한다.
-async function refreshAccessToken(version: number): Promise<string | null> {
+async function refreshAccessToken(version: number, signal?: AbortSignal): Promise<string | null> {
   const session = loadSession();
   if (!session) return null;
   const response = await fetch(buildUrl('/auth/refresh'), {
+    signal,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -83,7 +84,7 @@ function clearRefreshCookie() {
   }).catch(() => undefined);
 }
 
-async function request<T>(
+async function requestResponse(
   method: string,
   path: string,
   body?: unknown,
@@ -91,7 +92,8 @@ async function request<T>(
   extraHeaders: Record<string, string> = {},
   allowRefresh = true,
   authenticated = true,
-): Promise<T> {
+  signal?: AbortSignal,
+): Promise<Response> {
   const version = getSessionVersion();
   const session = authenticated ? loadSession() : null;
   const headers: Record<string, string> = { ...extraHeaders };
@@ -100,11 +102,12 @@ async function request<T>(
 
   const response = await fetch(buildUrl(path, params), {
     method,
+    signal,
     headers,
     credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  const responseBody = await parseBody<T>(response);
+  const responseBody = response.ok ? {} : await parseBody<never>(response);
 
   if (authenticated && version !== getSessionVersion())
     throw new ApiError('로그인 계정이 변경되어 이전 요청을 취소했습니다.', 0, {
@@ -115,12 +118,22 @@ async function request<T>(
   // 로그인 실패(INVALID_CREDENTIALS) 등 다른 401은 호출부에서 직접 처리하므로 여기서 건드리지 않는다.
   if (authenticated && response.status === 401 && responseBody.error?.code === 'UNAUTHORIZED') {
     if (allowRefresh && session && isSessionExpired(session)) {
-      const newToken = await refreshAccessToken(version);
+      const newToken = await refreshAccessToken(version, signal);
       if (version !== getSessionVersion())
         throw new ApiError('로그인 계정이 변경되어 이전 요청을 취소했습니다.', 0, {
           code: 'SESSION_CHANGED',
         });
-      if (newToken) return request<T>(method, path, body, params, extraHeaders, false);
+      if (newToken)
+        return requestResponse(
+          method,
+          path,
+          body,
+          params,
+          extraHeaders,
+          false,
+          authenticated,
+          signal,
+        );
     }
     // 원래 세션이 있었을 때만 "만료됨" 토스트를 띄운다. 애초에 로그인한 적이 없는
     // 상태(예: 로그인 화면에서 인증이 필요한 백그라운드 요청이 401을 받는 경우)까지
@@ -132,21 +145,85 @@ async function request<T>(
   }
 
   if (!response.ok) {
+    if (response.status === 500 && responseBody.error?.traceId)
+      console.error('API 오류 traceId:', responseBody.error.traceId);
     throw new ApiError(
       responseBody.message ?? '일시적인 오류가 발생했습니다. 다시 시도해 주세요.',
       response.status,
       responseBody.error,
     );
   }
-  return responseBody.data as T;
+  return response;
+}
+
+type RequestOptions = {
+  authenticated?: boolean;
+  headers?: Record<string, string>;
+  signal?: AbortSignal;
+};
+
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  params: Record<string, string | undefined> = {},
+  extraHeaders: Record<string, string> = {},
+  allowRefresh = true,
+  authenticated = true,
+  signal?: AbortSignal,
+): Promise<T> {
+  const version = getSessionVersion();
+  const response = await requestResponse(
+    method,
+    path,
+    body,
+    params,
+    extraHeaders,
+    allowRefresh,
+    authenticated,
+    signal,
+  );
+  const parsed = await parseBody<T>(response);
+  if (authenticated && version !== getSessionVersion())
+    throw new ApiError('로그인 계정이 변경되어 이전 요청을 취소했습니다.', 0, {
+      code: 'SESSION_CHANGED',
+    });
+  signal?.throwIfAborted();
+  return parsed.data as T;
+}
+
+export function apiStream(
+  path: string,
+  params: Record<string, string>,
+  options: RequestOptions,
+): Promise<Response> {
+  return requestResponse(
+    'GET',
+    path,
+    undefined,
+    params,
+    { Accept: 'text/event-stream', ...options.headers },
+    true,
+    true,
+    options.signal,
+  );
 }
 
 export function apiGet<T>(
   path: string,
   params: Record<string, string | undefined> = {},
-  options: { authenticated?: boolean } = {},
+  options: RequestOptions = {},
 ): Promise<T> {
-  return request<T>('GET', path, undefined, params, {}, true, options.authenticated ?? true);
+  return request<T>(
+    'GET',
+    path,
+    undefined,
+    params,
+    options.headers,
+    true,
+    options.authenticated ?? true,
+    options.signal,
+  );
 }
 
 export function apiPost<T>(
@@ -157,8 +234,21 @@ export function apiPost<T>(
   return request<T>('POST', path, body ?? {}, {}, {}, true, options.authenticated ?? true);
 }
 
-export function apiPut<T>(path: string, body?: unknown): Promise<T> {
-  return request<T>('PUT', path, body ?? {});
+export function apiPut<T>(
+  path: string,
+  body?: unknown,
+  options: RequestOptions & { omitBody?: boolean } = {},
+): Promise<T> {
+  return request<T>(
+    'PUT',
+    path,
+    options.omitBody ? undefined : (body ?? {}),
+    {},
+    options.headers,
+    true,
+    true,
+    options.signal,
+  );
 }
 
 export function apiPatch<T>(path: string, body?: unknown): Promise<T> {

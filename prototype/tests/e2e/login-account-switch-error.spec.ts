@@ -206,9 +206,26 @@ test('이전 계정의 늦은 401은 B 세션을 종료하지 않는다', async 
 test('AI 입력 초안을 다음 계정에 남기지 않는다', async ({ page }) => {
   const { releaseA } = await setup(page);
   releaseA();
+  await page.route(/\/friends(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          friends: [
+            { friendId: 31, userId: 27, name: '수신자', email: 'friend@example.com', birth: null },
+          ],
+          pagination: { nextCursor: null, hasNext: false },
+        },
+      },
+    }),
+  );
   const openAi = async () => {
     await page.getByRole('button', { name: 'AI 챗봇 및 버그 리포트 열기' }).click();
     await page.getByRole('button', { name: 'AI 선물 추천 열기' }).click();
+    await page.getByRole('button', { name: '받는 사람 선택', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: '받는 사람 선택', exact: true })
+      .getByRole('button', { name: '선택', exact: true })
+      .click();
   };
   await openAi();
   await page.getByPlaceholder('메시지를 입력하세요...').fill('계정 A의 선물 고민');

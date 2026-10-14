@@ -2716,3 +2716,41 @@ textarea:focus-visible,
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
+
+.ai-chat-page {
+  padding-bottom: calc(var(--app-safe-area-height) + 240px);
+}
+.ai-chat-controls {
+  position: absolute;
+  z-index: 20;
+  right: 28px;
+  left: 28px;
+  background: #fff;
+}
+.ai-chat-message.user {
+  justify-self: end;
+  justify-content: flex-end;
+}
+.ai-chat-message.user > div {
+  border-radius: 16px 4px 16px 16px;
+  background: var(--surface-strong);
+}
+.ai-chat-message p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ai-chat-recipient,
+.ai-chat-status {
+  color: var(--muted);
+  font-size: 12px;
+}
+.ai-chat-cards {
+  display: grid;
+  gap: 8px;
+}
+.ai-chat-card {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+}
