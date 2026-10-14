@@ -56,7 +56,10 @@ export async function fetchProducts(
   };
 }
 
-export async function fetchProductDetail(productId: number): Promise<ProductDetail> {
+export async function fetchProductDetail(
+  productId: number,
+  signal?: AbortSignal,
+): Promise<ProductDetail> {
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 220));
     if (isQaScenario('product-detail-error')) {
@@ -64,7 +67,9 @@ export async function fetchProductDetail(productId: number): Promise<ProductDeta
         code: 'INTERNAL_SERVER_ERROR',
       });
     }
-    const product = mockProducts.find((item) => item.productId === productId) ?? mockProducts[0];
+    const product = mockProducts.find((item) => item.productId === productId);
+    if (!product)
+      throw new ApiError('상품을 찾을 수 없습니다.', 404, { code: 'PRODUCT_NOT_FOUND' });
     return {
       productId: product.productId,
       brandName: product.brandName,
@@ -79,7 +84,7 @@ export async function fetchProductDetail(productId: number): Promise<ProductDeta
       stockQuantity: isQaScenario('product-sold-out') ? 0 : 8,
     };
   }
-  const data = await apiGet<{ product: ProductDetail }>(`/products/${productId}`);
+  const data = await apiGet<{ product: ProductDetail }>(`/products/${productId}`, {}, { signal });
   return data.product;
 }
 

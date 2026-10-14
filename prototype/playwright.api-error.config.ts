@@ -13,6 +13,7 @@ export default defineConfig({
     '**/friend-request-actions-api.spec.ts',
     '**/friend-delete-api.spec.ts',
     '**/chat-api.spec.ts',
+    '**/chat-products-api.spec.ts',
   ],
   timeout: 20_000,
   use: {

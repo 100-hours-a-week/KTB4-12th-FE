@@ -53,7 +53,9 @@ function makeTurn(id: string, message: string): StoredMock {
   for (const delta of Array.from(text.matchAll(/.{1,24}/gu), (m) => m[0]))
     add('answer.delta', { delta });
   if (mode === 'cards')
-    add('cards', { products: [{ productId: 101, reason: '예산에 맞는 실용적인 선물이에요.' }] });
+    add('cards', {
+      products: [{ productId: 900000001, reason: '예산에 맞는 실용적인 선물이에요.' }],
+    });
   const partial = events.reduce(applyChatEvent, initial);
   const final: Turn = {
     ...partial,
