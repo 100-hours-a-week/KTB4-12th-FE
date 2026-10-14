@@ -1,8 +1,8 @@
 import { expect, type Page, test } from '@playwright/test';
 async function openChat(page: Page, mode = 'text') {
   await page.goto(`/?chatMock=${mode}`);
-  await page.getByRole('button', { name: 'AI 챗봇 및 버그 리포트 열기' }).click();
-  await page.getByRole('button', { name: 'AI 선물 추천 열기' }).click();
+  await page.getByRole('button', { name: '선잘알 봇 및 의견 메뉴 열기' }).click();
+  await page.getByRole('button', { name: '선잘알 봇 열기' }).click();
   await page.getByRole('button', { name: '받는 사람 선택', exact: true }).click();
   await page
     .getByRole('dialog', { name: '받는 사람 선택', exact: true })
@@ -37,7 +37,7 @@ for (const mode of ['text', 'long', 'reconnect', 'failed', 'timeout', 'cards']) 
     });
     const answer = await page.locator('.ai-chat-message.assistant[data-turn-id]').textContent();
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'AI 챗봇' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '선잘알 봇' })).toBeVisible();
     await expect(page.locator('.ai-chat-message.user')).toHaveCount(1);
     await expect(page.locator('.ai-chat-message.assistant[data-turn-id]')).toHaveText(answer!);
     await expect(page.getByLabel('채팅 메시지')).toHaveValue('');
@@ -62,8 +62,8 @@ for (const mode of ['slow', 'delayed_tokens']) {
     await page.reload();
     await expect(page.getByRole('button', { name: '답변 생성 정지' })).toBeVisible();
     await page.getByRole('button', { name: '뒤로 가기' }).click();
-    await page.getByRole('button', { name: 'AI 챗봇 및 버그 리포트 열기' }).click();
-    await page.getByRole('button', { name: 'AI 선물 추천 열기' }).click();
+    await page.getByRole('button', { name: '선잘알 봇 및 의견 메뉴 열기' }).click();
+    await page.getByRole('button', { name: '선잘알 봇 열기' }).click();
     await expect(page.locator('.ai-chat-message.user')).toHaveCount(1);
     await page.getByRole('button', { name: '답변 생성 정지' }).click();
     await expect(page.locator('.ai-chat-message[data-status=CANCELLED]')).toBeVisible();
@@ -89,8 +89,8 @@ test('손상·이전 버전·다른 사용자 기록을 정리한다', async ({ 
     JSON.stringify({ version: 1, userId: 2 }),
   ]) {
     await page.evaluate((v) => sessionStorage.setItem('gift-chat:v1:1', v), value);
-    await page.getByRole('button', { name: 'AI 챗봇 및 버그 리포트 열기' }).click();
-    await page.getByRole('button', { name: 'AI 선물 추천 열기' }).click();
+    await page.getByRole('button', { name: '선잘알 봇 및 의견 메뉴 열기' }).click();
+    await page.getByRole('button', { name: '선잘알 봇 열기' }).click();
     await expect(page.getByRole('button', { name: '받는 사람 선택', exact: true })).toBeVisible();
     expect(await page.evaluate(() => sessionStorage.getItem('gift-chat:v1:1'))).toBeNull();
     await page.getByRole('button', { name: '뒤로 가기' }).click();
@@ -108,8 +108,8 @@ test('새 메시지 스크롤과 돌아왔을 때 저장 위치 복원', async (
   });
   await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBe(150);
   await page.getByRole('button', { name: '뒤로 가기' }).dispatchEvent('click');
-  await page.getByRole('button', { name: 'AI 챗봇 및 버그 리포트 열기' }).click();
-  await page.getByRole('button', { name: 'AI 선물 추천 열기' }).click();
+  await page.getByRole('button', { name: '선잘알 봇 및 의견 메뉴 열기' }).click();
+  await page.getByRole('button', { name: '선잘알 봇 열기' }).click();
   await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBe(150);
   await page.reload();
   await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBe(150);
@@ -132,8 +132,8 @@ test('다른 탭의 계정 변경은 이전 화면을 닫고 다른 사용자 �
     localStorage.setItem('accessToken', 'second-token');
   });
   await expect(page.locator('[data-testid=gift-app]')).toHaveAttribute('data-route', 'friends');
-  await page.getByRole('button', { name: 'AI 챗봇 및 버그 리포트 열기' }).click();
-  await page.getByRole('button', { name: 'AI 선물 추천 열기' }).click();
+  await page.getByRole('button', { name: '선잘알 봇 및 의견 메뉴 열기' }).click();
+  await page.getByRole('button', { name: '선잘알 봇 열기' }).click();
   await expect(page.getByRole('button', { name: '받는 사람 선택', exact: true })).toBeVisible();
   await expect(page.getByText('계정 1의 질문')).toHaveCount(0);
   expect(await page.evaluate(() => sessionStorage.getItem('gift-chat:v1:1'))).toBeNull();
@@ -168,4 +168,29 @@ test('첫 질문 전에도 선택 수신자와 대화 UUID를 복원한다', asy
   expect(after.conversationId).toBe(before.conversationId);
   expect(after.recipient).toEqual(before.recipient);
   await expect(page.locator('.ai-chat-message.user')).toHaveCount(0);
+});
+
+test('선잘알 캐릭터 진입 버튼과 받는 사람 선택 안내를 표시한다', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 1100 });
+  await page.goto('/');
+  const menu = page.getByRole('button', { name: '선잘알 봇 및 의견 메뉴 열기', exact: true });
+  await expect(menu.locator('img')).toHaveAttribute('src', '/assets/brand/sunjalal-bot.png');
+  await menu.click();
+  await page.getByRole('button', { name: '선잘알 봇 열기', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '선잘알 봇', exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: '선잘알 캐릭터' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '누구에게 마음을 전할까요?' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '받는 사람 선택', exact: true })).toBeEnabled();
+  await expect
+    .poll(() =>
+      page
+        .getByRole('img', { name: '선잘알 캐릭터' })
+        .evaluate((node) => (node as HTMLImageElement).naturalWidth),
+    )
+    .toBeGreaterThan(0);
+  await page
+    .getByTestId('gift-app')
+    .screenshot({ path: testInfo.outputPath('sunjalal-bot-welcome.png') });
+  await page.getByRole('button', { name: '받는 사람 선택', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: '받는 사람 선택', exact: true })).toBeVisible();
 });

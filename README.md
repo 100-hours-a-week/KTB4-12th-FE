@@ -114,7 +114,7 @@ proxy로 전달합니다.
 
 ## AI 채팅
 
-AI 챗봇 화면은 선택한 수신자로 BE 공개 `/recommendations/conversations` API를
+선잘알 봇 화면은 선택한 수신자로 BE 공개 `/recommendations/conversations` API를
 호출합니다. 대화 생성·복구 → 질문 접수 → fetch SSE → 최종 턴 조회·취소 흐름이며,
 BE가 AI 서버 통신과 대화 토큰 발급을 담당합니다. FE는 AI 서버를 직접 호출하지 않습니다.
 

@@ -65,10 +65,13 @@ export async function fetchDislikeCategories(): Promise<DislikeCategoryOption> {
     };
   }
   const data = await apiGet<Partial<DislikeCategoryOption>>('/preferences/dislike-categories');
+  const options = Array.isArray(data?.categories) ? data.categories : [];
   return {
     maxSelectableCount: data?.maxSelectableCount ?? 5,
-    selectedCategoryIds: Array.isArray(data?.selectedCategoryIds) ? data.selectedCategoryIds : [],
-    categories: Array.isArray(data?.categories) ? data.categories : [],
+    selectedCategoryIds: options
+      .filter((category) => category.isSelected)
+      .map((category) => category.categoryId),
+    categories: options,
     pagination: data?.pagination ?? { nextCursor: null, hasNext: false },
   };
 }

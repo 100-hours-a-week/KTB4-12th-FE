@@ -1,6 +1,7 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 
 import { useKeyboard } from '../../../mobile';
+import { SUNJALAL_BOT_IMAGE } from '../../../shared/config/assets';
 import { Toast } from '../../../shared/ui';
 import { captureScreen } from '../captureScreen';
 import { formatErrorsAsText, getCollectedErrors } from '../errorCollector';
@@ -131,13 +132,13 @@ export function BugReportWidget({
               <button
                 type="button"
                 className="floating-action-option ai"
-                aria-label="AI 선물 추천 열기"
+                aria-label="선잘알 봇 열기"
                 onClick={() => {
                   setMenuOpen(false);
                   onOpenAi?.();
                 }}
               >
-                🤖
+                <img src={SUNJALAL_BOT_IMAGE} alt="" draggable={false} />
               </button>
               <button
                 type="button"
@@ -156,11 +157,11 @@ export function BugReportWidget({
           <button
             type="button"
             className="floating-action-toggle"
-            aria-label={menuOpen ? '빠른 메뉴 닫기' : 'AI 챗봇 및 버그 리포트 열기'}
+            aria-label={menuOpen ? '빠른 메뉴 닫기' : '선잘알 봇 및 의견 메뉴 열기'}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((openState) => !openState)}
           >
-            {menuOpen ? '×' : '🤖'}
+            {menuOpen ? '×' : <img src={SUNJALAL_BOT_IMAGE} alt="" draggable={false} />}
           </button>
         </div>
       ) : (

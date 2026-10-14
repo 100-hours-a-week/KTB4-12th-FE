@@ -66,8 +66,8 @@ test('상품 상세의 AI 버튼은 수신자 선택 후 채팅을 전송한다'
     .getByRole('button', { name: '선물' })
     .click();
   await page.locator('.product-card').first().click();
-  await page.getByRole('button', { name: 'AI 챗봇 및 버그 리포트 열기' }).click();
-  await page.getByRole('button', { name: 'AI 선물 추천 열기' }).click();
+  await page.getByRole('button', { name: '선잘알 봇 및 의견 메뉴 열기' }).click();
+  await page.getByRole('button', { name: '선잘알 봇 열기' }).click();
 
   await page.getByRole('button', { name: '받는 사람 선택', exact: true }).click();
   await page
