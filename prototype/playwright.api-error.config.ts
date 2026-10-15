@@ -15,6 +15,7 @@ export default defineConfig({
     '**/chat-api.spec.ts',
     '**/chat-products-api.spec.ts',
     '**/dislike-categories-api.spec.ts',
+    '**/notification-sse.spec.ts',
   ],
   timeout: 20_000,
   use: {
