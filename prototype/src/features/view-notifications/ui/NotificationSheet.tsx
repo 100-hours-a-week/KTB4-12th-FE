@@ -15,7 +15,9 @@ export function NotificationSheet({
   onOpenChange,
   onSelect,
   onRead,
+  refreshKey = 0,
 }: {
+  refreshKey?: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (notification: Notification) => void;
@@ -29,7 +31,10 @@ export function NotificationSheet({
         : Promise.resolve({ items: [], pagination: { nextCursor: null, hasNext: false } }),
     [open],
   );
-  const list = useCursorList(loader, open ? 'notifications-open' : 'notifications-closed');
+  const list = useCursorList(
+    loader,
+    open ? `notifications-open-${refreshKey}` : 'notifications-closed',
+  );
 
   const select = async (notification: Notification) => {
     const version = getSessionVersion();

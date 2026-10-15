@@ -76,6 +76,9 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 - Chat recommendation cards validate live product details and stock before opening the existing product screen; keep per-product failures separate from chat failures. Mock card IDs 900000001–900000003 must never reach product APIs. There is no dedicated regenerate contract/button; additional conditions use the existing composer and a new turn ID.
 - Extract shared app code only after two real use sites exist: primitives belong in `shared/ui`, domain presentation in `entities/*/ui`, repeated user actions in `features`, and cross-screen route/history state in `app`. Keep slice imports on public `index.ts` entry points; do not add a base page, router, modal manager, or global state dependency.
 
+- 기존 종 버튼·알림 목록·이전 미읽음 알림은 유지한다. 목록 조회·로그인·새로고침에서 가져온 과거 알림은 팝업으로 표시하지 않는다.
+- 로그인 중 SSE 새 알림은 화면 위에서 내려오는 팝업 형태의 앱 상단 배너로 표시한다. 배경 화면은 움직이지 않고, 알림 아이콘·앱 이름·제목·내용을 보여준다. 모션 감소 설정에서는 이동 애니메이션을 생략한다. 배너는 6초 후 닫히며, 클릭 시 읽음 처리 후 알림 목록과 동일한 화면 이동 규칙을 따른다.
+
 ## Interaction Rules
 
 - `FRIEND_REQUEST_RECEIVED` 알림을 누르면 알림을 닫고 친구 화면의 '받은 요청' 탭으로 이동하며 최신 요청 목록을 조회한다.
