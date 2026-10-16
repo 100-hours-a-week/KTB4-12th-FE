@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('내 취향 조회 재시도, 저장 실패 복구, 300자 저장과 초기화', async ({ page }) => {
+test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.clear();
     localStorage.setItem('prototype-auth', 'signed-in');
@@ -25,6 +25,9 @@ test('내 취향 조회 재시도, 저장 실패 복구, 300자 저장과 초기
   await page.route('**/notifications/unread-count', (route) =>
     route.fulfill({ json: { data: { unreadCount: 0 } } }),
   );
+});
+
+test('내 취향 조회 재시도, 저장 실패 복구, 300자 저장과 초기화', async ({ page }) => {
   let preference: string | null = '기존 취향';
   let failLoad = true;
   let failSave = true;
@@ -72,3 +75,59 @@ test('내 취향 조회 재시도, 저장 실패 복구, 300자 저장과 초기
   await page.getByRole('button', { name: /내 선물 취향/ }).click();
   await expect(field).toHaveValue('');
 });
+
+for (const status of [200, 500]) {
+  test(`저장 중에는 편집을 막고 ${status} 응답 후 내용을 유지하며 다시 편집할 수 있다`, async ({
+    page,
+  }) => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const bodies: unknown[] = [];
+    await page.route('**/preferences', async (route) => {
+      if (route.request().method() === 'GET')
+        return route.fulfill({ json: { data: { preference: '기존 취향' } } });
+      const body = route.request().postDataJSON();
+      bodies.push(body);
+      if (bodies.length === 1) {
+        await gate;
+        if (status === 500)
+          return route.fulfill({
+            status,
+            json: { message: '다시 시도해 주세요.', error: { code: 'INTERNAL_SERVER_ERROR' } },
+          });
+      }
+      return route.fulfill({ json: { data: { preference: body.preference } } });
+    });
+    await page.goto('/');
+    await page.getByRole('button', { name: /내 선물 취향/ }).click();
+    const field = page.getByRole('textbox');
+    await expect(field).toHaveValue('기존 취향');
+    const value = '  저장할 취향 🎁  ';
+    await field.fill(value);
+    const saving = page.waitForRequest(
+      (request) => request.url().endsWith('/preferences') && request.method() === 'PUT',
+    );
+    await page.getByRole('button', { name: '저장하기' }).click();
+    await saving;
+    await expect(field).toBeDisabled();
+    await expect(field).toHaveValue(value);
+    await expect(page.getByRole('button', { name: '저장 중', exact: true })).toBeDisabled();
+    release();
+    await expect(field).toBeEnabled();
+    await expect(field).toHaveValue(status === 500 ? value : value.trim());
+    if (status === 500) {
+      await expect(page.getByText('다시 시도해 주세요.', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: '저장하기' })).toBeEnabled();
+    } else {
+      await expect(page.getByRole('button', { name: '저장하기' })).toBeDisabled();
+    }
+    await field.fill('새로 편집한 취향');
+    await page.getByRole('button', { name: '저장하기' }).click();
+    await expect(page.getByRole('button', { name: '저장하기' })).toBeDisabled();
+    await expect(field).toBeEnabled();
+    await expect(field).toHaveValue('새로 편집한 취향');
+    expect(bodies).toEqual([{ preference: value.trim() }, { preference: '새로 편집한 취향' }]);
+  });
+}
