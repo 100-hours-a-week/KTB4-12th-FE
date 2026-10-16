@@ -86,6 +86,50 @@ async function searchA(page: Page) {
   await expect(page.getByRole('button', { name: '계정 A 추가', exact: true })).toBeVisible();
 }
 
+for (const storedRefreshToken of [false, true]) {
+  test(`로그아웃은 HttpOnly 쿠키를 전송하고 만료시킨다 (저장 토큰: ${storedRefreshToken})`, async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    const { releaseA } = await setup(page);
+    releaseA();
+    if (!storedRefreshToken) await page.evaluate(() => localStorage.removeItem('refreshToken'));
+    await context.addCookies([
+      {
+        name: 'refreshToken',
+        value: 'cookie-refresh-a',
+        domain: new URL(baseURL!).hostname,
+        path: '/auth',
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ]);
+    let logoutCalls = 0;
+    await page.route('**/auth/logout', async (route) => {
+      logoutCalls += 1;
+      expect(route.request().method()).toBe('POST');
+      expect(route.request().postDataJSON()).toEqual(
+        storedRefreshToken ? { refreshToken: 'refresh-a' } : {},
+      );
+      expect((await route.request().allHeaders()).cookie).toContain(
+        'refreshToken=cookie-refresh-a',
+      );
+      await route.fulfill({
+        headers: { 'Set-Cookie': 'refreshToken=; Path=/auth; Max-Age=0; HttpOnly; SameSite=Lax' },
+        json: { data: {} },
+      });
+    });
+    await page.getByRole('button', { name: '내 정보 관리' }).click();
+    await logout(page);
+    expect(logoutCalls).toBe(1);
+    expect((await context.cookies()).filter((cookie) => cookie.name === 'refreshToken')).toEqual(
+      [],
+    );
+    expect(await page.evaluate(() => localStorage.getItem('accessToken'))).toBeNull();
+  });
+}
+
 test('B 프로필 조회가 실패해도 A를 본인으로 오인하지 않는다', async ({ page }) => {
   const { releaseA } = await setup(page, true);
   releaseA();
