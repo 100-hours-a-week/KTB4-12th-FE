@@ -1,5 +1,5 @@
 import { ArrowLeftIcon, CalendarIcon, EyeOpenIcon } from '@radix-ui/react-icons';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { checkEmailAvailability } from '../../../entities/auth';
 import { BottomSheet, KeyboardInput } from '../../../mobile';
@@ -39,6 +39,13 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
   const [pendingBirthday, setPendingBirthday] = useState(draft.birthday || '2000.01.01');
   const [emailChecking, setEmailChecking] = useState(false);
   const [emailError, setEmailError] = useState('');
+  const emailCheckVersion = useRef(0);
+  useEffect(
+    () => () => {
+      emailCheckVersion.current += 1;
+    },
+    [],
+  );
   const update = <Key extends keyof SignupDraft>(field: Key, value: SignupDraft[Key]) =>
     onDraftChange((current) => ({ ...current, [field]: value }));
   const validName = isValidSignupName(draft.name);
@@ -54,10 +61,12 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
 
   const checkEmail = async () => {
     if (emailChecking) return;
+    const version = ++emailCheckVersion.current;
     setEmailChecking(true);
     setEmailError('');
     try {
       const available = await checkEmailAvailability(draft.email.trim());
+      if (version !== emailCheckVersion.current) return;
       if (!available) {
         setEmailError('이미 사용 중인 이메일입니다.');
         update('emailVerified', false);
@@ -65,10 +74,11 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
       }
       update('emailVerified', true);
     } catch (reason) {
+      if (version !== emailCheckVersion.current) return;
       setEmailError(reason instanceof Error ? reason.message : '중복 확인에 실패했습니다.');
       update('emailVerified', false);
     } finally {
-      setEmailChecking(false);
+      if (version === emailCheckVersion.current) setEmailChecking(false);
     }
   };
 
@@ -121,13 +131,16 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
           <div className="input-with-icon">
             <KeyboardInput
               value={draft.email}
-              onChange={(event) =>
+              onChange={(event) => {
+                emailCheckVersion.current += 1;
+                setEmailChecking(false);
+                setEmailError('');
                 onDraftChange((current) => ({
                   ...current,
                   email: event.target.value,
                   emailVerified: false,
-                }))
-              }
+                }));
+              }}
               placeholder="가입에 사용할 이메일 주소를 입력해 주세요"
               maxLength={SIGNUP_EMAIL_MAX_LENGTH}
               aria-invalid={emailFormatInvalid}
