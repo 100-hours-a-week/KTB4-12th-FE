@@ -383,3 +383,139 @@ test('현재 계정의 만료된 토큰은 갱신하고 원래 요청을 재시�
   await page.getByRole('button', { name: '뒤로 가기' }).click();
   await expect(page.locator('.profile-card')).toContainText('갱신된 계정 A');
 });
+
+for (const relogin of [false, true]) {
+  test(`다른 탭의 같은 계정 토큰 갱신은 화면과 미저장 취향을 유지한다 (재로그인: ${relogin})`, async ({
+    page,
+    context,
+  }) => {
+    const { releaseA } = await setup(page);
+    releaseA();
+    if (relogin) {
+      await page.getByRole('button', { name: '내 정보 관리' }).click();
+      await logout(page);
+      await loginB(page);
+      await page.getByRole('navigation').getByRole('button', { name: '마이', exact: true }).click();
+    }
+    await page.route('**/preferences', (route) =>
+      route.fulfill({ json: { data: { preference: '기존 취향' } } }),
+    );
+    await page.getByRole('button', { name: /내 선물 취향/ }).click();
+    const field = page.getByRole('textbox');
+    await expect(field).toHaveValue('기존 취향');
+    await field.fill('아직 저장하지 않은 취향');
+    await page.evaluate(`
+      window.tokenStorageEvents = 0;
+      window.addEventListener('storage', (event) => {
+        if (event.key === 'accessToken') window.tokenStorageEvents++;
+      });
+    `);
+    const other = await context.newPage();
+    await other.goto('/tests/runtime-fixture.html');
+    await other.evaluate(() => {
+      localStorage.setItem('accessToken', 'refreshed-token');
+      localStorage.setItem('refreshToken', 'refreshed-refresh-token');
+      localStorage.setItem('accessTokenExpiresAt', String(Date.now() + 3600_000));
+    });
+    await page.waitForFunction('window.tokenStorageEvents > 0');
+    await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'gift-preference');
+    await expect(field).toHaveValue('아직 저장하지 않은 취향');
+    await expect(page.getByRole('button', { name: '저장하기' })).toBeEnabled();
+  });
+}
+
+for (const change of ['account', 'logout', 'remove-token'] as const) {
+  test(`다른 탭의 ${change} 변경은 이전 계정 화면과 초안을 초기화한다`, async ({
+    page,
+    context,
+  }) => {
+    const { releaseA } = await setup(page);
+    releaseA();
+    await page.route('**/preferences', (route) =>
+      route.fulfill({ json: { data: { preference: '기존 취향' } } }),
+    );
+    await page.getByRole('button', { name: /내 선물 취향/ }).click();
+    await expect(page.getByRole('textbox')).toHaveValue('기존 취향');
+    await page.getByRole('textbox').fill('이전 계정의 미저장 취향');
+    const other = await context.newPage();
+    await other.goto('/tests/runtime-fixture.html');
+    await other.evaluate(
+      ({ change, userB }) => {
+        if (change === 'account') {
+          localStorage.setItem('accessToken', 'token-b');
+          localStorage.setItem('authUser', JSON.stringify(userB));
+        } else if (change === 'logout') {
+          localStorage.clear();
+          localStorage.setItem('prototype-auth', 'signed-out');
+        } else localStorage.removeItem('accessToken');
+      },
+      { change, userB },
+    );
+    await expect(page.getByTestId('gift-app')).toHaveAttribute(
+      'data-route',
+      change === 'account' ? 'friends' : 'login',
+    );
+    await expect(
+      page.getByPlaceholder('좋아하는 스타일, 색상, 필요한 물건을 자유롭게 적어주세요.'),
+    ).toHaveCount(0);
+    if (change === 'account') {
+      await page.getByRole('navigation').getByRole('button', { name: '마이', exact: true }).click();
+      await expect(page.locator('.profile-card')).toContainText(userB.name);
+      await expect(page.locator('.profile-card')).not.toContainText(userA.name);
+    }
+  });
+}
+
+test('다른 탭의 토큰 갱신 전 요청의 늦은 401은 새 토큰으로 재시도한다', async ({
+  page,
+  context,
+}) => {
+  const { releaseA } = await setup(page);
+  releaseA();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const tokens: Array<string | undefined> = [];
+  const authCalls: string[] = [];
+  await page.route(/\/auth\/(refresh|logout)$/, (route) => {
+    authCalls.push(route.request().url());
+    return route.fulfill({ status: 500, json: {} });
+  });
+  await page.route('**/preferences', async (route) => {
+    if (route.request().method() === 'GET')
+      return route.fulfill({ json: { data: { preference: '기존 취향' } } });
+    const token = route.request().headers().authorization;
+    tokens.push(token);
+    if (token === 'Bearer token-a') {
+      await gate;
+      return route.fulfill({ status: 401, json: { error: { code: 'UNAUTHORIZED' } } });
+    }
+    expect(route.request().postDataJSON()).toEqual({ preference: '저장할 취향' });
+    return route.fulfill({ json: { data: { preference: '저장할 취향' } } });
+  });
+  await page.getByRole('button', { name: /내 선물 취향/ }).click();
+  await expect(page.getByRole('textbox')).toHaveValue('기존 취향');
+  await page.getByRole('textbox').fill('저장할 취향');
+  const oldRequest = page.waitForRequest(
+    (request) => request.url().endsWith('/preferences') && request.method() === 'PUT',
+  );
+  await page.getByRole('button', { name: '저장하기' }).click();
+  await oldRequest;
+  await page.evaluate(`
+    window.tokenStorageEvents = 0;
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'accessToken') window.tokenStorageEvents++;
+    });
+  `);
+  const other = await context.newPage();
+  await other.goto('/tests/runtime-fixture.html');
+  await other.evaluate(() => localStorage.setItem('accessToken', 'refreshed-a'));
+  await page.waitForFunction('window.tokenStorageEvents > 0');
+  release();
+  await expect(page.getByRole('status')).toHaveText('저장되었습니다.');
+  await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'gift-preference');
+  await expect(page.getByRole('textbox')).toHaveValue('저장할 취향');
+  expect(tokens).toEqual(['Bearer token-a', 'Bearer refreshed-a']);
+  expect(authCalls).toEqual([]);
+});
