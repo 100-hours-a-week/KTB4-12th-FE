@@ -296,6 +296,7 @@ export function GiftApp() {
   const [signupDraft, setSignupDraft] = useState<SignupDraft>(emptySignupDraft);
   const [toast, setToast] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const unreadRequestId = useRef(0);
   const [giftPreferenceDirty, setGiftPreferenceDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState<MainTabRoute | null>(null);
   const scrollTops = useRef<Partial<Record<Route, number>>>({});
@@ -440,12 +441,18 @@ export function GiftApp() {
   const refreshUnread = useCallback(() => {
     if (!loadSession()) return;
     const version = sessionVersion.current;
+    const requestId = ++unreadRequestId.current;
     void fetchUnreadNotificationCount()
       .then((count) => {
-        if (version === sessionVersion.current) setUnreadCount(count);
+        if (version === sessionVersion.current && requestId === unreadRequestId.current)
+          setUnreadCount(count);
       })
       .catch(() => undefined);
   }, []);
+  const applyReadCount = (count: number) => {
+    unreadRequestId.current += 1;
+    setUnreadCount(count);
+  };
   const updateProfile = async (updates: Parameters<typeof updateMe>[0]) => {
     const version = sessionVersion.current;
     try {
@@ -465,11 +472,17 @@ export function GiftApp() {
     route !== 'login' && route !== 'signup' && route !== 'terms' && Boolean(loadSession());
   useEffect(() => {
     if (!notificationsEnabled) return;
-    return subscribeNotifications((notification) => {
-      setNotificationBanner(notification);
-      setNotificationRefreshKey((value) => value + 1);
-      refreshUnread();
-    }, refreshUnread);
+    return subscribeNotifications(
+      (notification) => {
+        setNotificationBanner(notification);
+        setNotificationRefreshKey((value) => value + 1);
+        refreshUnread();
+      },
+      () => {
+        setNotificationRefreshKey((value) => value + 1);
+        refreshUnread();
+      },
+    );
   }, [notificationsEnabled, sessionKey, refreshUnread]);
   useEffect(() => {
     if (!notificationBanner || notificationBannerBusy) return;
@@ -698,7 +711,7 @@ export function GiftApp() {
     try {
       const result = await markNotificationRead(selected.notificationId);
       if (version !== sessionVersion.current) return;
-      setUnreadCount(result.unreadCount);
+      applyReadCount(result.unreadCount);
       setNotificationRefreshKey((value) => value + 1);
       setNotificationBanner((current) =>
         current?.notificationId === selected.notificationId ? null : current,
@@ -1027,7 +1040,7 @@ export function GiftApp() {
         key={`notification-${sessionKey}`}
         open={notificationSheetOpen}
         onOpenChange={setNotificationSheetOpen}
-        onRead={(count) => setUnreadCount(count)}
+        onRead={applyReadCount}
         refreshKey={notificationRefreshKey}
         onSelect={selectNotification}
       />

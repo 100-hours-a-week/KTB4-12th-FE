@@ -211,3 +211,80 @@ test('기존 미읽음 알림은 목록에 유지하고 새 SSE 알림만 팝업
   await expect(list).toContainText(notification.title);
   await expect(page.locator('.notification-banner')).toHaveCount(0);
 });
+
+test('재연결 시 열린 목록에서 연결 중 놓친 알림을 조회하고 배너는 띄우지 않는다', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: /알림 목록 열기/ }).click();
+  const list = page.getByRole('dialog', { name: '알림', exact: true });
+  await expect(list.locator('.notification-card')).toHaveCount(1);
+  const missed = { ...notification, notificationId: 40, title: '연결 중 놓친 알림' };
+  await page.route(/\/notifications(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        data: { items: [missed, notification], pagination: { nextCursor: null, hasNext: false } },
+      },
+    }),
+  );
+  await page.evaluate('window.endSse()');
+  await expect(list).toContainText(missed.title, { timeout: 6000 });
+  await expect(list.locator('.notification-card')).toHaveCount(2);
+  await expect(page.locator('.notification-banner')).toHaveCount(0);
+});
+
+for (const source of ['banner', 'list'] as const) {
+  test(`${source} 읽음 처리 후 늦은 미읽음 조회 응답을 무시한다`, async ({ page }) => {
+    await expect(page.locator('.notification-button span')).toHaveText('1');
+    let releaseCount!: () => void;
+    const pendingCount = new Promise<void>((resolve) => {
+      releaseCount = resolve;
+    });
+    let delayed = false;
+    let read = false;
+    await page.route('**/notifications/unread-count', async (route) => {
+      if (!delayed) {
+        delayed = true;
+        await pendingCount;
+        await route.fulfill({ json: { data: { unreadCount: 9 } } });
+        return;
+      }
+      await route.fulfill({ json: { data: { unreadCount: read ? 0 : 1 } } });
+    });
+    await page.route('**/notifications/31/read', (route) => {
+      read = true;
+      return route.fulfill({
+        json: { data: { notificationId: 31, isRead: true, unreadCount: 0 } },
+      });
+    });
+    const countRequest = page.waitForRequest('**/notifications/unread-count');
+    await page.evaluate(
+      (part) => (window as unknown as { sendSse: (text: string) => void }).sendSse(part),
+      `event:notification\ndata:${JSON.stringify(notification)}\n\n`,
+    );
+    const staleRequest = await countRequest;
+    if (source === 'banner') {
+      await page.locator('.notification-banner-content').click();
+    } else {
+      await page.getByRole('button', { name: '알림 배너 닫기' }).click();
+      await page.getByRole('button', { name: /알림 목록 열기/ }).click();
+      await page.locator('.notification-card').click();
+    }
+    await expect(page.getByRole('tab', { name: '받은 요청' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.locator('.notification-button span')).toHaveCount(0);
+    const finished = page.waitForEvent('requestfinished', {
+      predicate: (request) => request === staleRequest,
+    });
+    releaseCount();
+    await finished;
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    await expect(page.locator('.notification-button span')).toHaveCount(0);
+  });
+}
