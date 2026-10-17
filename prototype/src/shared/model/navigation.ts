@@ -5,7 +5,6 @@ export type Route =
   | 'signup'
   | 'terms'
   | 'product'
-  | 'complete'
   | 'received'
   | 'sent'
   | 'received-detail'

@@ -740,6 +740,11 @@ textarea:focus-visible,
 .profile-card small {
   margin-top: 4px;
 }
+.profile-card .credit-balance {
+  margin-top: 12px;
+  color: var(--accent-strong);
+  font-size: 14px;
+}
 .settings-list {
   display: grid;
   gap: 10px;
@@ -827,49 +832,26 @@ textarea:focus-visible,
   margin-left: auto;
   font-weight: 500;
 }
-.complete-image {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1.32;
-  object-fit: cover;
-  border-radius: 16px;
-}
-.delivery-message {
-  margin-top: 34px !important;
-  padding: 13px;
-  border-radius: 10px;
-  background: var(--surface);
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.summary-card {
-  margin-top: 34px;
-  padding: 16px;
-  border-radius: 10px;
-  background: var(--surface);
-}
-.summary-card dl {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px 12px;
-  margin: 0;
-  font-size: 14px;
-}
-.summary-card dd {
-  margin: 0;
-  text-align: right;
-}
-.complete-actions {
-  display: grid;
-  gap: 9px;
-  margin-top: 34px;
-}
 .received-list,
 .gift-history-list {
   display: grid;
   gap: 14px;
+}
+.gift-history-item {
+  display: grid;
+  gap: 8px;
+}
+.gift-history-action {
+  width: 100%;
+}
+.gift-payment-processing {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
 }
 .received-card,
 .gift-history-card {
@@ -921,6 +903,35 @@ textarea:focus-visible,
   color: var(--muted);
   font-size: 12px;
   text-align: right;
+}
+.gift-state {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center !important;
+  gap: 6px !important;
+  padding-top: 10px !important;
+}
+.gift-state > span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 800;
+}
+.gift-state .gift-status.canceled {
+  color: var(--muted);
+}
+.gift-state .payment-status.completed {
+  color: #246bfd;
+}
+.gift-state > small {
+  flex-basis: 100%;
+  margin: 0;
+  text-align: left;
+}
+.gift-detail-action {
+  width: calc(100% - 40px);
+  margin: 0 20px 20px;
 }
 .gift-detail-surface {
   border: 1px solid var(--line);

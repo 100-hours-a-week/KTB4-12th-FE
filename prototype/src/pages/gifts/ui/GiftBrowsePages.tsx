@@ -10,7 +10,6 @@ import {
 } from '@radix-ui/react-icons';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 
-import type { SentGiftResult } from '../../../entities/gift';
 import {
   fetchProductDetail,
   fetchProducts,
@@ -370,47 +369,6 @@ export function ProductPage({
       >
         <GiftIcon /> 선물하기 <span>{(price * quantity).toLocaleString()}원</span>
       </button>
-    </section>
-  );
-}
-
-type CompletePageProps = {
-  result: SentGiftResult;
-  onFriends: () => void;
-  onSent: () => void;
-  action?: ReactNode;
-};
-
-export function CompletePage({ result, onFriends, onSent, action }: CompletePageProps) {
-  return (
-    <section className="page complete-page">
-      <ScreenHeader title="완료" action={action} />
-      <ProductImage
-        className="complete-image"
-        src={result.product.imageUrl}
-        alt={`선물한 ${result.product.productName}`}
-      />
-      <p className="delivery-message">
-        <strong>{result.product.productName}</strong> 선물이 전달됐어요
-      </p>
-      <article className="summary-card">
-        <dl>
-          <dt>받는 분</dt>
-          <dd>{result.recipientName}</dd>
-          <dt>수량</dt>
-          <dd>{result.product.quantity}개</dd>
-          <dt>최종 결제 금액</dt>
-          <dd>{result.product.totalPrice.toLocaleString()}원</dd>
-        </dl>
-      </article>
-      <div className="complete-actions">
-        <button type="button" className="primary" onClick={onFriends}>
-          친구 화면으로
-        </button>
-        <button type="button" className="secondary" onClick={onSent}>
-          보낸 선물 보기
-        </button>
-      </div>
     </section>
   );
 }

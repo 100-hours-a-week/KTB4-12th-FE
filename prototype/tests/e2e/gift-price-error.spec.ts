@@ -11,7 +11,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('가격 변경 안내 후 재시도에도 같은 idempotency key를 사용한다', async ({ page }) => {
+test('가격 변경 안내 후 사전 검증부터 다시 시작하며 새 idempotency key를 사용한다', async ({
+  page,
+}) => {
   const requests = await setupGiftErrorRoutes(page, {
     quantity: 1,
     status: 409,
@@ -47,5 +49,5 @@ test('가격 변경 안내 후 재시도에도 같은 idempotency key를 사용�
     expectedUnitPrice: 32000,
   });
   expect(requests[0].idempotencyKey).toBeTruthy();
-  expect(requests[1].idempotencyKey).toBe(requests[0].idempotencyKey);
+  expect(requests[1].idempotencyKey).not.toBe(requests[0].idempotencyKey);
 });

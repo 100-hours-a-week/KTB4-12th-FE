@@ -12,6 +12,7 @@ const MOCK_PROFILE: MyProfile = {
   email: 'email@email.com',
   birth: '2000-01-01',
   isBirthdayPublic: false,
+  creditBalance: 500000,
   giftSummary: {
     sentCount: 12,
     receivedCount: 8,
