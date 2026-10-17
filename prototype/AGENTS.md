@@ -77,6 +77,7 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 - Extract shared app code only after two real use sites exist: primitives belong in `shared/ui`, domain presentation in `entities/*/ui`, repeated user actions in `features`, and cross-screen route/history state in `app`. Keep slice imports on public `index.ts` entry points; do not add a base page, router, modal manager, or global state dependency.
 
 - 기존 종 버튼·알림 목록·이전 미읽음 알림은 유지한다. 목록 조회·로그인·새로고침에서 가져온 과거 알림은 팝업으로 표시하지 않는다.
+- 미읽음 개수는 로그인 세션 시작 시 최초 조회하고 SSE 새 알림·연결 복구 시 갱신한다. 화면 전환·창 포커스·탭 복귀·알림 목록 열기로 재조회하지 않으며, 읽음 처리 응답의 개수를 직접 반영한다.
 - 로그인 중 SSE 새 알림은 화면 위에서 내려오는 팝업 형태의 앱 상단 배너로 표시한다. 배경 화면은 움직이지 않고, 알림 아이콘·앱 이름·제목·내용을 보여준다. 모션 감소 설정에서는 이동 애니메이션을 생략한다. 배너는 6초 후 닫히며, 클릭 시 읽음 처리 후 알림 목록과 동일한 화면 이동 규칙을 따른다.
 
 ## Interaction Rules

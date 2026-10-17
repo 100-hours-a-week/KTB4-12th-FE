@@ -465,10 +465,6 @@ export function GiftApp() {
       setToast(reason instanceof Error ? reason.message : '내 정보를 저장하지 못했습니다.');
     }
   };
-  useEffect(() => {
-    if (route === 'login' || route === 'signup' || route === 'terms' || !loadSession()) return;
-    refreshUnread();
-  }, [route, refreshUnread]);
   const notificationsEnabled =
     route !== 'login' && route !== 'signup' && route !== 'terms' && Boolean(loadSession());
   useEffect(() => {
@@ -476,17 +472,30 @@ export function GiftApp() {
   }, [notificationsEnabled, sessionKey, refreshProfile]);
   useEffect(() => {
     if (!notificationsEnabled) return;
-    return subscribeNotifications(
+    let unreadTimer: number | undefined;
+    const scheduleUnreadRefresh = () => {
+      if (unreadTimer !== undefined) return;
+      unreadTimer = window.setTimeout(() => {
+        unreadTimer = undefined;
+        refreshUnread();
+      }, 200);
+    };
+    scheduleUnreadRefresh();
+    const unsubscribe = subscribeNotifications(
       (notification) => {
         setNotificationBanner(notification);
         setNotificationRefreshKey((value) => value + 1);
-        refreshUnread();
+        scheduleUnreadRefresh();
       },
       () => {
         setNotificationRefreshKey((value) => value + 1);
-        refreshUnread();
+        scheduleUnreadRefresh();
       },
     );
+    return () => {
+      unsubscribe();
+      window.clearTimeout(unreadTimer);
+    };
   }, [notificationsEnabled, sessionKey, refreshUnread]);
   useEffect(() => {
     if (!notificationBanner || notificationBannerBusy) return;
