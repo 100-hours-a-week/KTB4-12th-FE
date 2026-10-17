@@ -91,11 +91,11 @@ function GiftListPage({
 type DetailPageProps = { giftId: number; onBack: () => void; action?: ReactNode };
 
 export function ReceivedGiftDetailPage(props: DetailPageProps) {
-  return <GiftDetailPage {...props} received />;
+  return <GiftDetailPage key={props.giftId} {...props} received />;
 }
 
 export function SentGiftDetailPage(props: DetailPageProps) {
-  return <GiftDetailPage {...props} received={false} />;
+  return <GiftDetailPage key={props.giftId} {...props} received={false} />;
 }
 
 function GiftDetailPage({
@@ -132,7 +132,7 @@ function GiftDetailPage({
         action={action}
       />
       <AsyncContentState loading={loading} error={error} onRetry={() => void load()} />
-      {gift ? (
+      {!loading && !error && gift ? (
         <div className="gift-detail-surface">
           <GiftDetailContent gift={gift} />
           {received ? <GiftReviewSection giftId={giftId} /> : null}

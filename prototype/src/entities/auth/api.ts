@@ -59,7 +59,7 @@ export async function login(email: string, password: string): Promise<LoginResul
 }
 
 export async function logout(): Promise<void> {
+  if (USE_MOCK_API) return;
   const refreshToken = loadSession()?.refreshToken;
-  if (USE_MOCK_API || !refreshToken) return;
-  await apiPost('/auth/logout', { refreshToken });
+  await apiPost('/auth/logout', refreshToken ? { refreshToken } : {});
 }

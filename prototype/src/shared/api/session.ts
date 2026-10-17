@@ -36,6 +36,8 @@ export function loadSession(): Session | null {
   };
 }
 
+let sessionUserId = loadSession()?.user?.userId ?? null;
+
 export function saveSession(data: {
   accessToken: string;
   refreshToken: string;
@@ -50,6 +52,7 @@ export function saveSession(data: {
   }
   if (data.user) window.localStorage.setItem(USER_KEY, JSON.stringify(data.user));
   window.localStorage.setItem(AUTH_FLAG_KEY, 'signed-in');
+  sessionUserId = loadSession()?.user?.userId ?? null;
 }
 
 export function updateSessionTokens(
@@ -64,6 +67,7 @@ export function updateSessionTokens(
 
 export function clearSession() {
   sessionVersion += 1;
+  sessionUserId = null;
   // 세션이 아니어도 남아있던 프로토타입 캐시(선호도, mock 프로필 등)까지
   // 다음 로그인 사용자에게 새어나가지 않도록 스토리지를 전부 비운다.
   window.localStorage.clear();
@@ -81,6 +85,16 @@ window.addEventListener('storage', (event) => {
       event.key !== AUTH_FLAG_KEY)
   )
     return;
+  const nextUserId = loadSession()?.user?.userId ?? null;
+  if (
+    event.key === ACCESS_TOKEN_KEY &&
+    event.oldValue &&
+    event.newValue &&
+    sessionUserId !== null &&
+    sessionUserId === nextUserId
+  )
+    return;
+  sessionUserId = nextUserId;
   sessionVersion += 1;
   window.dispatchEvent(new Event('prototype:session-changed'));
 });

@@ -251,6 +251,7 @@ export function GiftPreferencePage({
           <label className="preference-textarea">
             <KeyboardTextarea
               value={value}
+              disabled={saving}
               placeholder="좋아하는 스타일, 색상, 필요한 물건을 자유롭게 적어주세요."
               onChange={(event) => setValue([...event.target.value].slice(0, 300).join(''))}
             />

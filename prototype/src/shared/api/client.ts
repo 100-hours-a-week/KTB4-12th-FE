@@ -117,8 +117,16 @@ async function requestResponse(
   // UNAUTHORIZED는 "로그인이 필요합니다" (세션이 아예 없거나 서버가 인증을 거부한 경우) 전용 코드다.
   // 로그인 실패(INVALID_CREDENTIALS) 등 다른 401은 호출부에서 직접 처리하므로 여기서 건드리지 않는다.
   if (authenticated && response.status === 401 && responseBody.error?.code === 'UNAUTHORIZED') {
-    if (allowRefresh && session && isSessionExpired(session)) {
-      const newToken = await refreshAccessToken(version, signal);
+    if (allowRefresh && session) {
+      const currentSession = loadSession();
+      const newToken =
+        session.user &&
+        currentSession?.user?.userId === session.user.userId &&
+        currentSession.accessToken !== session.accessToken
+          ? currentSession.accessToken
+          : isSessionExpired(session)
+            ? await refreshAccessToken(version, signal)
+            : null;
       if (version !== getSessionVersion())
         throw new ApiError('로그인 계정이 변경되어 이전 요청을 취소했습니다.', 0, {
           code: 'SESSION_CHANGED',
