@@ -16,6 +16,25 @@ async function setup(page: Page, bProfileFails = false) {
     releaseA = resolve;
   });
   await page.addInitScript((user) => {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      if (!String(input).endsWith('/notifications/events')) return originalFetch(input, init);
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            Object.assign(window, { endNotificationStream: () => controller.close() });
+            init?.signal?.addEventListener('abort', () => {
+              try {
+                controller.close();
+              } catch {
+                /* Stream may already be closed. */
+              }
+            });
+          },
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      );
+    };
     localStorage.clear();
     sessionStorage.clear();
     localStorage.setItem('accessToken', 'token-a');
@@ -77,6 +96,12 @@ async function logout(page: Page) {
 async function changeBirthdayVisibility(page: Page) {
   await page.getByRole('switch', { name: '생일 공개' }).click();
   await page.getByRole('button', { name: '동의하고 공개' }).click();
+}
+
+async function reconnectNotifications(page: Page) {
+  await page.evaluate(() =>
+    (window as unknown as { endNotificationStream: () => void }).endNotificationStream(),
+  );
 }
 
 test('화면 이동은 프로필을 재조회하지 않고 저장과 새 로그인은 재조회한다', async ({ page }) => {
@@ -199,6 +224,7 @@ test('세션 만료 후 B로 로그인해도 이전 프로필이 남지 않는�
     route.fulfill({ status: 401, json: { error: { code: 'UNAUTHORIZED' } } });
   await page.route('**/notifications/unread-count', unauthorized);
   await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await reconnectNotifications(page);
   await expect(page.getByRole('button', { name: '로그인', exact: true })).toBeVisible();
   await page.unroute('**/notifications/unread-count', unauthorized);
   await loginB(page);
@@ -230,6 +256,7 @@ test('B 알림 조회 실패 시 A의 알림 숫자를 초기화한다', async (
     route.fulfill({ json: { data: { unreadCount: 9 } } }),
   );
   await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await reconnectNotifications(page);
   await expect(page.locator('.notification-button span')).toHaveText('9');
   await logout(page);
   await page.route('**/notifications/unread-count', (route) =>
@@ -324,6 +351,7 @@ test('계정 전환 후 늦게 도착한 알림 숫자는 무시한다', async (
     await route.fulfill({ json: { data: { unreadCount: isA ? 9 : 2 } } });
   });
   await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await reconnectNotifications(page);
   await expect.poll(() => held).toBe(true);
   await logout(page);
   await loginB(page);

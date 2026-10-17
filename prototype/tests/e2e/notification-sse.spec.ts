@@ -76,6 +76,34 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction('typeof window.sendSse === "function"');
 });
 
+test('미읽음 개수는 화면·포커스·목록 열기 대신 SSE 수신과 재연결에 갱신한다', async ({ page }) => {
+  await expect(page.locator('.notification-button span')).toHaveText('1');
+  let calls = 0;
+  await page.route('**/notifications/unread-count', (route) => {
+    calls++;
+    return route.fulfill({ json: { data: { unreadCount: calls + 1 } } });
+  });
+  await page.getByRole('navigation').getByRole('button', { name: '마이', exact: true }).click();
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('focus'));
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.getByRole('button', { name: /알림 목록 열기/ }).click();
+  await expect(page.getByRole('dialog', { name: '알림', exact: true })).toBeVisible();
+  await page.waitForTimeout(400);
+  expect(calls).toBe(0);
+  await page.keyboard.press('Escape');
+  await page.evaluate(
+    (frame) => (window as unknown as { sendSse: (text: string) => void }).sendSse(frame),
+    `event:notification\ndata:${JSON.stringify(notification)}\n\n`,
+  );
+  await expect(page.locator('.notification-button span')).toHaveText('2');
+  expect(calls).toBe(1);
+  await page.evaluate('window.endSse()');
+  await expect(page.locator('.notification-button span')).toHaveText('3', { timeout: 6000 });
+  expect(calls).toBe(2);
+});
+
 test('SSE 인증, 분할 프레임, 잘못된 이벤트 무시, 중복 방지와 배너 클릭 이동', async ({ page }) => {
   expect(await page.evaluate('window.sseAuthorization')).toBe('Bearer test-token');
   const connections = await page.evaluate('window.sseConnections');
