@@ -174,6 +174,26 @@ test('기존 선물 완료 보상 알림에도 보상 크레딧을 표시한다'
   );
 });
 
+test('결제 완료 알림을 다른 알림과 동일하게 상단 배너로 표시한다', async ({ page }) => {
+  const paymentCompleted = {
+    ...notification,
+    notificationId: 33,
+    type: 'PAYMENT_COMPLETED',
+    title: '결제가 완료되었어요',
+    message: '선물 상품 결제가 완료되었습니다.',
+    referenceType: 'PAYMENT',
+    referenceId: 101,
+  };
+
+  await page.evaluate(
+    (part) => (window as unknown as { sendSse: (text: string) => void }).sendSse(part),
+    `event:notification\ndata:${JSON.stringify(paymentCompleted)}\n\n`,
+  );
+
+  await expect(page.locator('.notification-banner')).toContainText(paymentCompleted.title);
+  await expect(page.locator('.notification-banner')).toContainText(paymentCompleted.message);
+});
+
 test('로그아웃 시 연결과 배너 정리', async ({ page }) => {
   await page.route('**/auth/logout', (route) => route.fulfill({ json: { data: {} } }));
   await page.evaluate(

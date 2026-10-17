@@ -134,7 +134,7 @@ test('[QA 선물하기 4] 선택창을 열 때 친구를 조회하고 재진입 
   await confirmDialog.getByRole('button', { name: '선물 보내기' }).click();
 
   await expect(page.getByRole('heading', { name: '보낸 선물' })).toBeVisible();
-  await expect(page.getByRole('status')).toHaveText('결제가 완료되었습니다.');
+  await expect(page.getByRole('status')).toHaveCount(0);
   expect(giftRequests.length).toBeGreaterThan(0);
   for (const request of giftRequests) {
     expect(request).toEqual({

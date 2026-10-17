@@ -31,7 +31,7 @@ test('[QA 75, 77, 79, 88] 친구를 먼저 선택해 결제하고 보낸 선물�
   await confirmDialog.getByRole('button', { name: '선물 보내기' }).click();
 
   await expect(page.getByRole('heading', { name: '보낸 선물' })).toBeVisible();
-  await expect(page.getByRole('status')).toHaveText('결제가 완료되었습니다.');
+  await expect(page.getByRole('status')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '완료' })).toHaveCount(0);
   await expect(page.locator('.gift-history-item').first()).toContainText('김민지');
   await expect(page.locator('.gift-history-item').first()).toContainText('결제 완료');
@@ -284,7 +284,7 @@ test('[QA 76] 상품을 먼저 선택한 뒤 친구를 선택해 결제한다', 
   await confirmDialog.getByRole('button', { name: '선물 보내기' }).click();
 
   await expect(page.getByRole('heading', { name: '보낸 선물' })).toBeVisible();
-  await expect(page.getByRole('status')).toHaveText('결제가 완료되었습니다.');
+  await expect(page.getByRole('status')).toHaveCount(0);
 });
 
 test('대기 중인 받은 선물은 수락하고 보낸 선물은 취소한다', async ({ page }) => {

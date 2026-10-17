@@ -467,11 +467,17 @@ export function GiftApp() {
     route !== 'login' && route !== 'signup' && route !== 'terms' && Boolean(loadSession());
   useEffect(() => {
     if (!notificationsEnabled) return;
-    return subscribeNotifications((notification) => {
-      if (notification.type !== 'PAYMENT_COMPLETED') setNotificationBanner(notification);
-      setNotificationRefreshKey((value) => value + 1);
-      refreshUnread();
-    }, refreshUnread);
+    return subscribeNotifications(
+      (notification) => {
+        setNotificationBanner(notification);
+        setNotificationRefreshKey((value) => value + 1);
+        refreshUnread();
+      },
+      () => {
+        setNotificationRefreshKey((value) => value + 1);
+        refreshUnread();
+      },
+    );
   }, [notificationsEnabled, sessionKey, refreshUnread]);
   useEffect(() => {
     if (!notificationBanner || notificationBannerBusy) return;
@@ -493,13 +499,12 @@ export function GiftApp() {
         setPendingPaymentOrderId(null);
         setGiftHistoryRefreshKey((value) => value + 1);
         refreshProfile();
-        setToast(
-          payment.paymentStatus === 'COMPLETED'
-            ? '결제가 정상 처리되었습니다.'
-            : payment.paymentStatus === 'DECLINED'
+        if (payment.paymentStatus !== 'COMPLETED')
+          setToast(
+            payment.paymentStatus === 'DECLINED'
               ? '결제가 승인되지 않았습니다.'
               : '결제가 취소되었습니다.',
-        );
+          );
       })
       .catch(() => undefined);
     return () => {
@@ -586,7 +591,6 @@ export function GiftApp() {
       } else {
         setPendingPaymentOrderId(null);
         window.localStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY);
-        setToast('결제가 완료되었습니다.');
       }
       refreshProfile();
       setGiftRecipient(null);
