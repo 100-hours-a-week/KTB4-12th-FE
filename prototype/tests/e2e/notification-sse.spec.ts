@@ -181,9 +181,35 @@ test('결제 완료 알림을 다른 알림과 동일하게 상단 배너로 표
     type: 'PAYMENT_COMPLETED',
     title: '결제가 완료되었어요',
     message: '선물 상품 결제가 완료되었습니다.',
-    referenceType: 'PAYMENT',
-    referenceId: 101,
+    referenceType: 'GIFT',
+    referenceId: 501,
   };
+  await page.route('**/notifications/33/read', (route) =>
+    route.fulfill({ json: { data: { notificationId: 33, isRead: true, unreadCount: 0 } } }),
+  );
+  await page.route('**/gifts/sent/501', (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          giftId: 501,
+          orderId: '00000000-0000-4000-8000-000000000501',
+          giftStatus: 'WAITING_FOR_ACCEPTANCE',
+          expiresAt: '2026-10-24T23:59:59+09:00',
+          sentAt: '2026-10-17T12:00:00',
+          recipient: { userId: 27, name: '김민지' },
+          product: {
+            productId: 101,
+            name: '선물 상품',
+            brand: '선잘알',
+            imageUrl: null,
+          },
+          quantity: 1,
+          unitPrice: 32000,
+          totalPrice: 32000,
+        },
+      },
+    }),
+  );
 
   await page.evaluate(
     (part) => (window as unknown as { sendSse: (text: string) => void }).sendSse(part),
@@ -192,6 +218,8 @@ test('결제 완료 알림을 다른 알림과 동일하게 상단 배너로 표
 
   await expect(page.locator('.notification-banner')).toContainText(paymentCompleted.title);
   await expect(page.locator('.notification-banner')).toContainText(paymentCompleted.message);
+  await page.locator('.notification-banner-content').click();
+  await expect(page.getByRole('heading', { name: '보낸 선물 상세' })).toBeVisible();
 });
 
 test('로그아웃 시 연결과 배너 정리', async ({ page }) => {
