@@ -5,18 +5,10 @@ const testPort = 4175;
 export default defineConfig({
   testDir: './tests',
   testMatch: [
-    '**/signup-*-error.spec.ts',
-    '**/login-*-error.spec.ts',
-    '**/gift-*-error.spec.ts',
+    '**/*-error.spec.ts',
+    '**/*-api.spec.ts',
     '**/product-recommendation.spec.ts',
-    '**/friend-requests-api.spec.ts',
-    '**/friend-request-actions-api.spec.ts',
-    '**/friend-delete-api.spec.ts',
-    '**/chat-api.spec.ts',
-    '**/chat-products-api.spec.ts',
-    '**/dislike-categories-api.spec.ts',
     '**/notification-sse.spec.ts',
-    '**/gift-detail-api.spec.ts',
   ],
   timeout: 20_000,
   use: {

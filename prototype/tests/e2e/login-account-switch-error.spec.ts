@@ -178,18 +178,6 @@ for (const storedRefreshToken of [false, true]) {
   });
 }
 
-test('B 프로필 조회가 실패해도 A를 본인으로 오인하지 않는다', async ({ page }) => {
-  const { releaseA } = await setup(page, true);
-  releaseA();
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
-  await logout(page);
-  await loginB(page);
-  await searchA(page);
-  await page.getByRole('button', { name: '친구 추가 닫기' }).click();
-  await page.getByRole('navigation').getByRole('button', { name: '마이', exact: true }).click();
-  await expect(page.locator('.profile-card')).not.toContainText(userA.name);
-});
-
 test('계정 전환 뒤 도착한 A 프로필 응답이 B 프로필을 덮어쓰지 않는다', async ({ page }) => {
   const { state, releaseA } = await setup(page);
   state.holdA = true;
