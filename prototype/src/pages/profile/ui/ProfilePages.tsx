@@ -44,6 +44,9 @@ export function MyPage({
           <strong>{profile?.name ?? '…'}</strong>
           <span>{profile ? formatBirthdayLabel(profile.birth) : '…'}</span>
           <small>{profile?.email ?? ''}</small>
+          <span className="credit-balance">
+            보유 크레딧 {profile ? `${(profile.creditBalance ?? 0).toLocaleString()} C` : '…'}
+          </span>
         </div>
         <button type="button" className="primary compact" onClick={onAccount}>
           <GearIcon /> 내 정보 관리

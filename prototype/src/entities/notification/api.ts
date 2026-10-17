@@ -12,6 +12,16 @@ export type Notification = {
   isRead: boolean;
 };
 
+export function getNotificationMessage(notification: Notification) {
+  if (notification.type !== 'GIFT_COMPLETED_REWARD' || notification.message.includes('크레딧'))
+    return notification.message;
+  // shortcut: 기존 알림에는 rewardAmount가 없으므로 고정 보상액을 표시하고, API 메타데이터 추가 시 제거한다.
+  return notification.message.replace(
+    '선물 완료 보상이 지급되었습니다.',
+    '선물 완료 보상 100,000 크레딧이 지급되었습니다.',
+  );
+}
+
 let mockNotifications: Notification[] = [
   {
     notificationId: 1,
@@ -25,11 +35,11 @@ let mockNotifications: Notification[] = [
   },
   {
     notificationId: 2,
-    type: 'POINT_GRANTED',
-    title: '포인트가 지급되었어요',
-    message: '이벤트 참여 보상으로 1,000P가 지급되었습니다.',
-    referenceType: null,
-    referenceId: null,
+    type: 'GIFT_COMPLETED_REWARD',
+    title: '보상이 지급되었어요',
+    message: '그린티 수분 크림 선물 완료 보상 100,000 크레딧이 지급되었습니다.',
+    referenceType: 'GIFT',
+    referenceId: 410,
     notifiedAt: new Date(2026, 8, 28, 9, 10).toISOString(),
     isRead: true,
   },

@@ -91,25 +91,23 @@ test('[QA 선물하기 4] 선택창을 열 때 친구를 조회하고 재진입 
       },
     }),
   );
-  await page.route(/\/gifts$/, (route) => {
+  await page.route(/\/payments$/, (route) => {
     giftRequests.push(route.request().postDataJSON());
     return route.fulfill({
       status: 201,
       json: {
-        message: '선물을 보냈습니다.',
+        message: '결제가 완료되었습니다.',
         data: {
-          gift: {
-            giftId: 501,
-            sentAt: '2026-09-30T12:00:00+09:00',
-            recipientName: '박서연',
-            product: {
-              productName: product.productName,
-              quantity: 2,
-              unitPrice: product.price,
-              totalPrice: 64000,
-              imageUrl: null,
-            },
-          },
+          orderId: '00000000-0000-4000-8000-000000000501',
+          paymentKey: 'payment-key',
+          transactionKey: 'transaction-key',
+          paymentStatus: 'COMPLETED',
+          giftId: 501,
+          giftStatus: 'WAITING_FOR_ACCEPTANCE',
+          amount: 64000,
+          balanceAfter: 436000,
+          approvedAt: '2026-09-30T12:00:00+09:00',
+          giftExpiresAt: '2026-10-08T00:00:00+09:00',
         },
       },
     });
@@ -135,10 +133,8 @@ test('[QA 선물하기 4] 선택창을 열 때 친구를 조회하고 재진입 
   const confirmDialog = page.getByRole('dialog', { name: /이 선물을 보낼까요/ });
   await confirmDialog.getByRole('button', { name: '선물 보내기' }).click();
 
-  await expect(page.locator('.summary-card')).toContainText('박서연');
-  await expect(page.locator('.delivery-message')).toContainText('선물 세트');
-  await expect(page.locator('.summary-card')).toContainText('2개');
-  await expect(page.locator('.summary-card')).toContainText('64,000원');
+  await expect(page.getByRole('heading', { name: '보낸 선물' })).toBeVisible();
+  await expect(page.getByRole('status')).toHaveCount(0);
   expect(giftRequests.length).toBeGreaterThan(0);
   for (const request of giftRequests) {
     expect(request).toEqual({

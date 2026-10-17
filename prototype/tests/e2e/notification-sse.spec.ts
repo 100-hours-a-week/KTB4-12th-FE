@@ -149,6 +149,51 @@ test('알림 목록이 열려 있어도 SSE 수신 시 최신 목록 조회', as
   await expect.poll(() => listRequests).toBe(2);
 });
 
+test('기존 선물 완료 보상 알림에도 보상 크레딧을 표시한다', async ({ page }) => {
+  await page.route(/\/notifications(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          items: [
+            {
+              ...notification,
+              type: 'GIFT_COMPLETED_REWARD',
+              title: '보상이 지급되었어요',
+              message: '롯데모바일교환권 5,000원 선물 완료 보상이 지급되었습니다.',
+            },
+          ],
+          pagination: { nextCursor: null, hasNext: false },
+        },
+      },
+    }),
+  );
+
+  await page.getByRole('button', { name: /알림 목록 열기/ }).click();
+  await expect(page.getByRole('dialog', { name: '알림', exact: true })).toContainText(
+    '선물 완료 보상 100,000 크레딧이 지급되었습니다.',
+  );
+});
+
+test('결제 완료 알림을 다른 알림과 동일하게 상단 배너로 표시한다', async ({ page }) => {
+  const paymentCompleted = {
+    ...notification,
+    notificationId: 33,
+    type: 'PAYMENT_COMPLETED',
+    title: '결제가 완료되었어요',
+    message: '선물 상품 결제가 완료되었습니다.',
+    referenceType: 'PAYMENT',
+    referenceId: 101,
+  };
+
+  await page.evaluate(
+    (part) => (window as unknown as { sendSse: (text: string) => void }).sendSse(part),
+    `event:notification\ndata:${JSON.stringify(paymentCompleted)}\n\n`,
+  );
+
+  await expect(page.locator('.notification-banner')).toContainText(paymentCompleted.title);
+  await expect(page.locator('.notification-banner')).toContainText(paymentCompleted.message);
+});
+
 test('로그아웃 시 연결과 배너 정리', async ({ page }) => {
   await page.route('**/auth/logout', (route) => route.fulfill({ json: { data: {} } }));
   await page.evaluate(

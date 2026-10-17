@@ -100,7 +100,7 @@ export async function setupGiftErrorRoutes(page: Page, config: GiftErrorConfig) 
       }),
     }),
   );
-  await page.route(/\/gifts$/, async (route) => {
+  await page.route(/\/payments$/, async (route) => {
     requests.push({
       body: route.request().postDataJSON(),
       idempotencyKey: route.request().headers()['idempotency-key'],

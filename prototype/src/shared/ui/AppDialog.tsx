@@ -94,10 +94,11 @@ export function AppDialog({
           <p id={bodyId}>{body}</p>
         </div>
         <div className="dialog-actions">
-          <button className="secondary" disabled={busy} onClick={onCancel}>
+          <button type="button" className="secondary" disabled={busy} onClick={onCancel}>
             {cancelLabel}
           </button>
           <button
+            type="button"
             className={danger ? 'danger' : 'primary'}
             disabled={confirmDisabled || busy}
             onClick={onConfirm}

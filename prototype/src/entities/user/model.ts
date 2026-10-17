@@ -13,6 +13,7 @@ export type MyProfile = {
   email: string;
   birth: string;
   isBirthdayPublic: boolean;
+  creditBalance: number;
   giftSummary: GiftSummary;
 };
 

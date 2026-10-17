@@ -16,12 +16,12 @@ import {
   removeFriend,
 } from '../../entities/friend';
 import {
+  createPayment,
+  fetchPaymentStatus,
   getGiftConditionError,
   type GiftPreflight,
   MAX_GIFT_QUANTITY,
   preflightGift,
-  sendGift,
-  type SentGiftResult,
 } from '../../entities/gift';
 import {
   fetchUnreadNotificationCount,
@@ -73,9 +73,6 @@ const ReceivedGiftDetailPage = lazy(() =>
 const SentGiftDetailPage = lazy(() =>
   import('../../pages/gift-history').then((m) => ({ default: m.SentGiftDetailPage })),
 );
-const CompletePage = lazy(() =>
-  import('../../pages/gifts').then((m) => ({ default: m.CompletePage })),
-);
 const GiftsPage = lazy(() => import('../../pages/gifts').then((m) => ({ default: m.GiftsPage })));
 const ProductPage = lazy(() =>
   import('../../pages/gifts').then((m) => ({ default: m.ProductPage })),
@@ -116,6 +113,7 @@ const emptySignupDraft: SignupDraft = {
 const MAIN_TAB_STORAGE_KEY = 'gift-prototype-main-tab';
 const SELECTED_PRODUCT_STORAGE_KEY = 'gift-prototype-selected-product';
 const DETAIL_ROUTE_STORAGE_KEY = 'gift-prototype-detail-route';
+const PENDING_PAYMENT_STORAGE_KEY = 'gift-prototype-pending-payment';
 
 type RestorableRoute =
   | 'account'
@@ -257,10 +255,13 @@ export function GiftApp() {
     const recipient = chatProductOrigin && userId ? loadChat(userId)?.recipient : null;
     return recipient ? { ...recipient, email: '' } : null;
   });
-  const [giftResult, setGiftResult] = useState<SentGiftResult | null>(null);
   const [giftDialog, setGiftDialog] = useState<GiftDialog>(null);
   const [giftBusy, setGiftBusy] = useState(false);
   const idempotencyKey = useRef<string | null>(null);
+  const [pendingPaymentOrderId, setPendingPaymentOrderId] = useState(() =>
+    window.localStorage.getItem(PENDING_PAYMENT_STORAGE_KEY),
+  );
+  const [giftHistoryRefreshKey, setGiftHistoryRefreshKey] = useState(0);
   const [sessionKey, setSessionKey] = useState(0);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const sessionVersion = useRef(0);
@@ -340,10 +341,11 @@ export function GiftApp() {
     setGiftRecipient(null);
     setSelectedProduct(null);
     setSelectedGiftId(null);
-    setGiftResult(null);
     setGiftDialog(null);
     setGiftBusy(false);
     idempotencyKey.current = null;
+    setPendingPaymentOrderId(null);
+    window.localStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY);
     setQuantity(1);
     setFriendSheetOpen(false);
     setFilterSheetOpen(false);
@@ -371,7 +373,7 @@ export function GiftApp() {
     dismissKeyboard();
     scrollTops.current[route] = currentScroll()?.scrollTop ?? 0;
     setHistory((value) => [...value, route]);
-    if (next !== 'product' && next !== 'ai-chat' && next !== 'complete') {
+    if (next !== 'product' && next !== 'ai-chat') {
       setSelectedProduct(null);
       window.localStorage.removeItem(SELECTED_PRODUCT_STORAGE_KEY);
     }
@@ -491,9 +493,31 @@ export function GiftApp() {
   }, [notificationBanner, notificationBannerBusy]);
   useEffect(() => {
     if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 2500);
+    const timer = window.setTimeout(() => setToast(null), 3000);
     return () => window.clearTimeout(timer);
   }, [toast]);
+  useEffect(() => {
+    if (route !== 'sent' || !pendingPaymentOrderId) return;
+    let active = true;
+    void fetchPaymentStatus(pendingPaymentOrderId)
+      .then((payment) => {
+        if (!active || payment.paymentStatus === 'PENDING') return;
+        window.localStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY);
+        setPendingPaymentOrderId(null);
+        setGiftHistoryRefreshKey((value) => value + 1);
+        refreshProfile();
+        if (payment.paymentStatus !== 'COMPLETED')
+          setToast(
+            payment.paymentStatus === 'DECLINED'
+              ? '결제가 승인되지 않았습니다.'
+              : '결제가 취소되었습니다.',
+          );
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [pendingPaymentOrderId, refreshProfile, route]);
   useEffect(() => {
     const expired = (event: Event) => {
       resetSessionState();
@@ -557,7 +581,7 @@ export function GiftApp() {
     const version = sessionVersion.current;
     setGiftBusy(true);
     try {
-      const result = await sendGift(
+      const result = await createPayment(
         {
           productId: selectedProduct.productId,
           recipientUserId: giftRecipient.userId,
@@ -567,20 +591,38 @@ export function GiftApp() {
         idempotencyKey.current,
       );
       if (version !== sessionVersion.current) return;
-      setGiftResult(result);
+      if ('approvalResult' in result) {
+        setPendingPaymentOrderId(result.orderId);
+        window.localStorage.setItem(PENDING_PAYMENT_STORAGE_KEY, result.orderId);
+        setToast('결제가 처리되고 있습니다.');
+      } else {
+        setPendingPaymentOrderId(null);
+        window.localStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY);
+      }
+      refreshProfile();
       setGiftRecipient(null);
       setGiftDialog(null);
-      navigate('complete');
+      idempotencyKey.current = null;
+      setSelectedProduct(null);
+      window.localStorage.removeItem(SELECTED_PRODUCT_STORAGE_KEY);
+      window.localStorage.setItem(
+        DETAIL_ROUTE_STORAGE_KEY,
+        JSON.stringify({ route: 'sent', returnRoute: 'mypage' }),
+      );
+      setHistory(['mypage']);
+      setGiftHistoryRefreshKey((value) => value + 1);
+      setRoute('sent');
     } catch (reason) {
       if (version !== sessionVersion.current) return;
       const conditionError = reason instanceof ApiError ? getGiftConditionError(reason.code) : null;
       if (conditionError) {
+        idempotencyKey.current = null;
         setGiftDialog({ kind: 'conditions', ...conditionError });
       } else {
         setToast(
-          reason instanceof Error
-            ? reason.message
-            : '선물을 보내지 못했습니다. 다시 시도해 주세요.',
+          !(reason instanceof ApiError) || reason.code === 'PAYMENT_RESULT_UNCONFIRMED'
+            ? '결제 상태를 확인할 수 없습니다. 같은 결제를 다시 시도해 주세요.'
+            : reason.message,
         );
       }
     } finally {
@@ -698,9 +740,17 @@ export function GiftApp() {
       setTabNow('friends');
       return;
     }
-    if (notification.referenceType !== 'GIFT' || notification.referenceId == null) return;
+    if (
+      !['GIFT_RECEIVED', 'GIFT_COMPLETED_REWARD'].includes(notification.type) ||
+      notification.referenceType !== 'GIFT' ||
+      notification.referenceId == null
+    )
+      return;
     setSelectedGiftId(notification.referenceId);
-    navigate('received-detail', notification.referenceId);
+    navigate(
+      notification.type === 'GIFT_COMPLETED_REWARD' ? 'sent-detail' : 'received-detail',
+      notification.referenceId,
+    );
   };
   const selectBanner = async () => {
     if (!notificationBanner || notificationSelectionBusy.current) return;
@@ -825,8 +875,14 @@ export function GiftApp() {
           product={selectedProduct}
           quantity={quantity}
           action={notificationAction}
-          onDecrease={() => setQuantity((value) => Math.max(1, value - 1))}
-          onIncrease={() => setQuantity((value) => Math.min(MAX_GIFT_QUANTITY, value + 1))}
+          onDecrease={() => {
+            idempotencyKey.current = null;
+            setQuantity((value) => Math.max(1, value - 1));
+          }}
+          onIncrease={() => {
+            idempotencyKey.current = null;
+            setQuantity((value) => Math.min(MAX_GIFT_QUANTITY, value + 1));
+          }}
           onBack={goBack}
           onGift={() => void beginGift()}
         />
@@ -878,16 +934,27 @@ export function GiftApp() {
     if (route === 'received')
       return (
         <ReceivedGiftsPage
+          refreshKey={giftHistoryRefreshKey}
           onBack={goBack}
           action={notificationAction}
+          onMessage={(message) => {
+            setToast(message);
+            refreshProfile();
+          }}
           onSelect={(id) => selectHistoryGift(id, 'received-detail')}
         />
       );
     if (route === 'sent')
       return (
         <SentGiftsPage
+          refreshKey={giftHistoryRefreshKey}
+          processingPayment={Boolean(pendingPaymentOrderId)}
           onBack={goBack}
           action={notificationAction}
+          onMessage={(message) => {
+            setToast(message);
+            refreshProfile();
+          }}
           onSelect={(id) => selectHistoryGift(id, 'sent-detail')}
         />
       );
@@ -897,11 +964,25 @@ export function GiftApp() {
           giftId={selectedGiftId}
           onBack={goBack}
           action={notificationAction}
+          onMessage={setToast}
+          onChanged={() => {
+            setGiftHistoryRefreshKey((value) => value + 1);
+            refreshProfile();
+          }}
         />
       );
     if (route === 'sent-detail' && selectedGiftId != null)
       return (
-        <SentGiftDetailPage giftId={selectedGiftId} onBack={goBack} action={notificationAction} />
+        <SentGiftDetailPage
+          giftId={selectedGiftId}
+          onBack={goBack}
+          action={notificationAction}
+          onMessage={setToast}
+          onChanged={() => {
+            setGiftHistoryRefreshKey((value) => value + 1);
+            refreshProfile();
+          }}
+        />
       );
     if (route === 'preferences')
       return (
@@ -921,18 +1002,6 @@ export function GiftApp() {
           onBack={goBack}
           onDirtyChange={setGiftPreferenceDirty}
           onSaved={() => setToast('저장되었습니다.')}
-        />
-      );
-    if (route === 'complete' && giftResult)
-      return (
-        <CompletePage
-          result={giftResult}
-          action={notificationAction}
-          onFriends={() => setTabNow('friends')}
-          onSent={() => {
-            setSelectedGiftId(giftResult.giftId);
-            navigate('sent-detail', giftResult.giftId);
-          }}
         />
       );
     return null;

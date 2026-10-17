@@ -8,9 +8,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('[QA 75, 77, 79, 88] 친구를 먼저 선택해 선물을 완료하고 상태를 초기화한다', async ({
-  page,
-}) => {
+test('[QA 75, 77, 79, 88] 친구를 먼저 선택해 결제하고 보낸 선물로 이동한다', async ({ page }) => {
   const recipient = page.locator('.friend-card').filter({ hasText: '김민지' }).first();
   await recipient.getByRole('button', { name: '선물하기' }).click();
 
@@ -32,14 +30,11 @@ test('[QA 75, 77, 79, 88] 친구를 먼저 선택해 선물을 완료하고 상�
   await expect(confirmDialog).toBeVisible();
   await confirmDialog.getByRole('button', { name: '선물 보내기' }).click();
 
-  await expect(page.getByRole('heading', { name: '완료' })).toBeVisible();
-  await expect(page.locator('.summary-card')).toContainText('김민지');
-  await expect(page.locator('.summary-card')).toContainText('2개');
-  await expect(page.locator('.summary-card')).toContainText('64,000원');
-
-  await page.getByRole('button', { name: '친구 화면으로' }).click();
-  await expect(page.getByRole('heading', { name: '친구' })).toBeVisible();
-  await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'friends');
+  await expect(page.getByRole('heading', { name: '보낸 선물' })).toBeVisible();
+  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '완료' })).toHaveCount(0);
+  await expect(page.locator('.gift-history-item').first()).toContainText('김민지');
+  await expect(page.locator('.gift-history-item').first()).toContainText('결제 완료');
 });
 
 test('사용자가 상품을 검색하고 상세 화면에서 목록으로 돌아간다', async ({ page }) => {
@@ -272,7 +267,7 @@ test('사용자가 상품 정렬 조건을 변경한다', async ({ page }) => {
   await expect(popularSort).toHaveAttribute('aria-checked', 'false');
 });
 
-test('[QA 76] 상품을 먼저 선택한 뒤 친구를 선택해 선물을 완료한다', async ({ page }) => {
+test('[QA 76] 상품을 먼저 선택한 뒤 친구를 선택해 결제한다', async ({ page }) => {
   await page
     .getByRole('navigation', { name: '하단 메뉴' })
     .getByRole('button', { name: '선물' })
@@ -288,6 +283,27 @@ test('[QA 76] 상품을 먼저 선택한 뒤 친구를 선택해 선물을 완�
   const confirmDialog = page.getByRole('dialog', { name: /이 선물을 보낼까요/ });
   await confirmDialog.getByRole('button', { name: '선물 보내기' }).click();
 
-  await expect(page.getByRole('heading', { name: '완료' })).toBeVisible();
-  await expect(page.locator('.summary-card')).toContainText('김민지');
+  await expect(page.getByRole('heading', { name: '보낸 선물' })).toBeVisible();
+  await expect(page.getByRole('status')).toHaveCount(0);
+});
+
+test('대기 중인 받은 선물은 수락하고 보낸 선물은 취소한다', async ({ page }) => {
+  await page
+    .getByRole('navigation', { name: '하단 메뉴' })
+    .getByRole('button', { name: '마이' })
+    .click();
+  await page.getByRole('button', { name: /받은 선물/ }).click();
+  const received = page.locator('.gift-history-item').filter({ hasText: '받기 대기' }).first();
+  await received.getByRole('button', { name: '선물 받기' }).click();
+  await expect(received.getByRole('button', { name: '선물 받기' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: '뒤로 가기' }).click();
+  await page.getByRole('button', { name: /보낸 선물/ }).click();
+  const sent = page.locator('.gift-history-item').filter({ hasText: '수락 대기' }).first();
+  await sent.getByRole('button', { name: '선물 취소' }).click();
+  await page
+    .getByRole('dialog', { name: '선물을 취소할까요?' })
+    .getByRole('button', { name: '취소하기' })
+    .click();
+  await expect(sent.getByRole('button', { name: '선물 취소' })).toHaveCount(0);
 });

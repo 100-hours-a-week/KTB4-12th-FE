@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 
 import {
   fetchNotifications,
+  getNotificationMessage,
   markNotificationRead,
   type Notification,
 } from '../../../entities/notification';
@@ -64,7 +65,7 @@ export function NotificationSheet({
             onClick={() => void select(notification)}
           >
             <strong>{notification.title}</strong>
-            <span>{notification.message}</span>
+            <span>{getNotificationMessage(notification)}</span>
             <time dateTime={notification.notifiedAt}>
               {new Date(notification.notifiedAt).toLocaleString('ko-KR', {
                 year: 'numeric',

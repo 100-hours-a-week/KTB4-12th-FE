@@ -3,6 +3,9 @@ import { PRODUCT_IMAGE } from '../../shared/config/assets';
 // 백엔드 GiftPolicy.MAX_QUANTITY와 동일한 값. 초과 요청은 생성/사전검증 API에서 모두 400으로 거부된다.
 export const MAX_GIFT_QUANTITY = 10;
 
+export type GiftStatus = 'WAITING_FOR_ACCEPTANCE' | 'COMPLETED' | 'CANCELED';
+export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'DECLINED' | 'CANCELED';
+
 const GIFT_CONDITION_ERRORS = {
   GIFT_CONDITIONS_CHANGED: {
     title: '가격이 변경됐어요',
@@ -22,6 +25,9 @@ export function getGiftConditionError(code: string | null) {
 
 export type ReceivedGift = {
   giftId: number;
+  orderId: string;
+  giftStatus: GiftStatus;
+  expiresAt: string;
   receivedAt: string;
   sender: { userId: number; name: string };
   product: {
@@ -38,6 +44,10 @@ export type ReceivedGift = {
 
 export type SentGift = {
   giftId: number;
+  orderId: string;
+  giftStatus: GiftStatus;
+  expiresAt: string;
+  paymentStatus?: PaymentStatus;
   sentAt: string;
   recipient: { userId: number; name: string };
   product: {
@@ -64,21 +74,46 @@ export type GiftPreflight = {
   preferenceWarning: { categoryId: number; categoryName: string } | null;
 };
 
-export type SentGiftResult = {
+export type PaymentResult = PaymentComplete | PaymentProcessing;
+
+export type PaymentComplete = {
+  orderId: string;
+  paymentKey: string;
+  transactionKey: string;
+  paymentStatus: 'COMPLETED';
   giftId: number;
-  sentAt: string;
-  recipientName: string;
-  product: {
-    productName: string;
-    quantity: number;
-    unitPrice: number;
-    totalPrice: number;
-    imageUrl: string | null;
-  };
+  giftStatus: 'WAITING_FOR_ACCEPTANCE';
+  amount: number;
+  balanceAfter: number;
+  approvedAt: string;
+  giftExpiresAt: string;
+};
+
+export type PaymentProcessing = {
+  orderId: string;
+  paymentStatus: 'PENDING';
+  approvalResult: 'UNKNOWN' | 'APPROVED';
+  retryAfterSeconds: number;
+};
+
+export type PaymentStatusResult = {
+  orderId: string;
+  paymentStatus: PaymentStatus;
+  approvalResult: 'UNKNOWN' | 'APPROVED' | 'DECLINED' | null;
+  failureCode: string | null;
+  giftId: number | null;
+  giftStatus: GiftStatus | null;
+  amount: number;
+  approvedAt: string | null;
+  canceledAt: string | null;
 };
 
 export const mockReceivedGifts: ReceivedGift[] = Array.from({ length: 43 }, (_, index) => ({
   giftId: 410 + index,
+  orderId: `00000000-0000-4000-8000-${String(410 + index).padStart(12, '0')}`,
+  giftStatus:
+    index % 3 === 0 ? 'COMPLETED' : index % 3 === 1 ? 'WAITING_FOR_ACCEPTANCE' : 'CANCELED',
+  expiresAt: new Date(2026, 10, 7 + (index % 7), 0, 0).toISOString(),
   receivedAt: new Date(2026, 7, 31 - (index % 28), 9, 10).toISOString(),
   sender: { userId: 19 + index, name: index % 2 ? '이준호' : '김민지' },
   product: {

@@ -1,7 +1,7 @@
 import { BellIcon, Cross2Icon } from '@radix-ui/react-icons';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 
-import type { Notification } from '../../../entities/notification';
+import { getNotificationMessage, type Notification } from '../../../entities/notification';
 
 export function NotificationBanner({
   notification,
@@ -42,7 +42,7 @@ export function NotificationBanner({
             <span>
               <span className="notification-banner-label">선잘알 · 새 알림</span>
               <strong>{notification.title}</strong>
-              <span>{notification.message}</span>
+              <span>{getNotificationMessage(notification)}</span>
             </span>
           </button>
           <button
