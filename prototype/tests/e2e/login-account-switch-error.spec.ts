@@ -10,7 +10,7 @@ const profile = (user: typeof userA) => ({
 });
 
 async function setup(page: Page, bProfileFails = false) {
-  const state = { holdA: false, heldA: 0 };
+  const state = { holdA: false, heldA: 0, profileCalls: 0 };
   let releaseA!: () => void;
   const gate = new Promise<void>((resolve) => {
     releaseA = resolve;
@@ -24,6 +24,8 @@ async function setup(page: Page, bProfileFails = false) {
     localStorage.setItem('prototype-auth', 'signed-in');
   }, userA);
   await page.route('**/users/me', async (route) => {
+    if (route.request().method() === 'PATCH') return route.fulfill({ json: { data: {} } });
+    state.profileCalls++;
     const isA = route.request().headers().authorization === 'Bearer token-a';
     if (isA && state.holdA) {
       state.heldA++;
@@ -72,6 +74,27 @@ async function logout(page: Page) {
     .click();
   await expect(page.getByRole('button', { name: '로그인', exact: true })).toBeVisible();
 }
+async function changeBirthdayVisibility(page: Page) {
+  await page.getByRole('switch', { name: '생일 공개' }).click();
+  await page.getByRole('button', { name: '동의하고 공개' }).click();
+}
+
+test('화면 이동은 프로필을 재조회하지 않고 저장과 새 로그인은 재조회한다', async ({ page }) => {
+  const { state, releaseA } = await setup(page);
+  releaseA();
+  const initialCalls = state.profileCalls;
+  for (const tab of ['친구', '마이']) {
+    await page.getByRole('navigation').getByRole('button', { name: tab, exact: true }).click();
+  }
+  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await expect(page.getByRole('switch', { name: '생일 공개' })).toBeVisible();
+  expect(state.profileCalls).toBe(initialCalls);
+  await changeBirthdayVisibility(page);
+  await expect.poll(() => state.profileCalls).toBe(initialCalls + 1);
+  await logout(page);
+  await loginB(page);
+  await expect.poll(() => state.profileCalls).toBe(initialCalls + 2);
+});
 async function loginB(page: Page) {
   await page.getByLabel('이메일').fill(userB.email);
   await page.getByLabel('비밀번호').fill('Password123!');
@@ -146,6 +169,7 @@ test('계정 전환 뒤 도착한 A 프로필 응답이 B 프로필을 덮어쓰
   const { state, releaseA } = await setup(page);
   state.holdA = true;
   await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await changeBirthdayVisibility(page);
   await expect.poll(() => state.heldA).toBeGreaterThan(0);
   await logout(page);
   await loginB(page);
@@ -224,6 +248,7 @@ test('이전 계정의 늦은 401은 B 세션을 종료하지 않는다', async 
     release = resolve;
   });
   await page.route('**/users/me', async (route) => {
+    if (route.request().method() === 'PATCH') return route.fulfill({ json: { data: {} } });
     if (route.request().headers().authorization === 'Bearer token-a') {
       held = true;
       await gate;
@@ -231,6 +256,7 @@ test('이전 계정의 늦은 401은 B 세션을 종료하지 않는다', async 
     } else await route.fulfill({ json: { data: profile(userB) } });
   });
   await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await changeBirthdayVisibility(page);
   await expect.poll(() => held).toBe(true);
   await logout(page);
   await loginB(page);
@@ -344,6 +370,7 @@ test('이전 계정의 토큰 갱신 응답은 새 계정 토큰을 덮어쓰지
     });
   });
   await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await changeBirthdayVisibility(page);
   await expect.poll(() => held).toBe(true);
   await logout(page);
   await loginB(page);
@@ -377,6 +404,7 @@ test('현재 계정의 만료된 토큰은 갱신하고 원래 요청을 재시�
   );
   await page.getByRole('button', { name: '내 정보 관리' }).click();
   await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'account');
+  await changeBirthdayVisibility(page);
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('accessToken')))
     .toBe('refreshed-a');
