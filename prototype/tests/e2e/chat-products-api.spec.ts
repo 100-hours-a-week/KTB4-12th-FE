@@ -388,9 +388,9 @@ for (const status of ['FAILED', 'CANCELLED'] as const) {
 }
 
 for (const width of [390, 1100]) {
-  test(`입력 영역이 커져도 마지막 추천 버튼은 입력창 위로 스크롤할 수 있다 (${width}px)`, async ({
+  test(`긴 채팅에서 추천 버튼을 가리지 않고 헤더 고정과 뒤로가기를 유지한다 (${width}px)`, async ({
     page,
-  }, testInfo) => {
+  }) => {
     await page.setViewportSize({ width, height: 1100 });
     const turn = completed();
     turn.blocks.unshift({ type: 'text', text: '긴 추천 답변입니다.\n'.repeat(40) });
@@ -427,30 +427,6 @@ for (const width of [390, 1100]) {
         })
         .toBe(true);
     }
-    if (width === 390)
-      await testInfo.attach('chat-layout', {
-        body: await page
-          .getByTestId('gift-app')
-          .screenshot({ path: testInfo.outputPath('chat-layout.png') }),
-        contentType: 'image/png',
-      });
-  });
-}
-
-for (const width of [390, 1100]) {
-  test(`채팅 하단에서도 뒤로가기와 제목이 상단에 고정되고 바로 나갈 수 있다 (${width}px)`, async ({
-    page,
-  }, testInfo) => {
-    await page.setViewportSize({ width, height: 1100 });
-    const turn = completed();
-    turn.blocks.unshift({ type: 'text', text: '긴 대화 내용입니다.\n'.repeat(60) });
-    await setup(page, [turn]);
-    await page.goto('/');
-    await expect(card(page, 101)).toContainText('최신 상품 101');
-    const scroll = page.locator('[data-testid=mobile-scroll]:not(.route-preserved-scroll)');
-    await scroll.evaluate((node) => {
-      node.scrollTop = node.scrollHeight;
-    });
     await expect
       .poll(async () => {
         const viewport = await scroll.boundingBox();
@@ -461,10 +437,6 @@ for (const width of [390, 1100]) {
       })
       .toBe(true);
     await expect(page.getByRole('heading', { name: '선잘알 봇', exact: true })).toBeVisible();
-    if (width === 1100)
-      await page
-        .getByTestId('gift-app')
-        .screenshot({ path: testInfo.outputPath('chat-sticky-header.png') });
     await page.getByRole('button', { name: '뒤로 가기', exact: true }).click();
     await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'friends');
   });

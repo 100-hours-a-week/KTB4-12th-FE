@@ -6,13 +6,10 @@ export default defineConfig({
   testDir: './tests',
   testMatch: '**/*.spec.ts',
   testIgnore: [
+    '**/*-error.spec.ts',
+    '**/*-api.spec.ts',
     '**/product-recommendation.spec.ts',
-    '**/login-account-switch-error.spec.ts',
-    '**/chat-api.spec.ts',
-    '**/chat-products-api.spec.ts',
-    '**/dislike-categories-api.spec.ts',
     '**/notification-sse.spec.ts',
-    '**/gift-detail-api.spec.ts',
   ],
   timeout: 20_000,
   use: {

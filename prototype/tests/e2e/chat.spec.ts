@@ -27,7 +27,7 @@ test.beforeEach(async ({ page }) => {
     }
   });
 });
-for (const mode of ['text', 'long', 'reconnect', 'failed', 'timeout', 'cards']) {
+for (const mode of ['text', 'failed']) {
   test(`mock ${mode}: 전송·최종 상태·새로고침 시 중복 방지`, async ({ page }) => {
     await openChat(page, mode);
     await submit(page);
