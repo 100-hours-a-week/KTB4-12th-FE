@@ -741,14 +741,16 @@ export function GiftApp() {
       return;
     }
     if (
-      !['GIFT_RECEIVED', 'GIFT_COMPLETED_REWARD'].includes(notification.type) ||
+      !['GIFT_RECEIVED', 'GIFT_COMPLETED_REWARD', 'PAYMENT_COMPLETED'].includes(
+        notification.type,
+      ) ||
       notification.referenceType !== 'GIFT' ||
       notification.referenceId == null
     )
       return;
     setSelectedGiftId(notification.referenceId);
     navigate(
-      notification.type === 'GIFT_COMPLETED_REWARD' ? 'sent-detail' : 'received-detail',
+      notification.type === 'GIFT_RECEIVED' ? 'received-detail' : 'sent-detail',
       notification.referenceId,
     );
   };
