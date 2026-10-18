@@ -467,11 +467,13 @@ export function GiftApp() {
   };
   useEffect(() => {
     if (route === 'login' || route === 'signup' || route === 'terms' || !loadSession()) return;
-    refreshProfile();
     refreshUnread();
-  }, [route, refreshProfile, refreshUnread]);
+  }, [route, refreshUnread]);
   const notificationsEnabled =
     route !== 'login' && route !== 'signup' && route !== 'terms' && Boolean(loadSession());
+  useEffect(() => {
+    if (notificationsEnabled) refreshProfile();
+  }, [notificationsEnabled, sessionKey, refreshProfile]);
   useEffect(() => {
     if (!notificationsEnabled) return;
     return subscribeNotifications(
