@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
+    if (window.top !== window) return;
     localStorage.setItem('accessToken', 'design-test-token');
     localStorage.setItem('accessTokenExpiresAt', String(Date.now() + 3_600_000));
   });
@@ -57,17 +58,36 @@ test('아래쪽 설정으로 이동해도 바깥 기기 프레임은 스크롤�
   expect(await page.getByTestId('device-screen').evaluate((element) => element.scrollTop)).toBe(0);
 });
 
-test('가입 화면의 피드백 버튼은 다음 버튼을 가리지 않는다', async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.removeItem('accessToken');
-    localStorage.setItem('prototype-auth', 'signed-out');
+for (const width of [360, 1100]) {
+  test(`${width}px 로그인·가입 리포트 버튼은 일반 화면 플로팅 버튼과 같은 위치에 표시된다`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/');
+    const floating = await page
+      .getByRole('button', { name: '선잘알 봇 및 의견 메뉴 열기' })
+      .boundingBox();
+    expect(floating).not.toBeNull();
+    await page.addInitScript(() => {
+      if (window.top !== window) return;
+      localStorage.removeItem('accessToken');
+      localStorage.setItem('prototype-auth', 'signed-out');
+    });
+    await page.goto('/');
+    const report = page.getByRole('button', { name: '의견 남기기', exact: true });
+    const expectSamePosition = async () => {
+      await expect(report).toBeVisible();
+      const box = await report.boundingBox();
+      expect(box).not.toBeNull();
+      expect(Math.abs(box!.x - floating!.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(box!.y - floating!.y)).toBeLessThanOrEqual(1);
+    };
+    await expectSamePosition();
+    await page.getByRole('button', { name: '회원가입' }).click();
+    await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'signup');
+    await expect(page.getByRole('button', { name: '다음', exact: true })).toBeVisible();
+    await expectSamePosition();
+    await report.click();
+    await expect(page.getByRole('dialog', { name: '의견 남기기' })).toBeVisible();
   });
-  await page.setViewportSize({ width: 360, height: 800 });
-  await page.goto('/');
-  await page.getByRole('button', { name: '회원가입' }).click();
-  const feedback = await page.getByRole('button', { name: '의견 남기기' }).boundingBox();
-  const next = await page.getByRole('button', { name: '다음', exact: true }).boundingBox();
-  expect(feedback).not.toBeNull();
-  expect(next).not.toBeNull();
-  expect(feedback!.y + feedback!.height).toBeLessThan(next!.y);
-});
+}
