@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE_NAME: peterj0117/seonjalal-fe
+  RELEASE_ECR_REPOSITORY: seonjalal/production/frontend
   DEV_AWS_REGION: ap-northeast-2
   DEV_ECR_REPOSITORY: seonjalal/develop/frontend
   VITE_USE_MOCK_API: 'false'
@@ -372,6 +372,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      id-token: write
     concurrency:
       group: ${{ github.workflow }}-publish
       cancel-in-progress: false
@@ -387,12 +388,13 @@ jobs:
         shell: bash
         run: |
           VERSION="$(tr -d '[:space:]' < VERSION)"
-          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
             echo "VERSION must use semantic version format: $VERSION" >&2
             exit 1
           fi
-          if git rev-parse --quiet --verify "refs/tags/v${VERSION}" > /dev/null; then
-            echo "Git tag v${VERSION} already exists." >&2
+          if git rev-parse --quiet --verify "refs/tags/v${VERSION}" > /dev/null && \
+             [[ "$(git rev-list -n 1 "v${VERSION}")" != "$GITHUB_SHA" ]]; then
+            echo "Git tag v${VERSION} points to a different commit." >&2
             exit 1
           fi
           echo "value=$VERSION" >> "$GITHUB_OUTPUT"
@@ -403,33 +405,39 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+      # CD에서 컨테이너 기동 없이 정적 파일만 추출. 환경별 재빌드를 하지 않음.
+      - name: Configure release ECR credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          role-to-assume: ${{ vars.RELEASE_ECR_ROLE_ARN }}
+          aws-region: ap-northeast-2
+          allowed-account-ids: '721744297924'
 
-      - name: Ensure Docker version tag is unused
-        shell: bash
-        run: |
-          IMAGE="${IMAGE_NAME}:${{ steps.version.outputs.value }}"
-          if INSPECT_OUTPUT="$(docker buildx imagetools inspect "$IMAGE" 2>&1)"; then
-            echo "Docker image tag already exists: $IMAGE" >&2
-            exit 1
-          fi
-          if ! grep --extended-regexp --ignore-case 'not found|manifest unknown' <<< "$INSPECT_OUTPUT" > /dev/null; then
-            echo "Could not verify Docker image tag availability: $INSPECT_OUTPUT" >&2
-            exit 1
-          fi
+      - name: Log in to release ECR
+        id: release_ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Verify immutable release target
+        id: release_image
+        env:
+          AWS_REGION: ap-northeast-2
+          RELEASE_COMPONENT: frontend
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
+          ECR_REGISTRY: ${{ steps.release_ecr.outputs.registry }}
+        run: python3 .github/scripts/prepare-ecr-release.py
 
       - name: Build and push version image
+        if: steps.release_image.outputs.frontend_exists != 'true'
         uses: docker/build-push-action@v6
         with:
           context: prototype
           file: prototype/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.value }}
+          tags: ${{ steps.release_image.outputs.frontend_uri }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.version.outputs.value }}
           build-args: |
             VITE_USE_MOCK_API=${{ env.VITE_USE_MOCK_API }}
             VITE_API_BASE_URL=${{ env.VITE_API_BASE_URL }}
@@ -441,5 +449,6 @@ jobs:
       - name: Create and push Git tag
         shell: bash
         run: |
-          git tag "v${{ steps.version.outputs.value }}" "$GITHUB_SHA"
+          git rev-parse --verify "refs/tags/v${{ steps.version.outputs.value }}" >/dev/null 2>&1 || \
+            git tag "v${{ steps.version.outputs.value }}" "$GITHUB_SHA"
           git push origin "v${{ steps.version.outputs.value }}"
