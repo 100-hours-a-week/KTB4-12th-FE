@@ -1,8 +1,10 @@
-import { apiStream, USE_MOCK_API } from '../../shared/api/client';
+import { apiPatch, apiStream, USE_MOCK_API } from '../../shared/api/client';
 import { getSessionVersion, loadSession } from '../../shared/api/session';
 import type { Notification } from './api';
 
-function parseNotification(frame: string): Notification | null {
+function parseNotification(
+  frame: string,
+): { notification: Notification; deliveryId: string | null } | null {
   const lines = frame.split(/\r?\n/);
   if (!lines.includes('event:notification') && !lines.includes('event: notification')) return null;
   try {
@@ -25,7 +27,14 @@ function parseNotification(frame: string): Notification | null {
       !(value.referenceId === null || Number.isSafeInteger(value.referenceId))
     )
       return null;
-    return value;
+    const deliveryId = lines
+      .find((line) => line.startsWith('id:'))
+      ?.slice(3)
+      .trim();
+    return {
+      notification: value,
+      deliveryId: deliveryId && /^[1-9][0-9]*$/.test(deliveryId) ? deliveryId : null,
+    };
   } catch {
     return null;
   }
@@ -38,12 +47,12 @@ export function subscribeNotifications(
   if (USE_MOCK_API || !loadSession()) return () => {};
   const controller = new AbortController();
   const version = getSessionVersion();
-  const seen = new Set<number>();
   let retryTimer: number | undefined;
   const active = () =>
     !controller.signal.aborted && version === getSessionVersion() && Boolean(loadSession());
 
   const connect = async () => {
+    const seen = new Set<number>();
     try {
       const response = await apiStream('/notifications/events', {}, { signal: controller.signal });
       if (!response.headers.get('content-type')?.includes('text/event-stream') || !response.body)
@@ -59,18 +68,18 @@ export function subscribeNotifications(
           buffer += decoder.decode(value, { stream: true });
           let boundary: RegExpExecArray | null;
           while ((boundary = /\r?\n\r?\n/.exec(buffer))) {
-            const notification = parseNotification(buffer.slice(0, boundary.index));
+            const event = parseNotification(buffer.slice(0, boundary.index));
             buffer = buffer.slice(boundary.index + boundary[0].length);
-            if (
-              !active() ||
-              !notification ||
-              notification.isRead ||
-              seen.has(notification.notificationId)
-            )
-              continue;
-            seen.add(notification.notificationId);
-            if (seen.size > 100) seen.delete(seen.values().next().value!);
-            onNotification(notification);
+            if (!active() || !event) continue;
+            const { notification, deliveryId } = event;
+            if (!notification.isRead && !seen.has(notification.notificationId)) {
+              onNotification(notification);
+              seen.add(notification.notificationId);
+            }
+            // ACK 응답이 유실되어 재수신한 이벤트도 다시 확인한다.
+            if (deliveryId && active()) {
+              void apiPatch(`/notifications/events/${deliveryId}/ack`).catch(() => undefined);
+            }
           }
         }
       } finally {

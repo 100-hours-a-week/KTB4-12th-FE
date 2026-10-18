@@ -361,3 +361,43 @@ for (const source of ['banner', 'list'] as const) {
     await expect(page.locator('.notification-button span')).toHaveCount(0);
   });
 }
+
+test('ACK 실패 후 재수신은 배너를 반복하지 않고 ACK를 다시 보낸다', async ({ page }) => {
+  let acknowledgements = 0;
+  await page.route('**/notifications/events/9007199254740993/ack', (route) => {
+    acknowledgements++;
+    expect(route.request().method()).toBe('PATCH');
+    return route.fulfill(
+      acknowledgements === 1
+        ? { status: 503, json: { message: '일시적 오류' } }
+        : { json: { data: {} } },
+    );
+  });
+  const frame = `id:9007199254740993\nevent:notification\ndata:${JSON.stringify(notification)}\n\n`;
+  const send = async () =>
+    page.evaluate(
+      (part) => (window as unknown as { sendSse: (text: string) => void }).sendSse(part),
+      frame,
+    );
+  await send();
+  await expect.poll(() => acknowledgements).toBe(1);
+  await expect(page.locator('.notification-banner')).toContainText(notification.title);
+  await page.getByRole('button', { name: '알림 배너 닫기' }).click();
+  await send();
+  await expect.poll(() => acknowledgements).toBe(2);
+  await expect(page.locator('.notification-banner')).toHaveCount(0);
+});
+
+test('읽은 알림도 ACK하고 잘못된 프레임은 ACK하지 않는다', async ({ page }) => {
+  let acknowledgements = 0;
+  await page.route('**/notifications/events/42/ack', (route) => {
+    acknowledgements++;
+    return route.fulfill({ json: { data: {} } });
+  });
+  await page.evaluate(
+    (part) => (window as unknown as { sendSse: (text: string) => void }).sendSse(part),
+    `id:42\nevent:notification\ndata:invalid\n\nid:42\nevent:notification\ndata:${JSON.stringify({ ...notification, isRead: true })}\n\n`,
+  );
+  await expect.poll(() => acknowledgements).toBe(1);
+  await expect(page.locator('.notification-banner')).toHaveCount(0);
+});
