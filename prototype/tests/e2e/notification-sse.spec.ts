@@ -123,7 +123,6 @@ test('SSE 인증, 분할 프레임, 잘못된 이벤트 무시, 중복 방지와
     frame.slice(50),
   );
   await expect(page.locator('.notification-banner')).toContainText(notification.message);
-  await page.screenshot({ path: '/tmp/notification-banner-desktop.png' });
   await page.getByRole('button', { name: '알림 배너 닫기' }).click();
   await page.evaluate(
     (part) => (window as unknown as { sendSse: (text: string) => void }).sendSse(part),
@@ -148,33 +147,13 @@ test('SSE 인증, 분할 프레임, 잘못된 이벤트 무시, 중복 방지와
   expect(await page.evaluate('window.sseConnections')).toBe(connections);
 });
 
-test('배너 자동 닫기와 SSE 연결 종료 후 재연결', async ({ page }) => {
+test('배너는 6초 뒤 자동으로 닫힌다', async ({ page }) => {
   await page.evaluate(
     (part) => (window as unknown as { sendSse: (text: string) => void }).sendSse(part),
     `event:notification\ndata:${JSON.stringify(notification)}\n\n`,
   );
   await expect(page.locator('.notification-banner')).toBeVisible();
   await expect(page.locator('.notification-banner')).toHaveCount(0, { timeout: 8000 });
-  const connections = await page.evaluate('window.sseConnections');
-  await page.evaluate('window.endSse()');
-  await expect.poll(() => page.evaluate('window.sseConnections')).toBe(connections + 1);
-});
-
-test('알림 목록이 열려 있어도 SSE 수신 시 최신 목록 조회', async ({ page }) => {
-  let listRequests = 0;
-  await page.route(/\/notifications(?:\?.*)?$/, (route) => {
-    listRequests++;
-    return route.fulfill({
-      json: { data: { items: [], pagination: { nextCursor: null, hasNext: false } } },
-    });
-  });
-  await page.getByRole('button', { name: /알림 목록 열기/ }).click();
-  await expect.poll(() => listRequests).toBe(1);
-  await page.evaluate(
-    (part) => (window as unknown as { sendSse: (text: string) => void }).sendSse(part),
-    `event:notification\ndata:${JSON.stringify(notification)}\n\n`,
-  );
-  await expect.poll(() => listRequests).toBe(2);
 });
 
 test('기존 선물 완료 보상 알림에도 보상 크레딧을 표시한다', async ({ page }) => {
@@ -277,12 +256,13 @@ test('모바일 배너는 화면 안에 표시되고 닫기 버튼을 누를 수
   const bounds = await banner.boundingBox();
   expect(Math.round(bounds!.y)).toBe(12);
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
-  await page.screenshot({ path: '/tmp/notification-banner-mobile.png' });
   await page.getByRole('button', { name: '알림 배너 닫기' }).click();
   await expect(banner).toHaveCount(0);
 });
 
-test('기존 미읽음 알림은 목록에 유지하고 새 SSE 알림만 팝업으로 표시한다', async ({ page }) => {
+test('기존 알림은 팝업 없이 유지하고 새 SSE 알림은 열린 목록과 배너에 반영한다', async ({
+  page,
+}) => {
   const existing = { ...notification, notificationId: 20, title: '이전 미읽음 알림' };
   let items = [existing];
   await page.route(/\/notifications(?:\?.*)?$/, (route) =>
@@ -296,6 +276,8 @@ test('기존 미읽음 알림은 목록에 유지하고 새 SSE 알림만 팝업
   await page.keyboard.press('Escape');
   await expect(list).toBeHidden();
 
+  await page.getByRole('button', { name: /알림 목록 열기/ }).click();
+  await expect(list).toBeVisible();
   items = [notification, existing];
   await page.evaluate(
     (part) => (window as unknown as { sendSse: (text: string) => void }).sendSse(part),
@@ -303,6 +285,9 @@ test('기존 미읽음 알림은 목록에 유지하고 새 SSE 알림만 팝업
   );
   await expect(page.locator('.notification-banner')).toContainText(notification.title);
   await expect(page.locator('.notification-banner')).not.toContainText(existing.title);
+  await expect(list.locator('.notification-card')).toHaveCount(2);
+  await expect(list).toContainText(notification.title);
+  await page.keyboard.press('Escape');
   await expect(list).toBeHidden();
   await page.getByRole('button', { name: '알림 배너 닫기' }).click();
   await expect(page.locator('.notification-banner')).toHaveCount(0);

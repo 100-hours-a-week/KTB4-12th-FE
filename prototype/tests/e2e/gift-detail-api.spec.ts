@@ -1,11 +1,16 @@
 import { expect, type Page, test } from '@playwright/test';
 
+import type { ReceivedGift } from '../../src/entities/gift';
+
 const emptyReview = {
   status: 404,
   json: { message: '작성된 리뷰가 없습니다.', error: { code: 'REVIEW_NOT_FOUND' } },
 };
-const gift = (giftId: number) => ({
+const gift = (giftId: number): ReceivedGift => ({
   giftId,
+  orderId: `00000000-0000-4000-8000-${String(giftId).padStart(12, '0')}`,
+  giftStatus: 'COMPLETED',
+  expiresAt: '2026-10-08T12:00:00',
   receivedAt: '2026-10-01T12:00:00',
   sender: { userId: 2, name: `보낸 사람 ${giftId}` },
   product: { productId: giftId, name: `선물 ${giftId}`, brand: '테스트 브랜드' },
