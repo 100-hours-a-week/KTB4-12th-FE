@@ -2832,7 +2832,9 @@ textarea:focus-visible,
 }
 
 .floating-action-toggle:has(img),
-.floating-action-option.ai {
+.floating-action-option.ai,
+.floating-action-option.report,
+.bug-report-fab:has(img) {
   overflow: hidden;
   padding: 3px;
   border: 1px solid #ffd9d2;
@@ -2840,12 +2842,42 @@ textarea:focus-visible,
   box-shadow: 0 6px 20px rgba(190, 90, 62, 0.18);
 }
 .floating-action-toggle img,
-.floating-action-option.ai img {
+.floating-action-option.ai img,
+.floating-action-option.report img,
+.bug-report-fab img {
   display: block;
   width: 100%;
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
+}
+.floating-action-option.report img,
+.bug-report-fab img {
+  object-fit: contain;
+}
+.floating-action-option {
+  position: relative;
+}
+.floating-action-option.ai,
+.floating-action-option.report,
+.bug-report-fab:has(img) {
+  overflow: visible;
+}
+.floating-action-label {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 3px 12px rgba(45, 45, 51, 0.08);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 .ai-chat-avatar {
   overflow: hidden;

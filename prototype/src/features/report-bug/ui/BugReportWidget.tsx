@@ -1,7 +1,7 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 
 import { useKeyboard } from '../../../mobile';
-import { SUNJALAL_BOT_IMAGE } from '../../../shared/config/assets';
+import { SUNJALAL_BOT_IMAGE, SUNJALAL_REPORT_IMAGE } from '../../../shared/config/assets';
 import { Toast } from '../../../shared/ui';
 import { captureScreen } from '../captureScreen';
 import { formatErrorsAsText, getCollectedErrors } from '../errorCollector';
@@ -139,6 +139,9 @@ export function BugReportWidget({
                 }}
               >
                 <img src={SUNJALAL_BOT_IMAGE} alt="" draggable={false} />
+                <span className="floating-action-label" aria-hidden="true">
+                  AI 선물 추천
+                </span>
               </button>
               <button
                 type="button"
@@ -150,7 +153,10 @@ export function BugReportWidget({
                   void openReport();
                 }}
               >
-                💬
+                <img src={SUNJALAL_REPORT_IMAGE} alt="" draggable={false} />
+                <span className="floating-action-label" aria-hidden="true">
+                  의견 보내기
+                </span>
               </button>
             </div>
           ) : null}
@@ -176,10 +182,11 @@ export function BugReportWidget({
           {capturing ? (
             <span className="loading-dot" />
           ) : (
-            <>
-              <span aria-hidden="true">💬</span>
-            </>
+            <img src={SUNJALAL_REPORT_IMAGE} alt="" draggable={false} />
           )}
+          <span className="floating-action-label" aria-hidden="true">
+            의견 보내기
+          </span>
         </button>
       )}
       {open ? (
