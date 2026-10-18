@@ -2564,13 +2564,7 @@ textarea:focus-visible,
   gap: 7px;
 }
 .bug-report-fab.auth {
-  top: 64px;
-  bottom: auto;
-}
-@media (max-width: 600px), (hover: none) and (pointer: coarse) {
-  .bug-report-fab.auth {
-    top: 8px;
-  }
+  bottom: calc(var(--app-safe-area-height) + 88px);
 }
 
 .friend-card:has(.friend-more-trigger) {

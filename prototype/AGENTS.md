@@ -64,6 +64,8 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 
 ## Prototype Decisions
 
+- 로그인·회원가입·약관 화면의 리포트 버튼은 일반 화면의 플로팅 버튼과 동일하게 오른쪽 16px, 하단 안전 영역 + 88px 위치에 둔다.
+
 - 내 선물 취향은 BE `MAX_PREFERENCE_CODE_POINTS`와 동일하게 이모지 포함 Unicode code point 기준 최대 300자로 제한한다.
 
 - Simulated keyboard disabled: `src/Prototype.tsx` calls `setSimulatedKeyboardEnabled(false)`, so focusing an input never opens the on-screen keyboard. Text entry still uses `KeyboardInput`, `KeyboardTextarea`, or `MobileTextField`; native focus, blur dismissal, and safe-area insets stay intact. Keep this opt-out unless a phone-keyboard demo is explicitly requested.
