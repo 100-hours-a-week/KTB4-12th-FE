@@ -2,6 +2,21 @@
 
 KTB4 12기 12팀 선물 추천 모바일 프론트엔드 프로토타입입니다.
 
+## V2 정적 배포
+
+- Develop의 Docker·ECR 자동 배포는 유지. main 릴리스 FE는 ECR에 발행하지 않음.
+- main CI 통과 후 `VERSION`의 빌드 파일을 비공개 S3 `releases/frontend/<VERSION>/`에 발행. 소스 SHA·파일 SHA256 manifest를 마지막에 기록하며 다른 내용으로 같은 버전 재발행 금지.
+- FE 레포의 `Frontend Static Delivery`가 main CI 성공 후 동일 산출물을 스테이징에 배포하고, 운영은 Environment 승인 대기. Cloud 레포는 BE 배포만 담당.
+- `frontend-static-delivery.yml`은 main에 반영돼야 workflow_run으로 실행 가능. main PR·릴리스 시점은 풀스택 팀 결정.
+- Repository Variable `RELEASE_S3_ROLE_ARN`: main 전용 정적 산출물 발행 Role.
+- Environment `fe-v2-staging`, `fe-v2-production`: main 브랜치만 허용. 운영 Required reviewers 지정 필수.
+- 각 Environment Variable: `FE_DEPLOY_ROLE_ARN`, `FE_CLOUDFRONT_DISTRIBUTION_ID`, `FE_CD_READY`. 실제 버킷·OAC·API 라우팅·권한 준비 전 준비 플래그 설정 금지.
+- 초기 준비 후 수동 실행은 기존 발행 버전과 `dry_run=true`로 먼저 검증. 실제 운영 재배포·복귀도 스테이징 단계와 운영 승인을 통과해야 함.
+- S3 서비스 경로는 `frontend/<environment>/`. 환경별 재빌드 없이 `/api` 상대주소 계약 사용. Production의 API 원본·인증·캐시 정책은 별도 준비 필요.
+- 자산 먼저/index 마지막, 기존 자산 삭제 없음. 같은 이름의 다른 내용은 중단하므로 해시 파일명 필요. 실패 시 이전 index 복구·CloudFront 무효화. 최초 배포·강제 취소는 수동 복구 가능성 있음.
+- 배포 API 검증 성공이 로그인·결제·AI 기능 QA 합격을 의미하지 않음. 운영 승인 전 팀 QA 필요.
+- 정적 발행·복구 모의 검사(Mac, AWS 호출 없음): `python3 -m unittest discover -s .github/scripts -p test_frontend_static_release.py`.
+
 ## 실행
 
 ```bash

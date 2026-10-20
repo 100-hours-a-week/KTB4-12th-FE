@@ -1,0 +1,65 @@
+name: Frontend Static Environment Delivery
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      target_environment:
+        required: true
+        type: string
+      dry_run:
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: fe-v2-${{ inputs.target_environment }}
+    permissions:
+      contents: read
+      id-token: write
+      deployments: read
+    env:
+      FE_CD_READY: ${{ vars.FE_CD_READY }}
+      FE_DEPLOY_ROLE_ARN: ${{ vars.FE_DEPLOY_ROLE_ARN }}
+      V2_FRONTEND_BUCKET: seonjalal-v2-frontend-721744297924-ap-northeast-2
+      V2_CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.FE_CLOUDFRONT_DISTRIBUTION_ID }}
+      TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+      RELEASE_VERSION: ${{ inputs.version }}
+      DRY_RUN: ${{ inputs.dry_run }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Require configured main environment and production approval
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          [[ "$TARGET_ENVIRONMENT" == staging || "$TARGET_ENVIRONMENT" == production ]]
+          test "$FE_CD_READY" = true
+          test "$FE_DEPLOY_ROLE_ARN" = "arn:aws:iam::721744297924:role/seonjalal-v2-${TARGET_ENVIRONMENT}-frontend-deployer"
+          if [[ "$TARGET_ENVIRONMENT" == production ]]; then
+            COUNT=$(gh api "repos/$GITHUB_REPOSITORY/environments/fe-v2-production" \
+              --jq '[.protection_rules[]? | select(.type == "required_reviewers") | .reviewers[]?] | length')
+            test "$COUNT" -gt 0
+          fi
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ env.FE_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-2
+          allowed-account-ids: '721744297924'
+      - name: Promote exact static release without Docker or rebuild
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPLY_ARGS=()
+          if [[ "$DRY_RUN" == false ]]; then APPLY_ARGS+=(--apply); fi
+          python3 .github/scripts/frontend-static-release.py deploy \
+            --environment "$TARGET_ENVIRONMENT" --version "$RELEASE_VERSION" "${APPLY_ARGS[@]}"

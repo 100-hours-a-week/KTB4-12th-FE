@@ -25,7 +25,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE_NAME: peterj0117/seonjalal-fe
   DEV_AWS_REGION: ap-northeast-2
   DEV_ECR_REPOSITORY: seonjalal/develop/frontend
   VITE_USE_MOCK_API: 'false'
@@ -89,6 +88,9 @@ jobs:
           --build-arg VITE_SENTRY_DSN="${VITE_SENTRY_DSN}"
           --tag seonjalal-fe:ci
           .
+
+      - name: Test static release publication and rollback
+        run: python3 -m unittest discover -s ../.github/scripts -p test_frontend_static_release.py
 
       - name: Run container and smoke test
         shell: bash
@@ -372,74 +374,51 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      id-token: write
     concurrency:
-      group: ${{ github.workflow }}-publish
+      group: frontend-static-release-publish
       cancel-in-progress: false
-
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Validate version
+      - name: Validate release version and tag
         id: version
         shell: bash
         run: |
+          set -euo pipefail
           VERSION="$(tr -d '[:space:]' < VERSION)"
-          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
-            echo "VERSION must use semantic version format: $VERSION" >&2
-            exit 1
-          fi
-          if git rev-parse --quiet --verify "refs/tags/v${VERSION}" > /dev/null; then
-            echo "Git tag v${VERSION} already exists." >&2
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]
+          if git rev-parse --quiet --verify "refs/tags/v${VERSION}" >/dev/null && \
+             [[ "$(git rev-list -n 1 "v${VERSION}")" != "$GITHUB_SHA" ]]; then
+            echo '버전 태그가 다른 소스를 가리킵니다.' >&2
             exit 1
           fi
           echo "value=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+      - uses: actions/setup-node@v4
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Ensure Docker version tag is unused
+          node-version-file: prototype/.nvmrc
+          cache: npm
+          cache-dependency-path: prototype/package-lock.json
+      - name: Build static release
+        working-directory: prototype
+        run: |
+          npm ci
+          npm run build
+          npm run test:sites
+      - name: Configure main-only static publisher
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.RELEASE_S3_ROLE_ARN }}
+          aws-region: ap-northeast-2
+          allowed-account-ids: '721744297924'
+      - name: Publish immutable versioned static files
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
+        run: python3 .github/scripts/frontend-static-release.py publish --version "$RELEASE_VERSION" --apply
+      - name: Create release source tag
         shell: bash
         run: |
-          IMAGE="${IMAGE_NAME}:${{ steps.version.outputs.value }}"
-          if INSPECT_OUTPUT="$(docker buildx imagetools inspect "$IMAGE" 2>&1)"; then
-            echo "Docker image tag already exists: $IMAGE" >&2
-            exit 1
-          fi
-          if ! grep --extended-regexp --ignore-case 'not found|manifest unknown' <<< "$INSPECT_OUTPUT" > /dev/null; then
-            echo "Could not verify Docker image tag availability: $INSPECT_OUTPUT" >&2
-            exit 1
-          fi
-
-      - name: Build and push version image
-        uses: docker/build-push-action@v6
-        with:
-          context: prototype
-          file: prototype/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.value }}
-          build-args: |
-            VITE_USE_MOCK_API=${{ env.VITE_USE_MOCK_API }}
-            VITE_API_BASE_URL=${{ env.VITE_API_BASE_URL }}
-            VITE_BUG_REPORT_ENDPOINT=${{ env.VITE_BUG_REPORT_ENDPOINT }}
-            VITE_SENTRY_DSN=${{ env.VITE_SENTRY_DSN }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Create and push Git tag
-        shell: bash
-        run: |
-          git tag "v${{ steps.version.outputs.value }}" "$GITHUB_SHA"
+          git rev-parse --verify "refs/tags/v${{ steps.version.outputs.value }}" >/dev/null 2>&1 || \
+            git tag "v${{ steps.version.outputs.value }}" "$GITHUB_SHA"
           git push origin "v${{ steps.version.outputs.value }}"
