@@ -209,7 +209,7 @@ class StaticTests(unittest.TestCase):
         self.assertEqual(workflow.count("needs: resolve"), 2)
         self.assertNotIn("needs: [resolve, staging]", workflow)
         guard = (ROOT / ".github/workflows/frontend-static-deliver.yml").read_text()
-        self.assertIn("required_reviewers", guard)
+        self.assertNotIn("required_reviewers", guard)
         self.assertIn("FE_CD_READY", guard)
 
 
