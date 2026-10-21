@@ -201,14 +201,15 @@ class StaticTests(unittest.TestCase):
                 with self.assertRaises(cd.DeliveryError):
                     cd.download_release(api, "1.3.2", Path(temp))
 
-    def test_delivery_has_no_docker_ecr_and_production_requires_staging(self):
+    def test_delivery_has_no_docker_ecr_and_environments_start_independently(self):
         script = (ROOT / ".github/scripts/frontend-static-release.py").read_text()
         self.assertNotIn('"docker"', script)
         self.assertNotIn('"ecr"', script)
         workflow = (ROOT / ".github/workflows/frontend-static-delivery.yml").read_text()
-        self.assertIn("needs: [resolve, staging]", workflow)
+        self.assertEqual(workflow.count("needs: resolve"), 2)
+        self.assertNotIn("needs: [resolve, staging]", workflow)
         guard = (ROOT / ".github/workflows/frontend-static-deliver.yml").read_text()
-        self.assertIn("required_reviewers", guard)
+        self.assertNotIn("required_reviewers", guard)
         self.assertIn("FE_CD_READY", guard)
 
 
