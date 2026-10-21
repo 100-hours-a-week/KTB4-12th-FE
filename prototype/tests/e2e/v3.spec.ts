@@ -33,7 +33,7 @@ test('마이페이지에서 보낸 선물 상세로 이동한다', async ({ page
   await expect(page.locator('.gift-detail-card')).toContainText('총 가격');
 });
 
-test('비선호 카테고리는 저장값 대비 변경과 전체 초기화를 판정한다', async ({ page }) => {
+test('비선호 카테고리는 저장값 대비 변경과 전체 해제를 판정한다', async ({ page }) => {
   await page.addInitScript(() => window.localStorage.setItem('mock-dislike-categories', '[1,2]'));
   await page.reload();
   await openMyPage(page);
@@ -41,7 +41,7 @@ test('비선호 카테고리는 저장값 대비 변경과 전체 초기화를 �
 
   const save = page.getByRole('button', { name: '저장하기' });
   await expect(save).toBeDisabled();
-  await page.getByRole('button', { name: '전체 초기화' }).click();
+  await page.getByRole('button', { name: '전체 해제' }).click();
   await expect(save).toBeEnabled();
   await page.getByRole('button', { name: '뷰티' }).click();
   await page.getByRole('button', { name: '패션' }).click();

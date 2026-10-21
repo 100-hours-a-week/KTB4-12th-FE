@@ -163,16 +163,6 @@ export function PreferencesPage({
         선택한 카테고리는 친구들이 선물할 때<br />
         경고로 표시돼요. (최대 {selection.maxSelectableCount}개)
       </p>
-      <div className="preference-toolbar">
-        <span>{selection.selected.length}개 선택</span>
-        <button
-          type="button"
-          disabled={!selection.selected.length || selection.saving}
-          onClick={selection.reset}
-        >
-          전체 초기화
-        </button>
-      </div>
       <AsyncContentState
         loading={selection.loading}
         error={selection.error}
@@ -184,6 +174,9 @@ export function PreferencesPage({
           selected={selection.selected}
           disabled={selection.saving}
           onToggle={selection.toggle}
+          limitReached={selection.limitReached}
+          onReset={selection.reset}
+          maxSelectableCount={selection.maxSelectableCount}
         />
       ) : null}
       <button

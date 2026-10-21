@@ -1274,12 +1274,29 @@ textarea:focus-visible,
   align-items: center;
   justify-content: space-between;
   margin-top: 16px;
+  min-height: 44px;
+  gap: 16px;
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 500;
+  color: var(--muted);
+}
+.preference-toolbar > span {
+  line-height: 1.5;
+}
+.preference-toolbar .preference-limit {
+  color: var(--accent-strong);
 }
 .preference-toolbar button {
-  color: var(--accent-strong);
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
   font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .preference-toolbar button:disabled {
   color: var(--muted);
