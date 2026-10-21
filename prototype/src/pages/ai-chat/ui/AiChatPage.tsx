@@ -16,9 +16,12 @@ import { ChatSession } from '../../../features/chat';
 import { ChatProductCards, ChatProducts } from '../../../features/chat-product-cards';
 import { Carousel, KeyboardTextarea, useKeyboardInsets } from '../../../mobile';
 import { SUNJALAL_BOT_IMAGE } from '../../../shared/config/assets';
-import { ScreenHeader } from '../../../shared/ui';
+import { AsyncContentState, ScreenHeader } from '../../../shared/ui';
 
 export function AiChatPage({
+  profileLoading,
+  profileError,
+  onRetryProfile,
   feedback,
   userId,
   recipient,
@@ -26,6 +29,9 @@ export function AiChatPage({
   onProduct,
   onBack,
 }: {
+  profileLoading: boolean;
+  profileError: string;
+  onRetryProfile: () => void;
   feedback?: ReactNode;
   userId: number | null;
   recipient: ChatRecipient | null;
@@ -69,8 +75,20 @@ export function AiChatPage({
           <p>
             {userId
               ? '받는 사람을 고르고, 상황과 예산을 알려주세요.'
-              : '로그인 정보를 확인하고 있어요.'}
+              : profileLoading
+                ? '로그인 정보를 확인하고 있어요.'
+                : '로그인 정보를 확인하지 못했어요.'}
           </p>
+          {!userId ? (
+            <AsyncContentState
+              loading={profileLoading}
+              error={
+                profileError ||
+                (!profileLoading ? '내 정보를 불러오지 못했어요. 다시 시도해 주세요.' : '')
+              }
+              onRetry={onRetryProfile}
+            />
+          ) : null}
           <button
             type="button"
             className="primary sunjalal-start-button"

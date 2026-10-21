@@ -187,7 +187,7 @@ test('B 프로필 조회가 실패해도 A를 본인으로 오인하지 않는�
   await searchA(page);
   await page.getByRole('button', { name: '친구 추가 닫기' }).click();
   await page.getByRole('navigation').getByRole('button', { name: '마이', exact: true }).click();
-  await expect(page.locator('.profile-card')).not.toContainText(userA.name);
+  await expect(page.locator('.mypage-page')).not.toContainText(userA.name);
 });
 
 test('계정 전환 뒤 도착한 A 프로필 응답이 B 프로필을 덮어쓰지 않는다', async ({ page }) => {
@@ -214,7 +214,7 @@ test('계정 전환 뒤 도착한 A 프로필 응답이 B 프로필을 덮어쓰
       ),
   );
   await expect(page.locator('.profile-card')).toContainText(userB.name);
-  await expect(page.locator('.profile-card')).not.toContainText(userA.name);
+  await expect(page.locator('.mypage-page')).not.toContainText(userA.name);
 });
 
 test('세션 만료 후 B로 로그인해도 이전 프로필이 남지 않는다', async ({ page }) => {
@@ -231,7 +231,7 @@ test('세션 만료 후 B로 로그인해도 이전 프로필이 남지 않는�
   await searchA(page);
   await page.getByRole('button', { name: '친구 추가 닫기' }).click();
   await page.getByRole('navigation').getByRole('button', { name: '마이', exact: true }).click();
-  await expect(page.locator('.profile-card')).not.toContainText(userA.name);
+  await expect(page.locator('.mypage-page')).not.toContainText(userA.name);
 });
 
 test('세션 만료 시 친구 추가 시트를 닫는다', async ({ page }) => {
@@ -517,7 +517,7 @@ for (const change of ['account', 'logout', 'remove-token'] as const) {
     if (change === 'account') {
       await page.getByRole('navigation').getByRole('button', { name: '마이', exact: true }).click();
       await expect(page.locator('.profile-card')).toContainText(userB.name);
-      await expect(page.locator('.profile-card')).not.toContainText(userA.name);
+      await expect(page.locator('.mypage-page')).not.toContainText(userA.name);
     }
   });
 }
