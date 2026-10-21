@@ -1,4 +1,5 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useKeyboard } from '../../../mobile';
 import { SUNJALAL_BOT_IMAGE, SUNJALAL_REPORT_IMAGE } from '../../../shared/config/assets';
@@ -10,6 +11,7 @@ import { BugReportModal } from './BugReportModal';
 
 type BugReportWidgetProps = {
   route: string;
+  inline?: boolean;
   /** 캡처·토스트의 기준이 되는 앱 화면 요소. 생략하면 document.body를 캡처한다. */
   containerRef?: RefObject<HTMLElement | null>;
   /** true면 production 빌드에서도 위젯을 렌더링한다. */
@@ -23,6 +25,7 @@ type BugReportWidgetProps = {
 
 export function BugReportWidget({
   route,
+  inline = false,
   containerRef,
   enabledInProduction = false,
   raised = false,
@@ -32,6 +35,7 @@ export function BugReportWidget({
   const enabled = import.meta.env.DEV || enabledInProduction;
   const keyboard = useKeyboard();
   const [open, setOpen] = useState(false);
+  const [modalHost, setModalHost] = useState<HTMLElement | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [screenshot, setScreenshot] = useState<Blob | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -59,12 +63,12 @@ export function BugReportWidget({
   const openReport = useCallback(async () => {
     keyboard.hide();
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setModalHost(containerRef?.current ?? document.body);
     setOpen(true);
     setCapturing(true);
     const shot = await captureScreen(containerRef?.current ?? document.body);
     setScreenshot(shot);
     setCapturing(false);
-    setOpen(true);
   }, [keyboard, containerRef]);
 
   useEffect(() => {
@@ -121,81 +125,86 @@ export function BugReportWidget({
 
   return (
     <>
-      {showAiAction ? (
-        <div
-          ref={menuRef}
-          className={raised ? 'floating-action-menu raised' : 'floating-action-menu'}
-          data-bug-report-widget
-        >
-          {menuOpen ? (
-            <div className="floating-action-options">
-              <button
-                type="button"
-                className="floating-action-option ai"
-                aria-label="선잘알 봇 열기"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onOpenAi?.();
-                }}
-              >
-                <img src={SUNJALAL_BOT_IMAGE} alt="" draggable={false} />
-                <span className="floating-action-label" aria-hidden="true">
-                  AI 선물 추천
-                </span>
-              </button>
-              <button
-                type="button"
-                className="floating-action-option report"
-                aria-label="의견 남기기"
-                disabled={capturing}
-                onClick={() => {
-                  setMenuOpen(false);
-                  void openReport();
-                }}
-              >
-                <img src={SUNJALAL_REPORT_IMAGE} alt="" draggable={false} />
-                <span className="floating-action-label" aria-hidden="true">
-                  의견 보내기
-                </span>
-              </button>
-            </div>
-          ) : null}
+      <div className={inline ? 'feedback-inline' : undefined}>
+        {showAiAction ? (
+          <div
+            ref={menuRef}
+            className={raised ? 'floating-action-menu raised' : 'floating-action-menu'}
+            data-bug-report-widget
+          >
+            {menuOpen ? (
+              <div className="floating-action-options">
+                <button
+                  type="button"
+                  className="floating-action-option ai"
+                  aria-label="선잘알 봇 열기"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onOpenAi?.();
+                  }}
+                >
+                  <img src={SUNJALAL_BOT_IMAGE} alt="" draggable={false} />
+                  <span className="floating-action-label" aria-hidden="true">
+                    AI 선물 추천
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="floating-action-option report"
+                  aria-label="의견 남기기"
+                  disabled={capturing}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    void openReport();
+                  }}
+                >
+                  <img src={SUNJALAL_REPORT_IMAGE} alt="" draggable={false} />
+                  <span className="floating-action-label" aria-hidden="true">
+                    의견 보내기
+                  </span>
+                </button>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              className="floating-action-toggle"
+              aria-label={menuOpen ? '빠른 메뉴 닫기' : '선잘알 봇 및 의견 메뉴 열기'}
+              aria-expanded={menuOpen}
+              onClick={() => {
+                keyboard.hide();
+                setMenuOpen((openState) => !openState);
+              }}
+            >
+              {menuOpen ? '×' : <img src={SUNJALAL_BOT_IMAGE} alt="" draggable={false} />}
+            </button>
+          </div>
+        ) : (
           <button
             type="button"
-            className="floating-action-toggle"
-            aria-label={menuOpen ? '빠른 메뉴 닫기' : '선잘알 봇 및 의견 메뉴 열기'}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((openState) => !openState)}
+            className={`bug-report-fab${raised ? ' raised' : ''}${['login', 'signup', 'terms'].includes(route) ? ' auth' : ''}`}
+            data-bug-report-widget
+            aria-label="의견 남기기"
+            disabled={capturing}
+            onClick={() => void openReport()}
           >
-            {menuOpen ? '×' : <img src={SUNJALAL_BOT_IMAGE} alt="" draggable={false} />}
+            {capturing ? (
+              <span className="loading-dot" />
+            ) : (
+              <img src={SUNJALAL_REPORT_IMAGE} alt="" draggable={false} />
+            )}
           </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className={`bug-report-fab${raised ? ' raised' : ''}${['login', 'signup', 'terms'].includes(route) ? ' auth' : ''}`}
-          data-bug-report-widget
-          aria-label="의견 남기기"
-          disabled={capturing}
-          onClick={() => void openReport()}
-        >
-          {capturing ? (
-            <span className="loading-dot" />
-          ) : (
-            <img src={SUNJALAL_REPORT_IMAGE} alt="" draggable={false} />
-          )}
-          <span className="floating-action-label" aria-hidden="true">
-            의견 보내기
-          </span>
-        </button>
-      )}
-      {open ? (
-        <BugReportModal
-          screenshot={screenshot}
-          onClose={() => setOpen(false)}
-          onSubmit={handleSubmit}
-        />
-      ) : null}
+        )}
+      </div>
+      {open && modalHost
+        ? createPortal(
+            <BugReportModal
+              screenshot={screenshot}
+              onClose={() => setOpen(false)}
+              onSubmit={handleSubmit}
+            />,
+            modalHost,
+          )
+        : null}
       <Toast message={toast} container={containerRef?.current} />
     </>
   );

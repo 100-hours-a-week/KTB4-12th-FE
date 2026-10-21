@@ -1,4 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   login as apiLogin,
@@ -48,7 +57,7 @@ import {
   NotificationButton,
   NotificationSheet,
 } from '../../features/view-notifications';
-import { MobileScroll, useKeyboard, useScreenPortal } from '../../mobile';
+import { MobileScroll, useKeyboard, useKeyboardInsets, useScreenPortal } from '../../mobile';
 import { AiChatPage } from '../../pages/ai-chat';
 import type { SignupDraft } from '../../pages/signup';
 import { ApiError } from '../../shared/api/client';
@@ -210,6 +219,7 @@ function makeIdempotencyKey() {
 
 export function GiftApp() {
   const keyboard = useKeyboard();
+  const { bottomInset } = useKeyboardInsets();
   const { screenRef } = useScreenPortal();
   const storedProduct = getStoredProduct();
   const storedDetail = getStoredDetailRoute();
@@ -846,6 +856,18 @@ export function GiftApp() {
     setSelectedGiftId(giftId);
     navigate(detail, giftId);
   };
+  const renderReportWidget = (inline = false) => (
+    <BugReportWidget
+      key={`bug-report-${route}`}
+      inline={inline}
+      route={route}
+      containerRef={screenRef}
+      enabledInProduction
+      raised={showBottomNav}
+      showAiAction={showFloatingAiMenu}
+      onOpenAi={openAiChat}
+    />
+  );
   const renderPage = () => {
     if (route === 'friends')
       return (
@@ -903,6 +925,7 @@ export function GiftApp() {
     if (route === 'ai-chat')
       return (
         <AiChatPage
+          feedback={renderReportWidget(true)}
           key={`${sessionKey}:${loadSession()?.user?.userId ?? profile?.userId ?? 'loading'}`}
           userId={loadSession()?.user?.userId ?? profile?.userId ?? null}
           recipient={giftRecipient}
@@ -1032,7 +1055,12 @@ export function GiftApp() {
     route !== 'login' && route !== 'signup' && route !== 'terms' && route !== 'ai-chat';
 
   return (
-    <div className="gift-app" data-testid="gift-app" data-route={route}>
+    <div
+      className="gift-app"
+      data-testid="gift-app"
+      data-route={route}
+      style={{ '--feedback-bottom': `${bottomInset}px` } as CSSProperties}
+    >
       {preserveGiftList ? (
         <MobileScroll
           key="gifts"
@@ -1066,15 +1094,11 @@ export function GiftApp() {
         onDismiss={() => setNotificationBanner(null)}
       />
       <Toast message={toast} container={screenRef.current} />
-      <BugReportWidget
-        key={`bug-report-${route}`}
-        route={route}
-        containerRef={screenRef}
-        enabledInProduction
-        raised={showBottomNav}
-        showAiAction={showFloatingAiMenu}
-        onOpenAi={openAiChat}
-      />
+      {route === 'product' ? (
+        <div className="product-feedback-dock">{renderReportWidget(true)}</div>
+      ) : route !== 'ai-chat' ? (
+        renderReportWidget()
+      ) : null}
       <AddFriendSheet
         key={`friend-${sessionKey}`}
         open={friendSheetOpen}

@@ -3047,3 +3047,38 @@ textarea:focus-visible,
   font-weight: 600;
   color: var(--muted);
 }
+
+/* Keep secondary actions in their own row on detail and chat screens. */
+.feedback-inline {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 44px;
+  margin: 12px 0;
+}
+.feedback-inline .floating-action-menu,
+.gift-app .feedback-inline .bug-report-fab {
+  position: relative;
+  right: auto;
+  bottom: auto;
+}
+.feedback-inline .floating-action-options {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+}
+.device-screen:has(.bottom-sheet[data-state='open'], [role='dialog'], [role='menu'])
+  :is(.floating-action-menu, .bug-report-fab) {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.product-feedback-dock {
+  position: absolute;
+  z-index: 30;
+  right: 16px;
+  bottom: calc(var(--feedback-bottom) + 16px);
+}
+
+.product-feedback-dock .feedback-inline {
+  margin: 0;
+}
