@@ -5,9 +5,12 @@ import { checkEmailAvailability } from '../../../entities/auth';
 import { BottomSheet, KeyboardInput } from '../../../mobile';
 import { BirthdayFields, FormField } from '../../../shared/ui';
 import {
+  isValidSignupBirthday,
   isValidSignupEmail,
   isValidSignupName,
   isValidSignupPassword,
+  latestSignupBirthday,
+  SIGNUP_BIRTHDAY_ERROR,
   SIGNUP_EMAIL_ERROR,
   SIGNUP_EMAIL_MAX_LENGTH,
   SIGNUP_NAME_ERROR,
@@ -56,8 +59,11 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
   const nameInvalid = Boolean(draft.name) && !validName;
   const emailFormatInvalid = Boolean(draft.email) && !validEmailFormat && !draft.emailVerified;
   const passwordInvalid = Boolean(draft.password) && !validPassword;
+  const validBirthday = isValidSignupBirthday(draft.birthday);
+  const birthdayInvalid = Boolean(draft.birthday) && !validBirthday;
+  const pendingBirthdayInvalid = !isValidSignupBirthday(pendingBirthday);
   const ready =
-    validName && Boolean(draft.birthday) && draft.emailVerified && validPassword && passwordMatches;
+    validName && validBirthday && draft.emailVerified && validPassword && passwordMatches;
 
   const checkEmail = async () => {
     if (emailChecking) return;
@@ -118,6 +124,8 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
             type="button"
             className={`birthday-trigger ${draft.birthday ? 'has-value' : ''}`}
             aria-label="생년월일 선택"
+            aria-invalid={birthdayInvalid}
+            aria-describedby={birthdayInvalid ? 'signup-birthday-error' : undefined}
             onClick={() => {
               setPendingBirthday(draft.birthday || '2000.01.01');
               setBirthdayPickerOpen(true);
@@ -126,6 +134,11 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
             <span>{draft.birthday || 'YYYY.MM.DD'}</span>
             <CalendarIcon />
           </button>
+          {birthdayInvalid ? (
+            <small id="signup-birthday-error" className="field-error" role="alert">
+              {SIGNUP_BIRTHDAY_ERROR}
+            </small>
+          ) : null}
         </div>
         <FormField label="이메일">
           <div className="input-with-icon">
@@ -229,7 +242,16 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
         description="가입 연령 확인에 사용할 생년월일을 선택해 주세요."
         snap={0.48}
       >
-        <BirthdayFields value={pendingBirthday} onChange={setPendingBirthday} />
+        <BirthdayFields
+          value={pendingBirthday}
+          onChange={setPendingBirthday}
+          max={latestSignupBirthday()}
+        />
+        {pendingBirthdayInvalid ? (
+          <small className="field-error" role="alert">
+            {SIGNUP_BIRTHDAY_ERROR}
+          </small>
+        ) : null}
         <div className="sheet-actions">
           <button type="button" className="secondary" onClick={() => setBirthdayPickerOpen(false)}>
             취소
@@ -237,7 +259,9 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
           <button
             type="button"
             className="primary"
+            disabled={pendingBirthdayInvalid}
             onClick={() => {
+              if (!isValidSignupBirthday(pendingBirthday)) return;
               update('birthday', pendingBirthday);
               setBirthdayPickerOpen(false);
             }}

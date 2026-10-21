@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 
 type BirthdayFieldsProps = {
   value: string;
+  max?: string;
   onChange: (value: string) => void;
 };
 
@@ -18,9 +19,10 @@ function formatBirthday(year: number, month: number, day: number) {
   return `${year}.${String(month).padStart(2, '0')}.${String(day).padStart(2, '0')}`;
 }
 
-export function BirthdayFields({ value, onChange }: BirthdayFieldsProps) {
+export function BirthdayFields({ value, onChange, max }: BirthdayFieldsProps) {
   const birthday = parseBirthday(value);
-  const latestYear = new Date().getFullYear() - 14;
+  const limit = max ? parseBirthday(max) : undefined;
+  const latestYear = limit?.year ?? new Date().getFullYear() - 14;
   const years = useMemo(
     () => Array.from({ length: 87 }, (_, index) => latestYear - index),
     [latestYear],
@@ -57,7 +59,11 @@ export function BirthdayFields({ value, onChange }: BirthdayFieldsProps) {
           onChange={(event) => change({ month: Number(event.target.value) })}
         >
           {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
-            <option key={month} value={month}>
+            <option
+              key={month}
+              value={month}
+              disabled={Boolean(limit && birthday.year === limit.year && month > limit.month)}
+            >
               {String(month).padStart(2, '0')}
             </option>
           ))}
@@ -71,7 +77,11 @@ export function BirthdayFields({ value, onChange }: BirthdayFieldsProps) {
           onChange={(event) => change({ day: Number(event.target.value) })}
         >
           {Array.from({ length: daysInMonth }, (_, index) => index + 1).map((day) => (
-            <option key={day} value={day}>
+            <option
+              key={day}
+              value={day}
+              disabled={Boolean(max && formatBirthday(birthday.year, birthday.month, day) > max)}
+            >
               {String(day).padStart(2, '0')}
             </option>
           ))}
