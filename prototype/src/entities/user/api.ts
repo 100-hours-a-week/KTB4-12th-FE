@@ -1,5 +1,6 @@
 import { ApiError, apiGet, apiPatch, USE_MOCK_API } from '../../shared/api/client';
 import { isQaScenario } from '../../shared/config/qaScenario';
+import { getMockGiftSummaryCounts } from '../gift';
 import type { MyProfile, SearchedUser } from './model';
 
 function delay(ms = 240) {
@@ -14,15 +15,20 @@ const MOCK_PROFILE: MyProfile = {
   isBirthdayPublic: false,
   creditBalance: 500000,
   giftSummary: {
-    sentCount: 12,
-    receivedCount: 8,
+    ...getMockGiftSummaryCounts(),
     period: { from: '2026-01-01T00:00:00+09:00', to: '2026-09-03T23:59:59+09:00' },
   },
 };
 
 function readMockProfile(): MyProfile {
   const raw = window.localStorage.getItem('mock-profile');
-  return raw ? { ...MOCK_PROFILE, ...(JSON.parse(raw) as Partial<MyProfile>) } : MOCK_PROFILE;
+  const profile = raw
+    ? { ...MOCK_PROFILE, ...(JSON.parse(raw) as Partial<MyProfile>) }
+    : MOCK_PROFILE;
+  return {
+    ...profile,
+    giftSummary: { ...profile.giftSummary, ...getMockGiftSummaryCounts() },
+  };
 }
 
 export async function fetchMe(): Promise<MyProfile> {

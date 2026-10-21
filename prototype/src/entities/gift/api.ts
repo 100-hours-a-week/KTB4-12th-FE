@@ -38,6 +38,13 @@ export async function fetchSentGifts(cursor: string | null): Promise<CursorPage<
   };
 }
 
+export function getMockGiftSummaryCounts() {
+  return {
+    sentCount: mockSentGifts.length,
+    receivedCount: mockReceivedGifts.length,
+  };
+}
+
 export async function fetchSentGiftDetail(giftId: number): Promise<SentGift> {
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 200));

@@ -7,6 +7,7 @@ export {
   fetchReceivedGifts,
   fetchSentGiftDetail,
   fetchSentGifts,
+  getMockGiftSummaryCounts,
   preflightGift,
 } from './api';
 export type {
