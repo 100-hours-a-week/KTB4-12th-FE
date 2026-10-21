@@ -16,7 +16,6 @@ const MOCK_PROFILE: MyProfile = {
   creditBalance: 500000,
   giftSummary: {
     ...getMockGiftSummaryCounts(),
-    period: { from: '2026-01-01T00:00:00+09:00', to: '2026-09-03T23:59:59+09:00' },
   },
 };
 
