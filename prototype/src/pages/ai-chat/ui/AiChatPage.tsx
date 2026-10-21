@@ -1,5 +1,6 @@
 import {
   Fragment,
+  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -18,12 +19,14 @@ import { SUNJALAL_BOT_IMAGE } from '../../../shared/config/assets';
 import { ScreenHeader } from '../../../shared/ui';
 
 export function AiChatPage({
+  feedback,
   userId,
   recipient,
   onSelectRecipient,
   onProduct,
   onBack,
 }: {
+  feedback?: ReactNode;
   userId: number | null;
   recipient: ChatRecipient | null;
   onSelectRecipient: () => void;
@@ -77,6 +80,7 @@ export function AiChatPage({
             받는 사람 선택 <span aria-hidden="true">→</span>
           </button>
         </div>
+        {feedback}
         <p className="sunjalal-welcome-footnote">
           AI 추천은 참고용이에요. 상품 정보는 카드에서 확인해 주세요.
         </p>
@@ -84,6 +88,7 @@ export function AiChatPage({
     );
   return (
     <ChatPage
+      feedback={feedback}
       key={`${userId}:${selected.userId}`}
       userId={userId}
       recipient={selected}
@@ -94,11 +99,13 @@ export function AiChatPage({
 }
 
 function ChatPage({
+  feedback,
   userId,
   recipient,
   onProduct,
   onBack,
 }: {
+  feedback?: ReactNode;
   userId: number;
   recipient: ChatRecipient;
   onProduct: (product: Product, recipient: ChatRecipient) => void;
@@ -319,6 +326,7 @@ function ChatPage({
               className="ai-chat-controls"
               style={{ bottom: bottomInset + 16 }}
             >
+              {feedback}
               <Carousel
                 className="ai-chat-suggestions"
                 contentClassName="ai-suggestion-track"

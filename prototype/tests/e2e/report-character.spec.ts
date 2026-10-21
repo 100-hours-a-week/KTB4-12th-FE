@@ -28,7 +28,7 @@ for (const width of [360, 1100]) {
     await page.goto('/');
     const report = page.getByRole('button', { name: '의견 남기기', exact: true });
     const expectCharacter = async () => {
-      await expect(report.getByText('의견 보내기', { exact: true })).toBeVisible();
+      await expect(report.getByText('의견 보내기', { exact: true })).toHaveCount(0);
       await expect
         .poll(() => report.locator('img').evaluate((img) => (img as HTMLImageElement).naturalWidth))
         .toBeGreaterThan(0);

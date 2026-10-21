@@ -74,7 +74,7 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 - On phone-sized and coarse-pointer environments, direct `ScreenHeader` children of app pages stay fixed flush to the top while the page body scrolls beneath them. Desktop simulated-device headers remain non-sticky.
 - The feedback widget (formerly bug-report only) supports three categories — 버그 / 제안 / 도움 — chosen via chips in a modal titled "의견 남기기"; the FAB uses the supplied report character image. The screenshot attach toggle is shown only for 버그/제안; 도움 never sends a screenshot. Screen spec lives in `docs/report-categories.md`.
 - 리포트 버튼은 제공된 선물 상자 신고 캐릭터 원본(`public/assets/brand/sunjalal-report.png`)을 사용한다. 단독 버튼과 플로팅 메뉴의 리포트 항목 모두 챗봇 버튼과 같은 이미지 버튼 스타일을 적용하고 캐릭터를 자르지 않는다.
-- 플로팅 메뉴의 캐릭터 왼쪽에는 각각 “AI 선물 추천”, “의견 보내기” 라벨을 표시한다. 단독 리포트 버튼에도 “의견 보내기” 라벨을 표시한다.
+- 플로팅 메뉴의 캐릭터 왼쪽에는 각각 “AI 선물 추천”, “의견 보내기” 라벨을 표시한다. 단독 리포트 버튼은 캐릭터만 표시하고 시각적 라벨은 숨긴다. 접근성 이름은 유지한다.
 - V3 expands gift history to include sent/received detail screens. Received-gift detail now composes the gift detail API with the confirmed review API for active review lookup, creation, editing, and soft deletion. Sent-gift detail and product browse detail do not expose review actions. Password changes are still excluded.
 - AI chat uses the public BE `/recommendations/conversations` APIs for creation/recovery, turn submission, fetch SSE, turn lookup and explicit cancellation. Store conversations in versioned, user-scoped sessionStorage snapshots; never call BE–AI internal endpoints. Input is limited to 100 Unicode code points. Screen navigation closes only the transport; only the stop button cancels generation. Mock chat scenarios use `chatMock=text|long|reconnect|slow|delayed_tokens|failed|timeout|cards`; production mode uses the existing API environment settings. Profile statuses (`NONE`, `PENDING`, `COMPLETED`, `FAILED`) appear only through the corresponding `ai-profile-*` QA query.
 - Chat recommendation cards validate live product details and stock before opening the existing product screen; keep per-product failures separate from chat failures. Mock card IDs 900000001–900000003 must never reach product APIs. There is no dedicated regenerate contract/button; additional conditions use the existing composer and a new turn ID.
@@ -120,3 +120,5 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 - 상품 목록의 카드 디자인은 유지한다. 상품 상세는 큰 원본 비율 이미지·브랜드·상품명·금액·설명을 하나의 흰색 패널로 묶고, 수량 조절과 선물하기 버튼은 기존처럼 별도 비고정 요소로 유지한다.
 
 - 사용자 요청에 따라 AI 채팅의 화면 이름은 “선잘알 봇”으로 표시하고, 제공된 캐릭터 원본 이미지를 진입 버튼·봇 프로필·수신자 선택 전 안내에 사용한다. 첫 화면은 코랄 색상 안내 카드로 구성하며 기존 SSE·수신자 선택·고정 헤더·저장 복원 흐름을 유지한다.
+
+- 상품 상세의 플로팅 보조 버튼은 스크롤과 무관하게 오른쪽 하단에 떠 있도록 고정한다. 사용자는 하단 전용 영역이나 본문 뷰포트를 줄여 공간을 확보하는 방식을 원하지 않는다. AI 채팅에서는 고정 입력 영역 위 별도 줄에 배치하고, 시트·대화상자·메뉴가 열리면 배경 보조 버튼을 숨긴다. 기존 캐릭터와 펼친 메뉴의 라벨은 유지한다.
