@@ -1,4 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   login as apiLogin,
@@ -48,7 +57,7 @@ import {
   NotificationButton,
   NotificationSheet,
 } from '../../features/view-notifications';
-import { MobileScroll, useKeyboard, useScreenPortal } from '../../mobile';
+import { MobileScroll, useKeyboard, useKeyboardInsets, useScreenPortal } from '../../mobile';
 import { AiChatPage } from '../../pages/ai-chat';
 import type { SignupDraft } from '../../pages/signup';
 import { ApiError } from '../../shared/api/client';
@@ -210,6 +219,7 @@ function makeIdempotencyKey() {
 
 export function GiftApp() {
   const keyboard = useKeyboard();
+  const { bottomInset } = useKeyboardInsets();
   const { screenRef } = useScreenPortal();
   const storedProduct = getStoredProduct();
   const storedDetail = getStoredDetailRoute();
@@ -232,6 +242,7 @@ export function GiftApp() {
       (storedProduct ? 'product' : (storedDetail?.route ?? getStoredMainTab()))
     );
   });
+  const previousRoute = useRef(route);
   useEffect(() => {
     try {
       if (route === 'ai-chat')
@@ -264,6 +275,9 @@ export function GiftApp() {
   const [giftHistoryRefreshKey, setGiftHistoryRefreshKey] = useState(0);
   const [sessionKey, setSessionKey] = useState(0);
   const [profile, setProfile] = useState<MyProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState('');
+  const profileRequestId = useRef(0);
   const sessionVersion = useRef(0);
   const [quantity, setQuantity] = useState(1);
   const [friendSheetOpen, setFriendSheetOpen] = useState(false);
@@ -334,6 +348,8 @@ export function GiftApp() {
     sessionVersion.current += 1;
     setSessionKey((value) => value + 1);
     setProfile(null);
+    setProfileLoading(true);
+    setProfileError('');
     setUnreadCount(0);
     setNotificationBanner(null);
     setNotificationBannerBusy(false);
@@ -434,11 +450,21 @@ export function GiftApp() {
   const refreshProfile = useCallback(() => {
     if (!loadSession()) return;
     const version = sessionVersion.current;
+    const requestId = ++profileRequestId.current;
+    const isCurrent = () =>
+      version === sessionVersion.current && requestId === profileRequestId.current;
+    setProfileLoading(true);
+    setProfileError('');
     void fetchMe()
       .then((nextProfile) => {
-        if (version === sessionVersion.current) setProfile(nextProfile);
+        if (isCurrent()) setProfile(nextProfile);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (isCurrent()) setProfileError('내 정보를 불러오지 못했어요. 다시 시도해 주세요.');
+      })
+      .finally(() => {
+        if (isCurrent()) setProfileLoading(false);
+      });
   }, []);
   const refreshUnread = useCallback(() => {
     if (!loadSession()) return;
@@ -471,6 +497,11 @@ export function GiftApp() {
     if (notificationsEnabled) refreshProfile();
   }, [notificationsEnabled, sessionKey, refreshProfile]);
   useEffect(() => {
+    const enteringMyPage = route === 'mypage' && previousRoute.current !== 'mypage';
+    previousRoute.current = route;
+    if (notificationsEnabled && enteringMyPage) refreshProfile();
+  }, [notificationsEnabled, route, refreshProfile]);
+  useEffect(() => {
     if (!notificationsEnabled) return;
     let unreadTimer: number | undefined;
     const scheduleUnreadRefresh = () => {
@@ -485,6 +516,12 @@ export function GiftApp() {
       (notification) => {
         setNotificationBanner(notification);
         setNotificationRefreshKey((value) => value + 1);
+        if (
+          ['PAYMENT_COMPLETED', 'PAYMENT_CANCELED', 'GIFT_COMPLETED_REWARD'].includes(
+            notification.type,
+          )
+        )
+          refreshProfile();
         scheduleUnreadRefresh();
       },
       () => {
@@ -496,10 +533,10 @@ export function GiftApp() {
       unsubscribe();
       window.clearTimeout(unreadTimer);
     };
-  }, [notificationsEnabled, sessionKey, refreshUnread]);
+  }, [notificationsEnabled, sessionKey, refreshProfile, refreshUnread]);
   useEffect(() => {
     if (!notificationBanner || notificationBannerBusy) return;
-    const timer = window.setTimeout(() => setNotificationBanner(null), 6000);
+    const timer = window.setTimeout(() => setNotificationBanner(null), 3000);
     return () => window.clearTimeout(timer);
   }, [notificationBanner, notificationBannerBusy]);
   useEffect(() => {
@@ -846,6 +883,18 @@ export function GiftApp() {
     setSelectedGiftId(giftId);
     navigate(detail, giftId);
   };
+  const renderReportWidget = (inline = false) => (
+    <BugReportWidget
+      key={`bug-report-${route}`}
+      inline={inline}
+      route={route}
+      containerRef={screenRef}
+      enabledInProduction
+      raised={showBottomNav}
+      showAiAction={showFloatingAiMenu}
+      onOpenAi={openAiChat}
+    />
+  );
   const renderPage = () => {
     if (route === 'friends')
       return (
@@ -903,6 +952,10 @@ export function GiftApp() {
     if (route === 'ai-chat')
       return (
         <AiChatPage
+          profileLoading={profileLoading}
+          profileError={profileError}
+          onRetryProfile={refreshProfile}
+          feedback={renderReportWidget(true)}
           key={`${sessionKey}:${loadSession()?.user?.userId ?? profile?.userId ?? 'loading'}`}
           userId={loadSession()?.user?.userId ?? profile?.userId ?? null}
           recipient={giftRecipient}
@@ -917,6 +970,9 @@ export function GiftApp() {
     if (route === 'mypage')
       return (
         <MyPage
+          loading={profileLoading}
+          error={profileError}
+          onRetry={refreshProfile}
           profile={profile}
           action={notificationAction}
           onAccount={() => navigate('account')}
@@ -929,6 +985,9 @@ export function GiftApp() {
     if (route === 'account')
       return (
         <AccountPage
+          loading={profileLoading}
+          error={profileError}
+          onRetry={refreshProfile}
           profile={profile}
           action={notificationAction}
           onBack={goBack}
@@ -1032,7 +1091,12 @@ export function GiftApp() {
     route !== 'login' && route !== 'signup' && route !== 'terms' && route !== 'ai-chat';
 
   return (
-    <div className="gift-app" data-testid="gift-app" data-route={route}>
+    <div
+      className="gift-app"
+      data-testid="gift-app"
+      data-route={route}
+      style={{ '--feedback-bottom': `${bottomInset}px` } as CSSProperties}
+    >
       {preserveGiftList ? (
         <MobileScroll
           key="gifts"
@@ -1066,15 +1130,11 @@ export function GiftApp() {
         onDismiss={() => setNotificationBanner(null)}
       />
       <Toast message={toast} container={screenRef.current} />
-      <BugReportWidget
-        key={`bug-report-${route}`}
-        route={route}
-        containerRef={screenRef}
-        enabledInProduction
-        raised={showBottomNav}
-        showAiAction={showFloatingAiMenu}
-        onOpenAi={openAiChat}
-      />
+      {route === 'product' ? (
+        <div className="product-feedback-dock">{renderReportWidget(true)}</div>
+      ) : route !== 'ai-chat' ? (
+        renderReportWidget()
+      ) : null}
       <AddFriendSheet
         key={`friend-${sessionKey}`}
         open={friendSheetOpen}

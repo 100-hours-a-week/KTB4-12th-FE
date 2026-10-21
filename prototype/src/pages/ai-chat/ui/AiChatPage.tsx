@@ -1,6 +1,7 @@
 import {
   type CSSProperties,
   Fragment,
+  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -16,15 +17,23 @@ import { ChatSession } from '../../../features/chat';
 import { ChatProductCards, ChatProducts } from '../../../features/chat-product-cards';
 import { Carousel, KeyboardTextarea, useKeyboardInsets } from '../../../mobile';
 import { SUNJALAL_BOT_IMAGE } from '../../../shared/config/assets';
-import { ScreenHeader } from '../../../shared/ui';
+import { AsyncContentState, ScreenHeader } from '../../../shared/ui';
 
 export function AiChatPage({
+  profileLoading,
+  profileError,
+  onRetryProfile,
+  feedback,
   userId,
   recipient,
   onSelectRecipient,
   onProduct,
   onBack,
 }: {
+  profileLoading: boolean;
+  profileError: string;
+  onRetryProfile: () => void;
+  feedback?: ReactNode;
   userId: number | null;
   recipient: ChatRecipient | null;
   onSelectRecipient: () => void;
@@ -36,7 +45,7 @@ export function AiChatPage({
   if (!userId || !selected)
     return (
       <section className="page ai-chat-page">
-        <ScreenHeader title="선잘알 봇" onBack={onBack} />
+        <ScreenHeader title="선잘알 봇" onBack={onBack} action={feedback} />
         <div className="sunjalal-welcome">
           <span className="sunjalal-welcome-badge">당신의 AI 선물 메이트</span>
           <img
@@ -67,8 +76,20 @@ export function AiChatPage({
           <p>
             {userId
               ? '받는 사람을 고르고, 상황과 예산을 알려주세요.'
-              : '로그인 정보를 확인하고 있어요.'}
+              : profileLoading
+                ? '로그인 정보를 확인하고 있어요.'
+                : '로그인 정보를 확인하지 못했어요.'}
           </p>
+          {!userId ? (
+            <AsyncContentState
+              loading={profileLoading}
+              error={
+                profileError ||
+                (!profileLoading ? '내 정보를 불러오지 못했어요. 다시 시도해 주세요.' : '')
+              }
+              onRetry={onRetryProfile}
+            />
+          ) : null}
           <button
             type="button"
             className="primary sunjalal-start-button"
@@ -85,6 +106,7 @@ export function AiChatPage({
     );
   return (
     <ChatPage
+      feedback={feedback}
       key={`${userId}:${selected.userId}`}
       userId={userId}
       recipient={selected}
@@ -95,11 +117,13 @@ export function AiChatPage({
 }
 
 function ChatPage({
+  feedback,
   userId,
   recipient,
   onProduct,
   onBack,
 }: {
+  feedback?: ReactNode;
   userId: number;
   recipient: ChatRecipient;
   onProduct: (product: Product, recipient: ChatRecipient) => void;
@@ -222,7 +246,7 @@ function ChatPage({
         className="page ai-chat-page"
         style={{ paddingBottom: controlsHeight + bottomInset + 16 }}
       >
-        <ScreenHeader title="선잘알 봇" onBack={onBack} />
+        <ScreenHeader title="선잘알 봇" onBack={onBack} action={feedback} />
         <p className="ai-chat-recipient">{snapshot.recipient.name}님에게 줄 선물</p>
         <div className="ai-chat-thread" aria-live="polite" aria-relevant="additions text">
           <div className="ai-chat-message assistant">

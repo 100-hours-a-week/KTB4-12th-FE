@@ -21,6 +21,9 @@ function formatBirthdayLabel(birth: string) {
 
 export function MyPage({
   profile,
+  loading,
+  error,
+  onRetry,
   onAccount,
   onReceived,
   onSent,
@@ -29,6 +32,9 @@ export function MyPage({
   action,
 }: {
   profile: MyProfile | null;
+  loading: boolean;
+  error: string;
+  onRetry: () => void;
   onAccount: () => void;
   onReceived: () => void;
   onSent: () => void;
@@ -39,40 +45,52 @@ export function MyPage({
   return (
     <section className="page mypage-page">
       <ScreenHeader title="마이페이지" action={action} />
-      <article className="profile-card">
-        <div>
-          <strong>{profile?.name ?? '…'}</strong>
-          <span>{profile ? formatBirthdayLabel(profile.birth) : '…'}</span>
-          <small>{profile?.email ?? ''}</small>
-          <span className="credit-balance">
-            보유 크레딧 {profile ? `${(profile.creditBalance ?? 0).toLocaleString()} C` : '…'}
-          </span>
+      <AsyncContentState loading={loading && !profile} error={error} onRetry={onRetry} />
+      {profile ? (
+        <>
+          <article className="profile-card">
+            <div>
+              <strong>{profile.name}</strong>
+              <span>{formatBirthdayLabel(profile.birth)}</span>
+              <small>{profile.email}</small>
+              <span className="credit-balance">
+                보유 크레딧 {`${(profile.creditBalance ?? 0).toLocaleString()} C`}
+              </span>
+            </div>
+            <button type="button" className="primary compact" onClick={onAccount}>
+              <GearIcon /> 내 정보 관리
+            </button>
+          </article>
+          <div className="settings-list">
+            <SettingRow label="내 정보 및 공개 설정" value="설정" onClick={onAccount} />
+            <SettingRow
+              label="받은 선물"
+              value={`${profile.giftSummary.receivedCount}건`}
+              onClick={onReceived}
+            />
+            <SettingRow
+              label="보낸 선물"
+              value={`${profile.giftSummary.sentCount}건`}
+              onClick={onSent}
+            />
+            <SettingRow label="비선호 카테고리" value="설정" onClick={onPreferences} />
+            <SettingRow label="내 선물 취향" value="작성" onClick={onGiftPreference} />
+          </div>
+        </>
+      ) : (
+        <div className="settings-list">
+          <SettingRow label="내 정보 및 공개 설정" value="설정" onClick={onAccount} />
         </div>
-        <button type="button" className="primary compact" onClick={onAccount}>
-          <GearIcon /> 내 정보 관리
-        </button>
-      </article>
-      <div className="settings-list">
-        <SettingRow label="내 정보 및 공개 설정" value="설정" onClick={onAccount} />
-        <SettingRow
-          label="받은 선물"
-          value={profile ? `${profile.giftSummary.receivedCount}건` : '-건'}
-          onClick={onReceived}
-        />
-        <SettingRow
-          label="보낸 선물"
-          value={profile ? `${profile.giftSummary.sentCount}건` : '-건'}
-          onClick={onSent}
-        />
-        <SettingRow label="비선호 카테고리" value="설정" onClick={onPreferences} />
-        <SettingRow label="내 선물 취향" value="작성" onClick={onGiftPreference} />
-      </div>
+      )}
     </section>
   );
 }
 
 export function AccountPage({
   profile,
+  loading,
+  error,
+  onRetry,
   onBack,
   onBirthday,
   onBirthdayPublic,
@@ -80,6 +98,9 @@ export function AccountPage({
   action,
 }: {
   profile: MyProfile | null;
+  loading: boolean;
+  error: string;
+  onRetry: () => void;
   onBack: () => void;
   onBirthday: () => void;
   onBirthdayPublic: () => void;
@@ -89,31 +110,38 @@ export function AccountPage({
   return (
     <section className="page account-page">
       <ScreenHeader title="내 정보 및 공개 설정" onBack={onBack} action={action} />
-      <article className="account-intro">
-        <strong>정보 공개 설정</strong>
-        <p>이름은 항상 공개되며, 생일 공개만 관리해요.</p>
-      </article>
-      <div className="account-list">
-        <SettingRow
-          label="생년월일"
-          value={`${profile ? formatBirthday(profile.birth) : '…'}  수정`}
-          onClick={onBirthday}
-        />
-        <button
-          type="button"
-          className="setting-row"
-          role="switch"
-          aria-checked={profile?.isBirthdayPublic ?? false}
-          onClick={onBirthdayPublic}
-        >
-          <span>생일 공개</span>
-          <span>
-            {profile?.isBirthdayPublic ? '공개' : '비공개'}
-            <i className={`switch ${profile?.isBirthdayPublic ? 'on' : ''}`} />
-          </span>
-        </button>
+      <AsyncContentState loading={loading && !profile} error={error} onRetry={onRetry} />
+      {profile ? (
+        <>
+          <article className="account-intro">
+            <strong>정보 공개 설정</strong>
+            <p>이름은 항상 공개되며, 생일 공개만 관리해요.</p>
+          </article>
+          <div className="account-list">
+            <SettingRow
+              label="생년월일"
+              value={`${profile ? formatBirthday(profile.birth) : '…'}  수정`}
+              onClick={onBirthday}
+            />
+            <button
+              type="button"
+              className="setting-row"
+              role="switch"
+              aria-checked={profile?.isBirthdayPublic ?? false}
+              onClick={onBirthdayPublic}
+            >
+              <span>생일 공개</span>
+              <span>
+                {profile?.isBirthdayPublic ? '공개' : '비공개'}
+                <i className={`switch ${profile?.isBirthdayPublic ? 'on' : ''}`} />
+              </span>
+            </button>
+            <SettingRow label="로그아웃" value="" onClick={onLogout} />
+          </div>
+        </>
+      ) : (
         <SettingRow label="로그아웃" value="" onClick={onLogout} />
-      </div>
+      )}
     </section>
   );
 }
@@ -135,16 +163,6 @@ export function PreferencesPage({
         선택한 카테고리는 친구들이 선물할 때<br />
         경고로 표시돼요. (최대 {selection.maxSelectableCount}개)
       </p>
-      <div className="preference-toolbar">
-        <span>{selection.selected.length}개 선택</span>
-        <button
-          type="button"
-          disabled={!selection.selected.length || selection.saving}
-          onClick={selection.reset}
-        >
-          전체 초기화
-        </button>
-      </div>
       <AsyncContentState
         loading={selection.loading}
         error={selection.error}
@@ -156,6 +174,9 @@ export function PreferencesPage({
           selected={selection.selected}
           disabled={selection.saving}
           onToggle={selection.toggle}
+          limitReached={selection.limitReached}
+          onReset={selection.reset}
+          maxSelectableCount={selection.maxSelectableCount}
         />
       ) : null}
       <button

@@ -47,6 +47,8 @@ export function OnboardingPreferenceSheet({
           selected={selection.selected}
           disabled={selection.saving}
           onToggle={selection.toggle}
+          limitReached={selection.limitReached}
+          maxSelectableCount={selection.maxSelectableCount}
         />
       ) : null}
       <div className="onboarding-actions">

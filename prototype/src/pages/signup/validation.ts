@@ -28,3 +28,25 @@ export function isValidSignupEmail(email: string) {
 export function isValidSignupPassword(password: string) {
   return isValidPassword(password);
 }
+
+export const SIGNUP_BIRTHDAY_ERROR = '만 14세 이상만 가입할 수 있습니다.';
+
+export function latestSignupBirthday(today = new Date()) {
+  const year = today.getFullYear() - 14;
+  const month = today.getMonth();
+  // Match LocalDate.minusYears: February 29 becomes February 28 in a non-leap year.
+  const day = Math.min(today.getDate(), new Date(year, month + 1, 0).getDate());
+  return `${year}.${String(month + 1).padStart(2, '0')}.${String(day).padStart(2, '0')}`;
+}
+
+export function isValidSignupBirthday(value: string, today = new Date()) {
+  if (!/^\d{4}\.\d{2}\.\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('.').map(Number);
+  const date = new Date(year, month - 1, day);
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day &&
+    value <= latestSignupBirthday(today)
+  );
+}

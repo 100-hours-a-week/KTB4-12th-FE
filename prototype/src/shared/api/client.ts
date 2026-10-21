@@ -54,12 +54,31 @@ async function parseBody<T>(response: Response): Promise<ApiResponse<T>> {
   }
 }
 
+async function fetchResponse(url: URL, options: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, options);
+  } catch (cause) {
+    // Navigation and explicit cancellation must keep their abort semantics.
+    if (options.signal?.aborted || (cause instanceof Error && cause.name === 'AbortError'))
+      throw cause;
+    const error = new ApiError(
+      '서버에 연결하지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.',
+      0,
+      {
+        code: 'NETWORK_ERROR',
+      },
+    );
+    error.cause = cause;
+    throw error;
+  }
+}
+
 // refresh token은 HttpOnly 쿠키(Path=/auth)로만 오가므로 credentials를 포함해 호출한다.
 // 응답 body에 refreshToken이 오는 서버라면 함께 갱신한다.
 async function refreshAccessToken(version: number, signal?: AbortSignal): Promise<string | null> {
   const session = loadSession();
   if (!session) return null;
-  const response = await fetch(buildUrl('/auth/refresh'), {
+  const response = await fetchResponse(buildUrl('/auth/refresh'), {
     signal,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -100,7 +119,7 @@ async function requestResponse(
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
 
-  const response = await fetch(buildUrl(path, params), {
+  const response = await fetchResponse(buildUrl(path, params), {
     method,
     signal,
     headers,

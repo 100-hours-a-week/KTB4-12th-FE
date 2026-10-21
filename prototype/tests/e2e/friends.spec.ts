@@ -53,7 +53,7 @@ test('기존 사용자가 이메일로 사용자를 찾아 친구 요청을 보�
   await expect(page.locator('.friend-result')).toHaveCount(1);
   await expect(page.getByText('kakaa@kakao.co.kr')).toBeVisible();
 
-  await page.getByRole('button', { name: '김민정 추가', exact: true }).click();
+  await page.getByRole('button', { name: '김민정 친구 요청', exact: true }).click();
   await expect(page.getByRole('button', { name: '김민정 요청 보냄', exact: true })).toBeDisabled();
   await expect(page.locator('.app-toast')).toHaveText('친구 요청을 보냈습니다.');
 
@@ -66,7 +66,13 @@ test('기존 사용자가 이메일로 사용자를 찾아 친구 요청을 보�
   await expect(page.getByRole('button', { name: '요청 취소', exact: true })).toBeVisible();
 });
 
-test('친구 검색은 빈값이나 공백만 입력하면 실행할 수 없다', async ({ page }) => {
+test('친구 검색은 올바른 이메일 형식일 때만 활성화된다', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  const entry = page.getByRole('button', { name: '친구 추가', exact: true });
+  await expect(entry).toBeEnabled();
+  await expect(page.locator('.friend-card')).toHaveCount(20);
+  expect((await entry.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await page.screenshot({ path: '/tmp/friend-buttons-entry.png' });
   await page.getByRole('button', { name: '친구 추가', exact: true }).click();
   await page.getByRole('button', { name: '친구 이메일 검색' }).click();
 
@@ -74,11 +80,30 @@ test('친구 검색은 빈값이나 공백만 입력하면 실행할 수 없다'
   const searchButton = page.getByRole('button', { name: '검색', exact: true });
 
   await expect(searchButton).toBeDisabled();
+  const searchSurface = searchButton.locator('span');
+  const disabledBackground = await searchSurface.evaluate(
+    (el) => getComputedStyle(el).backgroundColor,
+  );
+  expect((await searchButton.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await searchInput.fill('   ');
   await expect(searchButton).toBeDisabled();
 
-  await searchInput.fill('ㄱ');
+  for (const value of ['ㄱ', 'notanemail', 'name@', 'name@example', 'name @example.com']) {
+    await searchInput.fill(value);
+    await expect(searchButton).toBeDisabled();
+  }
+  await searchInput.fill('  kakaa@kakao.co.kr  ');
   await expect(searchButton).toBeEnabled();
+  expect(await searchSurface.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(
+    disabledBackground,
+  );
+  await searchInput.fill('kakaa@kakao.co.kr');
+  await searchButton.click();
+  await expect(page.getByRole('button', { name: '김민정 친구 요청' })).toBeVisible();
+  await expect(searchSurface).toHaveCSS('background-color', 'rgb(184, 62, 74)');
+  await expect(searchSurface).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await page.screenshot({ path: '/tmp/friend-buttons-result.png' });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 });
 
 test('친구 추가 닫기 버튼과 검색 영역 사이에 충분한 간격을 둔다', async ({ page }) => {
@@ -100,18 +125,23 @@ test('친구 검색 결과가 나 자신이면 추가 버튼을 표시하지 않
   await page.getByRole('button', { name: '검색', exact: true }).click();
 
   await expect(page.getByText('email@email.com')).toBeVisible();
-  await expect(page.getByRole('button', { name: '홍길동 추가', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '홍길동 친구 요청', exact: true })).toHaveCount(0);
 });
 
-test('친구 검색 API 오류를 토스트로 표시한다', async ({ page }) => {
+test('친구 검색 API 오류를 시트 안에 표시하고 입력 수정 시 지운다', async ({ page }) => {
   await page.goto('/?qa=friend-search-error');
   await page.getByRole('button', { name: '친구 추가', exact: true }).click();
   await page.getByRole('button', { name: '친구 이메일 검색' }).click();
   await page.getByLabel('친구 이메일 검색').fill('kakaa@kakao.co.kr');
   await page.getByRole('button', { name: '검색', exact: true }).click();
 
-  await expect(page.locator('.app-toast')).toHaveText('친구 검색에 실패했습니다.');
-  await expect(page.locator('.friend-results [role="alert"]')).toHaveCount(0);
+  const sheet = page.getByRole('dialog', { name: '친구 추가', exact: true });
+  await expect(sheet.getByRole('alert')).toHaveText('친구 검색에 실패했습니다.');
+  await expect(page.locator('.app-toast')).toHaveCount(0);
+  await expect(page.getByLabel('친구 이메일 검색')).toHaveAttribute('aria-invalid', 'true');
+  await page.getByLabel('친구 이메일 검색').fill('other@example.com');
+  await expect(sheet.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByLabel('친구 이메일 검색')).toHaveAttribute('aria-invalid', 'false');
 });
 
 test('친구 추가 API 오류를 토스트로 표시한다', async ({ page }) => {
@@ -120,7 +150,7 @@ test('친구 추가 API 오류를 토스트로 표시한다', async ({ page }) =
   await page.getByRole('button', { name: '친구 이메일 검색' }).click();
   await page.getByLabel('친구 이메일 검색').fill('kakaa@kakao.co.kr');
   await page.getByRole('button', { name: '검색', exact: true }).click();
-  await page.getByRole('button', { name: '김민정 추가', exact: true }).click();
+  await page.getByRole('button', { name: '김민정 친구 요청', exact: true }).click();
 
   await expect(page.locator('.app-toast')).toHaveText('친구 추가에 실패했습니다.');
   await expect(page.locator('.friend-results [role="alert"]')).toHaveCount(0);
@@ -157,4 +187,28 @@ test('목업 받은 요청을 수락하면 친구 목록에서 선물할 수 있
   await page.getByRole('tab', { name: '친구 목록', exact: true }).click();
   const friend = page.locator('.friend-card').filter({ hasText: '이서진' });
   await expect(friend.getByRole('button', { name: '선물하기' })).toBeVisible();
+});
+
+test('잘못된 이메일의 Enter 검색을 막고 수정하면 검색할 수 있다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: '친구 추가', exact: true }).click();
+  await page.getByRole('button', { name: '친구 이메일 검색' }).click();
+  const input = page.getByLabel('친구 이메일 검색');
+  const search = page.getByRole('button', { name: '검색', exact: true });
+  await input.fill('notanemail');
+  await expect(search).toBeDisabled();
+  await input.press('Enter');
+  await expect(page.locator('.friend-result')).toHaveCount(0);
+  await input.fill('kakaa@kakao.co.kr');
+  await expect(search).toBeEnabled();
+  await input.press('Enter');
+  const sheet = page.getByRole('dialog', { name: '친구 추가', exact: true });
+  await expect(sheet.getByRole('button', { name: '김민정 친구 요청' })).toBeVisible();
+  await input.fill('invalid');
+  await expect(search).toBeDisabled();
+  await expect(page.locator('.friend-result')).toHaveCount(0);
+  await page.getByRole('button', { name: '친구 추가 닫기' }).click();
+  await page.getByRole('button', { name: '친구 추가', exact: true }).click();
+  await expect(sheet.getByRole('alert')).toHaveCount(0);
+  await expect(search).toBeDisabled();
 });

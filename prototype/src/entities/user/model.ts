@@ -1,10 +1,6 @@
 export type GiftSummary = {
   sentCount: number;
   receivedCount: number;
-  period: {
-    from: string;
-    to: string;
-  };
 };
 
 export type MyProfile = {

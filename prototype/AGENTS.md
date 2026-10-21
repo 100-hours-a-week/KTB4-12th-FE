@@ -74,7 +74,7 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 - On phone-sized and coarse-pointer environments, direct `ScreenHeader` children of app pages stay fixed flush to the top while the page body scrolls beneath them. Desktop simulated-device headers remain non-sticky.
 - The feedback widget (formerly bug-report only) supports three categories — 버그 / 제안 / 도움 — chosen via chips in a modal titled "의견 남기기"; the FAB uses the supplied report character image. The screenshot attach toggle is shown only for 버그/제안; 도움 never sends a screenshot. Screen spec lives in `docs/report-categories.md`.
 - 리포트 버튼은 제공된 선물 상자 신고 캐릭터 원본(`public/assets/brand/sunjalal-report.png`)을 사용한다. 단독 버튼과 플로팅 메뉴의 리포트 항목 모두 챗봇 버튼과 같은 이미지 버튼 스타일을 적용하고 캐릭터를 자르지 않는다.
-- 플로팅 메뉴의 캐릭터 왼쪽에는 각각 “AI 선물 추천”, “의견 보내기” 라벨을 표시한다. 단독 리포트 버튼에도 “의견 보내기” 라벨을 표시한다.
+- 플로팅 메뉴의 캐릭터 왼쪽에는 각각 “AI 선물 추천”, “의견 보내기” 라벨을 표시한다. 단독 리포트 버튼은 캐릭터만 표시하고 시각적 라벨은 숨긴다. 접근성 이름은 유지한다.
 - V3 expands gift history to include sent/received detail screens. Received-gift detail now composes the gift detail API with the confirmed review API for active review lookup, creation, editing, and soft deletion. Sent-gift detail and product browse detail do not expose review actions. Password changes are still excluded.
 - AI chat uses the public BE `/recommendations/conversations` APIs for creation/recovery, turn submission, fetch SSE, turn lookup and explicit cancellation. Store conversations in versioned, user-scoped sessionStorage snapshots; never call BE–AI internal endpoints. Input is limited to 100 Unicode code points. Screen navigation closes only the transport; only the stop button cancels generation. Mock chat scenarios use `chatMock=text|long|reconnect|slow|delayed_tokens|failed|timeout|cards`; production mode uses the existing API environment settings. Profile statuses (`NONE`, `PENDING`, `COMPLETED`, `FAILED`) appear only through the corresponding `ai-profile-*` QA query.
 - Chat recommendation cards validate live product details and stock before opening the existing product screen; keep per-product failures separate from chat failures. Mock card IDs 900000001–900000003 must never reach product APIs. There is no dedicated regenerate contract/button; additional conditions use the existing composer and a new turn ID.
@@ -82,7 +82,7 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 
 - 기존 종 버튼·알림 목록·이전 미읽음 알림은 유지한다. 목록 조회·로그인·새로고침에서 가져온 과거 알림은 팝업으로 표시하지 않는다.
 - 미읽음 개수는 로그인 세션 시작 시 최초 조회하고 SSE 새 알림·연결 복구 시 갱신한다. 화면 전환·창 포커스·탭 복귀·알림 목록 열기로 재조회하지 않으며, 읽음 처리 응답의 개수를 직접 반영한다.
-- 로그인 중 SSE 새 알림은 화면 위에서 내려오는 팝업 형태의 앱 상단 배너로 표시한다. 배경 화면은 움직이지 않고, 알림 아이콘·앱 이름·제목·내용을 보여준다. 모션 감소 설정에서는 이동 애니메이션을 생략한다. 배너는 6초 후 닫히며, 클릭 시 읽음 처리 후 알림 목록과 동일한 화면 이동 규칙을 따른다.
+- 로그인 중 SSE 새 알림은 화면 위에서 내려오는 팝업 형태의 앱 상단 배너로 표시한다. 배경 화면은 움직이지 않고, 알림 아이콘·앱 이름·제목·내용을 보여준다. 모션 감소 설정에서는 이동 애니메이션을 생략한다. 배너는 3초 후 닫히며, 클릭 시 읽음 처리 후 알림 목록과 동일한 화면 이동 규칙을 따른다.
 
 ## Interaction Rules
 
@@ -117,8 +117,27 @@ When any text-entry control loses focus, dismiss the simulated keyboard. If the 
 
 - 받은 선물 목록·상세에서는 금액을 표시하지 않는다. 상세에는 수량을 유지하고 단일 가격·총 가격을 숨긴다. 보낸 선물 상세의 금액 표시는 유지한다.
 
+- 마이페이지의 “내 정보 관리” 버튼에는 아래로 퍼지는 색상 그림자를 사용하지 않는다.
+
 - 상품 목록의 카드 디자인은 유지한다. 상품 상세는 큰 원본 비율 이미지·브랜드·상품명·금액·설명을 하나의 흰색 패널로 묶고, 수량 조절과 선물하기 버튼은 기존처럼 별도 비고정 요소로 유지한다.
 
 - 사용자 요청에 따라 AI 채팅의 화면 이름은 “선잘알 봇”으로 표시하고, 제공된 캐릭터 원본 이미지를 진입 버튼·봇 프로필·수신자 선택 전 안내에 사용한다. 첫 화면은 코랄 색상 안내 카드로 구성하며 기존 SSE·수신자 선택·고정 헤더·저장 복원 흐름을 유지한다.
 
 - AI 채팅 입력 영역은 하단 안전 영역 바로 위에 붙인다. 추천 질문·입력창의 바탕은 화면 좌우 끝과 하단 안전 영역까지 불투명하게 채워 뒤쪽 대화가 비치지 않게 한다. 키보드가 열리면 기존 bottomInset을 따른다.
+- 상품 상세의 플로팅 보조 버튼은 스크롤과 무관하게 오른쪽 하단에 떠 있도록 고정한다. 사용자는 하단 전용 영역이나 본문 뷰포트를 줄여 공간을 확보하는 방식을 원하지 않는다. AI 채팅에서는 헤더 우측에 배치하고, 시트·대화상자·메뉴가 열리면 배경 보조 버튼을 숨긴다. 기존 캐릭터와 펼친 메뉴의 라벨은 유지한다.
+
+- 모바일 브라우저의 이메일·날짜·전화번호 등 자동 링크 변환은 `index.html`의 `format-detection` 메타 설정으로 비활성화한다. 앱에서 명시적으로 제공하는 링크는 유지한다.
+
+- 홈 화면 설치 아이콘은 기존 `sunjalal-app-icon.png` 로고를 사용한다. 아이폰은 180px `apple-touch-icon`, 안드로이드는 매니페스트의 192px·512px 아이콘을 사용하며 투명 영역은 앱 배경색으로 채운다.
+
+- 검색용 파비콘은 공식 서비스 도메인 `https://www.seonjalal.com`의 192px 아이콘을 절대 URL로 선언한다. 홈페이지와 공개 아이콘의 검색 수집을 허용하는 `public/robots.txt`를 유지한다.
+
+- 친구 추가 진입은 검색창 안 오른쪽의 작은 + 아이콘으로 표시하고 옅은 코랄 배경·진한 아이콘 색을 사용한다. 검색 버튼은 높이 30px의 작은 알약 모양으로 표시하되 실제 터치 높이는 44px 이상 유지한다. 검색·친구 요청은 활성 시 진한 코랄과 흰 글자, 비활성 시 회색으로 구분한다. 요청 상태는 “친구 요청 / 요청 중… / 요청 보냄”으로 표시한다.
+
+- 알림 SSE는 문서가 숨겨지거나 pagehide가 발생하면 연결과 재연결 타이머를 중단하고, visible/pageshow 복귀 시 한 번만 재연결한다. 복구 성공 후 기존 경로로 미읽음 개수·열린 목록을 갱신한다. AI 채팅 SSE에는 이 정책을 적용하지 않는다.
+
+- 비선호 카테고리 제한 안내는 개별 항목 아래에 삽입하지 않는다. 선택 개수 영역에서 안내하며, 전체 해제는 배경 없는 작은 텍스트 버튼으로 표시하되 44px 터치 높이를 유지한다.
+
+- 비선호 카테고리 선택 제한을 넘기면 선택 개수 영역의 안내와 함께 3초 토스트를 표시한다. 반복 시도 시 표시 시간을 갱신하고, 선택 해제·전체 해제 시 토스트를 닫는다.
+
+- 친구 추가의 검색 버튼은 앞뒤 공백을 제거한 값이 올바른 이메일 형식일 때만 활성화한다. 검색 API 실패는 시트 검색창 아래에 표시하고 입력 수정·시트 닫기 시 지운다.

@@ -18,9 +18,11 @@ export function useDislikeCategorySelection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [limitReached, setLimitReached] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLimitReached(false);
     setError('');
     try {
       const result = await fetchDislikeCategories();
@@ -40,7 +42,12 @@ export function useDislikeCategorySelection() {
     void load();
   }, [load]);
 
-  const toggle = (categoryId: number) =>
+  const toggle = (categoryId: number) => {
+    if (!selected.includes(categoryId) && selected.length >= maxSelectableCount) {
+      setLimitReached(true);
+      return;
+    }
+    setLimitReached(false);
     setSelected((current) =>
       current.includes(categoryId)
         ? current.filter((id) => id !== categoryId)
@@ -48,6 +55,7 @@ export function useDislikeCategorySelection() {
           ? [...current, categoryId]
           : current,
     );
+  };
 
   const save = async () => {
     setSaving(true);
@@ -70,12 +78,16 @@ export function useDislikeCategorySelection() {
     options,
     selected,
     maxSelectableCount,
+    limitReached,
     loading,
     saving,
     error,
     dirty: useMemo(() => !sameIds(initial, selected), [initial, selected]),
     toggle,
-    reset: () => setSelected([]),
+    reset: () => {
+      setSelected([]);
+      setLimitReached(false);
+    },
     load,
     save,
   };
