@@ -289,7 +289,21 @@ textarea:focus-visible,
   place-items: center;
   background: transparent;
 }
+.login-page .input-with-icon {
+  position: relative;
+  padding: 0;
+}
+.login-page .input-with-icon input {
+  width: 100%;
+  height: 100%;
+  padding: 0 66px 0 14px;
+  border-radius: inherit;
+}
 .login-page .input-with-icon button {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
   min-width: 44px;
   min-height: 44px;
   flex-shrink: 0;
