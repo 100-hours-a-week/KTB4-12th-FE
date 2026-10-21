@@ -1758,8 +1758,8 @@ textarea:focus-visible,
 }
 .ai-chat-thread {
   display: grid;
-  gap: 12px;
-  padding: 18px 4px 8px;
+  gap: 20px;
+  padding: 18px 0 16px;
 }
 .ai-chat-message {
   display: flex;
@@ -1836,7 +1836,9 @@ textarea:focus-visible,
   background: #fff;
 }
 .ai-composer textarea {
-  min-height: 110px;
+  min-height: 44px;
+  max-height: 88px;
+  line-height: 1.6;
   border: 0;
   outline: 0;
   resize: none;
@@ -3169,6 +3171,69 @@ textarea:focus-visible,
   color: var(--muted);
 }
 
+.gift-app[data-route='ai-chat'] .bug-report-fab .floating-action-label {
+  display: none;
+}
+.ai-chat-controls {
+  right: 0;
+  left: 0;
+  padding: 10px 20px 8px;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: #fffaf8;
+  box-shadow: 0 -8px 24px rgba(72, 45, 39, 0.04);
+}
+.ai-chat-status-card {
+  margin: 8px 0 12px 41px;
+  padding: 14px;
+  border: 1px solid #efdfda;
+  border-radius: 14px;
+  background: #fff;
+}
+.ai-chat-status-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.ai-chat-status-card .ai-chat-status {
+  margin: 6px 0 0;
+  line-height: 1.6;
+}
+.ai-chat-status-card button {
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 0 14px;
+  border: 1px solid #efdfda;
+  border-radius: 10px;
+  background: #fff7f4;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+.ai-composer:focus-within {
+  border-color: var(--accent);
+}
+.ai-composer button:focus-visible,
+.ai-chat-status-card button:focus-visible,
+.ai-chat-suggestions button:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 3px;
+}
+.ai-chat-suggestions button:disabled {
+  opacity: 0.5;
+}
+
+.ai-chat-controls::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: var(--chat-bottom-inset);
+  background: #fffaf8;
+  pointer-events: none;
+}
 /* Keep secondary actions in their own row on detail and chat screens. */
 .feedback-inline {
   display: flex;
@@ -3201,5 +3266,9 @@ textarea:focus-visible,
 }
 
 .product-feedback-dock .feedback-inline {
+  margin: 0;
+}
+
+.ai-chat-page .screen-header .feedback-inline {
   margin: 0;
 }

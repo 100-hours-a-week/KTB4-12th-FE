@@ -194,3 +194,41 @@ test('선잘알 캐릭터 진입 버튼과 받는 사람 선택 안내를 표시
   await page.getByRole('button', { name: '받는 사람 선택', exact: true }).click();
   await expect(page.getByRole('dialog', { name: '받는 사람 선택', exact: true })).toBeVisible();
 });
+
+test('채팅 입력창은 대화 공간을 확보하고 의견 버튼과 겹치지 않는다', async ({ page }, testInfo) => {
+  await openChat(page, 'long');
+  await submit(page);
+  await expect(page.locator('.ai-chat-message[data-status=COMPLETED]')).toBeVisible({
+    timeout: 15000,
+  });
+  await expect(page.getByRole('dialog', { name: '받는 사람 선택', exact: true })).toBeHidden();
+  const coverage = await page.locator('.ai-chat-controls').evaluate((node) => {
+    const style = getComputedStyle(node);
+    const fill = getComputedStyle(node, '::after');
+    const bounds = node.getBoundingClientRect();
+    const parent = node.parentElement!.getBoundingClientRect();
+    return {
+      left: bounds.left - parent.left,
+      right: parent.right - bounds.right,
+      bottomGap: parent.bottom - bounds.bottom - parseFloat(fill.height),
+      background: style.backgroundColor,
+      fill: fill.backgroundColor,
+    };
+  });
+  expect(coverage.left).toBeCloseTo(0);
+  expect(coverage.right).toBeCloseTo(0);
+  expect(coverage.bottomGap).toBeCloseTo(0);
+  expect(coverage.background).toBe('rgb(255, 250, 248)');
+  expect(coverage.fill).toBe(coverage.background);
+  const composer = await page.locator('.ai-composer').boundingBox();
+  const feedback = await page
+    .getByRole('button', { name: '의견 남기기', exact: true })
+    .boundingBox();
+  expect(composer).not.toBeNull();
+  expect(feedback).not.toBeNull();
+  expect(composer!.height).toBeLessThan(130);
+  expect(feedback!.y + feedback!.height).toBeLessThan(composer!.y);
+  await page.getByRole('button', { name: '친구 생일 선물', exact: true }).click();
+  await expect(page.getByLabel('채팅 메시지')).toHaveValue('친한 친구의 생일 선물을 추천해줘');
+  await page.getByTestId('gift-app').screenshot({ path: testInfo.outputPath('chat-ux.png') });
+});
