@@ -748,7 +748,8 @@ textarea:focus-visible,
   line-height: 1.25;
 }
 .product-card small {
-  margin-top: 5px;
+  margin-top: auto;
+  padding-top: 5px;
   font-size: 12px;
 }
 .profile-card {
