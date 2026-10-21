@@ -97,7 +97,7 @@ test('알림을 읽고 받은 선물 상세로 이동한다', async ({ page }) =
 test('최초 로그인에서는 공통 비선호 카테고리 선택 시트를 표시한다', async ({ page }) => {
   await page.goto('/?qa=first-login');
   await page.getByLabel('이메일').fill('test@gift.local');
-  await page.getByLabel('비밀번호').fill('Test1234!');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Test1234!');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
 
   const sheet = page.getByRole('dialog', { name: '비선호 카테고리 설정' });

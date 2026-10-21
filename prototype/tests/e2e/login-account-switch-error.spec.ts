@@ -122,7 +122,7 @@ test('화면 이동은 프로필을 재조회하지 않고 저장과 새 로그�
 });
 async function loginB(page: Page) {
   await page.getByLabel('이메일').fill(userB.email);
-  await page.getByLabel('비밀번호').fill('Password123!');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Password123!');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('heading', { name: '친구', exact: true })).toBeVisible();
 }

@@ -289,6 +289,11 @@ textarea:focus-visible,
   place-items: center;
   background: transparent;
 }
+.login-page .input-with-icon button {
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+}
 .birthday-trigger {
   display: flex;
   align-items: center;
