@@ -175,6 +175,7 @@ textarea:focus-visible,
 }
 .friend-list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   margin-top: 12px;
 }
@@ -182,10 +183,26 @@ textarea:focus-visible,
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 14px;
   min-height: 112px;
   padding: 18px;
   border-radius: 15px;
   background: var(--surface);
+}
+.friend-identity {
+  flex: 1;
+  min-width: 0;
+}
+.friend-identity > strong {
+  overflow-wrap: anywhere;
+}
+.friend-identity > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.friend-card-actions > .pill-button {
+  white-space: nowrap;
 }
 .friend-card strong,
 .friend-card small,
