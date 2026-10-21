@@ -1,4 +1,5 @@
 import {
+  type CSSProperties,
   Fragment,
   useCallback,
   useEffect,
@@ -129,7 +130,7 @@ function ChatPage({
   const { bottomInset } = useKeyboardInsets();
   const [host, setHost] = useState<Element | null>(null);
   const controlsRef = useRef<HTMLDivElement | null>(null);
-  const [controlsHeight, setControlsHeight] = useState(240);
+  const [controlsHeight, setControlsHeight] = useState(160);
   const pageRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef<HTMLElement | null>(null);
   const restoring = useRef(true);
@@ -219,7 +220,7 @@ function ChatPage({
       <section
         ref={bindPage}
         className="page ai-chat-page"
-        style={{ paddingBottom: controlsHeight + bottomInset + 32 }}
+        style={{ paddingBottom: controlsHeight + bottomInset + 16 }}
       >
         <ScreenHeader title="선잘알 봇" onBack={onBack} />
         <p className="ai-chat-recipient">{snapshot.recipient.name}님에게 줄 선물</p>
@@ -291,25 +292,29 @@ function ChatPage({
                   <p>{pending.body.message}</p>
                 </div>
               </div>
-              <p>
-                {pending.state === 'unknown'
-                  ? '접수 여부 확인 필요'
-                  : pending.state === 'rejected'
-                    ? '질문이 접수되지 않았습니다.'
-                    : '질문을 접수하고 있어요.'}
-              </p>
             </>
           ) : null}
         </div>
-        {notice ? (
-          <p className="ai-chat-status" role="status">
-            {notice}
-          </p>
-        ) : null}
-        {!busy && (snapshot.pending || processing) ? (
-          <button type="button" className="secondary-button" onClick={() => void chat.retry()}>
-            {snapshot.pending?.state === 'rejected' ? '같은 질문 다시 보내기' : '상태 확인'}
-          </button>
+        {notice || pending || processing ? (
+          <div className="ai-chat-status-card" role="status">
+            <p className="ai-chat-status-title">
+              {pending?.state === 'rejected'
+                ? '질문을 보내지 못했어요'
+                : pending?.state === 'unknown'
+                  ? '질문 접수 여부를 확인해 주세요'
+                  : processing
+                    ? '선물을 찾고 있어요'
+                    : pending
+                      ? '질문을 보내고 있어요'
+                      : '이용 안내'}
+            </p>
+            {notice ? <p className="ai-chat-status">{notice}</p> : null}
+            {!busy && (snapshot.pending || processing) ? (
+              <button type="button" onClick={() => void chat.retry()}>
+                {snapshot.pending?.state === 'rejected' ? '같은 질문 다시 보내기' : '상태 확인'}
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </section>
       {host
@@ -317,7 +322,9 @@ function ChatPage({
             <div
               ref={controlsRef}
               className="ai-chat-controls"
-              style={{ bottom: bottomInset + 16 }}
+              style={
+                { bottom: bottomInset, '--chat-bottom-inset': `${bottomInset}px` } as CSSProperties
+              }
             >
               <Carousel
                 className="ai-chat-suggestions"
@@ -343,7 +350,8 @@ function ChatPage({
                 <KeyboardTextarea
                   value={snapshot.draft}
                   aria-label="채팅 메시지"
-                  placeholder="메시지를 입력하세요..."
+                  placeholder="어떤 선물을 찾고 계세요?"
+                  rows={2}
                   disabled={blocked}
                   onChange={(event) => chat.setDraft(event.target.value)}
                 />
