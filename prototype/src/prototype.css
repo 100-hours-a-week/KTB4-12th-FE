@@ -735,8 +735,13 @@ textarea:focus-visible,
 .profile-card small {
   display: block;
 }
+.profile-card > div {
+  flex: 1;
+  min-width: 0;
+}
 .profile-card strong {
   font-size: 18px;
+  overflow-wrap: anywhere;
 }
 .profile-card span {
   margin-top: 4px;
@@ -745,6 +750,9 @@ textarea:focus-visible,
 }
 .profile-card small {
   margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .profile-card .credit-balance {
   margin-top: 12px;
@@ -753,6 +761,8 @@ textarea:focus-visible,
 }
 .profile-card .primary {
   box-shadow: none;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .settings-list {
   display: grid;
