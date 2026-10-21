@@ -25,7 +25,7 @@ test('인증 제한 저장소 장애 시 내부 정보 없이 503 안내를 표�
 
   await page.goto('/');
   await page.getByLabel('이메일').fill('test@gift.local');
-  await page.getByLabel('비밀번호').fill('Test1234!');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Test1234!');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
 
   await expect(page.getByRole('alert')).toHaveText(
