@@ -600,6 +600,7 @@ textarea:focus-visible,
 }
 .gift-search-row .inline-search {
   width: auto;
+  min-width: 0;
   flex: 1 1 auto;
 }
 .friend-search-field {
@@ -1586,15 +1587,20 @@ textarea:focus-visible,
   color: var(--muted);
 }
 .friend-add-filter {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
   border-radius: 9px;
   background: transparent;
-  color: var(--muted);
+  color: #b83e4a;
 }
 .friend-add-filter svg {
-  width: 18px;
-  height: 18px;
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+  border-radius: 9px;
+  background: #ffe8e8;
+  color: #b83e4a;
 }
 .text-button {
   padding: 6px;
@@ -1926,11 +1932,37 @@ textarea:focus-visible,
   white-space: nowrap;
 }
 .search-action {
-  min-width: 62px;
-  height: 30px;
+  min-width: 54px;
+  min-height: 44px;
+  padding: 7px 0;
+  flex-shrink: 0;
   border-radius: 999px;
-  background: #dedddb;
+  background: transparent;
   font-weight: 700;
+  white-space: nowrap;
+}
+.search-action span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: inherit;
+}
+.search-action span,
+.friend-request-action {
+  background: #b83e4a;
+  color: #fff;
+}
+.search-action:disabled span,
+.friend-request-action:disabled {
+  background: #e9e7e6;
+  color: #686361;
+  opacity: 1;
+  transform: none;
+}
+.search-action:disabled {
+  transform: none;
 }
 .friend-results {
   display: grid;
@@ -1941,6 +1973,7 @@ textarea:focus-visible,
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   min-height: 74px;
   padding: 14px 16px;
   border-radius: 15px;
@@ -1949,6 +1982,10 @@ textarea:focus-visible,
 .friend-result strong,
 .friend-result span {
   display: block;
+  overflow-wrap: anywhere;
+}
+.friend-result > div {
+  min-width: 0;
 }
 .friend-result strong {
   font-size: 18px;
@@ -1957,13 +1994,18 @@ textarea:focus-visible,
   margin-top: 5px;
   font-size: 12px;
 }
-.circle-action {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: #fff;
+.friend-request-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-height: 44px;
+  min-width: 100px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 .cursor-status {
   display: flex;

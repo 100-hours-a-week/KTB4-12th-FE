@@ -131,7 +131,7 @@ async function searchA(page: Page) {
   await page.getByRole('button', { name: '친구 이메일 검색' }).click();
   await page.getByRole('textbox', { name: '친구 이메일 검색' }).fill(userA.email);
   await page.getByRole('button', { name: '검색', exact: true }).click();
-  await expect(page.getByRole('button', { name: '계정 A 추가', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '계정 A 친구 요청', exact: true })).toBeVisible();
 }
 
 for (const storedRefreshToken of [false, true]) {

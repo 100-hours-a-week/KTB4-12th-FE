@@ -119,7 +119,7 @@ export function FriendsPage({
                 aria-label="친구 추가"
                 onClick={onAdd}
               >
-                <PlusIcon />
+                <PlusIcon aria-hidden="true" />
               </button>
             </div>
           </div>
