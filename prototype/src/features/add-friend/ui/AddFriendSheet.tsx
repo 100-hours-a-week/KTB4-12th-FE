@@ -1,4 +1,4 @@
-import { CheckIcon, Cross1Icon, MagnifyingGlassIcon, PlusIcon } from '@radix-ui/react-icons';
+import { CheckIcon, Cross1Icon, MagnifyingGlassIcon } from '@radix-ui/react-icons';
 import { useEffect, useRef, useState } from 'react';
 
 import { addFriend } from '../../../entities/friend';
@@ -122,9 +122,10 @@ export function AddFriendSheet({
         <button
           type="submit"
           className="search-action"
+          aria-busy={searchState.status === 'searching'}
           disabled={!hasSearchQuery || searchState.status === 'searching'}
         >
-          {searchState.status === 'searching' ? '검색 중' : '검색'}
+          <span>{searchState.status === 'searching' ? '검색 중…' : '검색'}</span>
         </button>
       </form>
       <div className="friend-results">
@@ -137,14 +138,28 @@ export function AddFriendSheet({
             {searchState.user.userId !== currentUserId ? (
               <button
                 type="button"
-                className="circle-action"
+                className="friend-request-action"
                 aria-label={`${searchState.user.name} ${
-                  addedUserIds.includes(searchState.user.userId) ? '요청 보냄' : '추가'
+                  addedUserIds.includes(searchState.user.userId)
+                    ? '요청 보냄'
+                    : adding
+                      ? '요청 중'
+                      : '친구 요청'
                 }`}
+                aria-busy={adding}
                 disabled={adding || addedUserIds.includes(searchState.user.userId)}
                 onClick={() => add(searchState.user)}
               >
-                {addedUserIds.includes(searchState.user.userId) ? <CheckIcon /> : <PlusIcon />}
+                {addedUserIds.includes(searchState.user.userId) ? (
+                  <>
+                    <CheckIcon aria-hidden="true" />
+                    요청 보냄
+                  </>
+                ) : adding ? (
+                  '요청 중…'
+                ) : (
+                  '친구 요청'
+                )}
               </button>
             ) : null}
           </article>

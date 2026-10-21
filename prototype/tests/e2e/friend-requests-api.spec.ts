@@ -132,9 +132,9 @@ test('친구 요청 생성은 receiverId만 전송하고 충돌 메시지를 표
   await page.getByRole('button', { name: '친구 이메일 검색' }).click();
   await page.getByLabel('친구 이메일 검색').fill('friend@example.com');
   await page.getByRole('button', { name: '검색', exact: true }).click();
-  await page.getByRole('button', { name: '김민정 추가', exact: true }).click();
+  await page.getByRole('button', { name: '김민정 친구 요청', exact: true }).click();
   await expect(page.locator('.app-toast')).toHaveText('이미 친구 요청을 보냈습니다.');
-  await page.getByRole('button', { name: '김민정 추가', exact: true }).click();
+  await page.getByRole('button', { name: '김민정 친구 요청', exact: true }).click();
   await expect(page.getByRole('button', { name: '김민정 요청 보냄', exact: true })).toBeDisabled();
   expect(calls).toBe(2);
 });
