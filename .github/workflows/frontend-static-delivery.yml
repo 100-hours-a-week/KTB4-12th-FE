@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       target_environment:
-        description: production도 스테이징 검증 후 승인 대기
+        description: staging 또는 production 배포 (운영은 별도 승인)
         type: choice
         options: [staging, production]
         default: staging
@@ -70,7 +70,7 @@ jobs:
       deployments: read
 
   production:
-    needs: [resolve, staging]
+    needs: resolve
     if: >-
       github.event_name == 'workflow_run' ||
       inputs.target_environment == 'production'
