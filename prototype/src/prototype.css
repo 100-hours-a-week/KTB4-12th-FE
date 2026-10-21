@@ -1939,6 +1939,11 @@ textarea:focus-visible,
   background: var(--surface-strong);
   color: var(--ink);
 }
+.friend-search-error {
+  margin: 8px 2px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
 .friend-search-row input {
   flex: 1;
   min-width: 0;

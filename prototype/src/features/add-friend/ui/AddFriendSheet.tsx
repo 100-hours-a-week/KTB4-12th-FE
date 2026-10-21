@@ -5,12 +5,14 @@ import { addFriend } from '../../../entities/friend';
 import { type SearchedUser, searchUserByEmail } from '../../../entities/user';
 import { BottomSheet, KeyboardInput } from '../../../mobile';
 import { getSessionVersion } from '../../../shared/api/session';
+import { EMAIL_FORMAT_ERROR, isValidEmailFormat } from '../../../shared/lib/authValidation';
 
 type SearchState =
   | { status: 'idle' }
   | { status: 'searching' }
   | { status: 'found'; user: SearchedUser }
-  | { status: 'empty' };
+  | { status: 'empty' }
+  | { status: 'error'; message: string };
 
 type AddFriendSheetProps = {
   open: boolean;
@@ -33,7 +35,7 @@ export function AddFriendSheet({
   const [addedUserIds, setAddedUserIds] = useState<number[]>([]);
   const [adding, setAdding] = useState(false);
   const searchVersion = useRef(0);
-  const hasSearchQuery = query.trim().length > 0;
+  const hasValidEmail = isValidEmailFormat(query.trim());
 
   useEffect(() => {
     if (!open) {
@@ -48,6 +50,10 @@ export function AddFriendSheet({
   const search = async () => {
     const email = query.trim();
     if (!email || searchState.status === 'searching') return;
+    if (!isValidEmailFormat(email)) {
+      setSearchState({ status: 'error', message: EMAIL_FORMAT_ERROR });
+      return;
+    }
     setSearchState({ status: 'searching' });
     const version = ++searchVersion.current;
     const sessionVersion = getSessionVersion();
@@ -57,8 +63,10 @@ export function AddFriendSheet({
       setSearchState(user ? { status: 'found', user } : { status: 'empty' });
     } catch (reason) {
       if (version !== searchVersion.current || sessionVersion !== getSessionVersion()) return;
-      setSearchState({ status: 'idle' });
-      onError(reason instanceof Error ? reason.message : '검색에 실패했습니다.');
+      setSearchState({
+        status: 'error',
+        message: reason instanceof Error ? reason.message : '검색에 실패했습니다.',
+      });
     }
   };
 
@@ -101,6 +109,8 @@ export function AddFriendSheet({
           <KeyboardInput
             autoFocus
             aria-label="친구 이메일 검색"
+            aria-invalid={searchState.status === 'error'}
+            aria-describedby={searchState.status === 'error' ? 'friend-search-error' : undefined}
             value={query}
             onChange={(event) => {
               searchVersion.current += 1;
@@ -123,11 +133,16 @@ export function AddFriendSheet({
           type="submit"
           className="search-action"
           aria-busy={searchState.status === 'searching'}
-          disabled={!hasSearchQuery || searchState.status === 'searching'}
+          disabled={!hasValidEmail || searchState.status === 'searching'}
         >
           <span>{searchState.status === 'searching' ? '검색 중…' : '검색'}</span>
         </button>
       </form>
+      {searchState.status === 'error' ? (
+        <p id="friend-search-error" className="field-error friend-search-error" role="alert">
+          {searchState.message}
+        </p>
+      ) : null}
       <div className="friend-results">
         {searchState.status === 'found' ? (
           <article className="friend-result">
