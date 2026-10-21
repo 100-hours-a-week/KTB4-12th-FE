@@ -148,16 +148,96 @@ test('SSE 인증, 분할 프레임, 잘못된 이벤트 무시, 중복 방지와
   expect(await page.evaluate('window.sseConnections')).toBe(connections);
 });
 
-test('배너 자동 닫기와 SSE 연결 종료 후 재연결', async ({ page }) => {
+test('배너 3초 후 자동 닫기와 SSE 연결 종료 후 재연결', async ({ page }) => {
   await page.evaluate(
     (part) => (window as unknown as { sendSse: (text: string) => void }).sendSse(part),
     `event:notification\ndata:${JSON.stringify(notification)}\n\n`,
   );
   await expect(page.locator('.notification-banner')).toBeVisible();
-  await expect(page.locator('.notification-banner')).toHaveCount(0, { timeout: 8000 });
+  await expect(page.locator('.notification-banner')).toHaveCount(0, { timeout: 4500 });
   const connections = await page.evaluate('window.sseConnections');
   await page.evaluate('window.endSse()');
   await expect.poll(() => page.evaluate('window.sseConnections')).toBe(connections + 1);
+});
+
+test('백그라운드에서는 재연결하지 않고 복귀 시 한 번만 연결해 목록을 복구한다', async ({
+  page,
+}) => {
+  await expect(page.locator('.notification-button span')).toHaveText('1');
+  await page.getByRole('button', { name: /알림 목록 열기/ }).click();
+  const list = page.getByRole('dialog', { name: '알림', exact: true });
+  await expect(list.locator('.notification-card')).toHaveCount(1);
+  const before = await page.evaluate('window.sseConnections');
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect.poll(() => page.evaluate('window.sseAborted')).toBe(true);
+  await page.waitForTimeout(3300);
+  expect(await page.evaluate('window.sseConnections')).toBe(before);
+  const missed = { ...notification, notificationId: 50, title: '백그라운드 중 도착한 알림' };
+  await page.route(/\/notifications(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        data: { items: [missed, notification], pagination: { nextCursor: null, hasNext: false } },
+      },
+    }),
+  );
+  await page.route('**/notifications/unread-count', (route) =>
+    route.fulfill({ json: { data: { unreadCount: 2 } } }),
+  );
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    document.dispatchEvent(new Event('visibilitychange'));
+    window.dispatchEvent(new Event('pageshow'));
+  });
+  await expect(list).toContainText(missed.title);
+  await expect(page.locator('.notification-button span')).toHaveText('2');
+  expect(await page.evaluate('window.sseConnections')).toBe(before + 1);
+  await expect(page.locator('.notification-banner')).toHaveCount(0);
+});
+
+test('빠른 pagehide/pageshow 전환에서 이전 연결의 재시도와 중복 배너를 막는다', async ({
+  page,
+}) => {
+  const frame = `id:31\nevent:notification\ndata:${JSON.stringify(notification)}\n\n`;
+  await page.route('**/notifications/events/31/ack', (route) => route.fulfill({ json: {} }));
+  await page.evaluate(
+    (frame) => (window as unknown as { sendSse: (frame: string) => void }).sendSse(frame),
+    frame,
+  );
+  await expect(page.locator('.notification-banner')).toBeVisible();
+  await page.getByRole('button', { name: '알림 배너 닫기' }).click();
+  await expect(page.locator('.notification-banner')).toHaveCount(0);
+  const before = await page.evaluate('window.sseConnections');
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('pagehide'));
+    window.dispatchEvent(new Event('pageshow'));
+    window.dispatchEvent(new Event('pageshow'));
+  });
+  await expect.poll(() => page.evaluate('window.sseConnections')).toBe(before + 1);
+  await page.evaluate(
+    (frame) => (window as unknown as { sendSse: (frame: string) => void }).sendSse(frame),
+    frame,
+  );
+  await page.waitForTimeout(3300);
+  expect(await page.evaluate('window.sseConnections')).toBe(before + 1);
+  await expect(page.locator('.notification-banner')).toHaveCount(0);
+});
+
+test('숨겨진 상태로 시작한 페이지는 화면 복귀 전 SSE를 열지 않는다', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+  });
+  await page.reload();
+  await expect(page.getByRole('heading', { name: '친구', exact: true })).toBeVisible();
+  expect(await page.evaluate('window.sseConnections')).toBe(0);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect.poll(() => page.evaluate('window.sseConnections')).toBe(1);
 });
 
 test('알림 목록이 열려 있어도 SSE 수신 시 최신 목록 조회', async ({ page }) => {
@@ -263,6 +343,13 @@ test('로그아웃 시 연결과 배너 정리', async ({ page }) => {
   await page.getByRole('dialog').getByRole('button', { name: '로그아웃', exact: true }).click();
   await expect(page.locator('.notification-banner')).toHaveCount(0);
   await page.waitForFunction('window.sseAborted');
+  const connections = await page.evaluate('window.sseConnections');
+  await page.evaluate(() => {
+    document.dispatchEvent(new Event('visibilitychange'));
+    window.dispatchEvent(new Event('pageshow'));
+  });
+  await page.waitForTimeout(300);
+  expect(await page.evaluate('window.sseConnections')).toBe(connections);
 });
 
 test('모바일 배너는 화면 안에 표시되고 닫기 버튼을 누를 수 있다', async ({ page }) => {

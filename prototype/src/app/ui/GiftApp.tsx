@@ -524,7 +524,7 @@ export function GiftApp() {
   }, [notificationsEnabled, sessionKey, refreshUnread]);
   useEffect(() => {
     if (!notificationBanner || notificationBannerBusy) return;
-    const timer = window.setTimeout(() => setNotificationBanner(null), 6000);
+    const timer = window.setTimeout(() => setNotificationBanner(null), 3000);
     return () => window.clearTimeout(timer);
   }, [notificationBanner, notificationBannerBusy]);
   useEffect(() => {

@@ -45,16 +45,35 @@ export function subscribeNotifications(
   onConnected: () => void,
 ) {
   if (USE_MOCK_API || !loadSession()) return () => {};
-  const controller = new AbortController();
+  let controller: AbortController | null = null;
+  let disposed = false;
+  let pageHidden = false;
+  const seen = new Set<number>();
   const version = getSessionVersion();
   let retryTimer: number | undefined;
-  const active = () =>
-    !controller.signal.aborted && version === getSessionVersion() && Boolean(loadSession());
+  const canConnect = () =>
+    !disposed &&
+    !pageHidden &&
+    document.visibilityState === 'visible' &&
+    version === getSessionVersion() &&
+    Boolean(loadSession());
+  const stop = () => {
+    window.clearTimeout(retryTimer);
+    retryTimer = undefined;
+    const previous = controller;
+    controller = null;
+    previous?.abort();
+  };
 
   const connect = async () => {
-    const seen = new Set<number>();
+    if (!canConnect() || controller) return;
+    window.clearTimeout(retryTimer);
+    retryTimer = undefined;
+    const connection = new AbortController();
+    controller = connection;
+    const active = () => canConnect() && controller === connection && !connection.signal.aborted;
     try {
-      const response = await apiStream('/notifications/events', {}, { signal: controller.signal });
+      const response = await apiStream('/notifications/events', {}, { signal: connection.signal });
       if (!response.headers.get('content-type')?.includes('text/event-stream') || !response.body)
         return;
       const reader = response.body.getReader();
@@ -89,12 +108,34 @@ export function subscribeNotifications(
     } catch {
       // Network failures reconnect; authentication failures use the shared session handling.
     } finally {
-      if (active()) retryTimer = window.setTimeout(() => void connect(), 3000);
+      // A stopped connection must not schedule a retry over its replacement.
+      if (controller === connection) {
+        controller = null;
+        if (canConnect()) retryTimer = window.setTimeout(() => void connect(), 3000);
+      }
     }
   };
-  void connect();
+  const syncVisibility = () => {
+    if (canConnect()) void connect();
+    else stop();
+  };
+  const onPageHide = () => {
+    pageHidden = true;
+    stop();
+  };
+  const onPageShow = () => {
+    pageHidden = false;
+    syncVisibility();
+  };
+  document.addEventListener('visibilitychange', syncVisibility);
+  window.addEventListener('pagehide', onPageHide);
+  window.addEventListener('pageshow', onPageShow);
+  syncVisibility();
   return () => {
-    controller.abort();
-    window.clearTimeout(retryTimer);
+    disposed = true;
+    stop();
+    document.removeEventListener('visibilitychange', syncVisibility);
+    window.removeEventListener('pagehide', onPageHide);
+    window.removeEventListener('pageshow', onPageShow);
   };
 }
