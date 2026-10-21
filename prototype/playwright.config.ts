@@ -8,6 +8,7 @@ export default defineConfig({
   testIgnore: [
     '**/product-recommendation.spec.ts',
     '**/login-account-switch-error.spec.ts',
+    '**/login-profile-recovery-error.spec.ts',
     '**/chat-api.spec.ts',
     '**/chat-products-api.spec.ts',
     '**/dislike-categories-api.spec.ts',
