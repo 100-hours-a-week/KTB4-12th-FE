@@ -91,7 +91,7 @@ test('실제 GET의 isSelected로 저장된 비선호 선택을 재진입·새�
     'aria-pressed',
     'true',
   );
-  await page.getByRole('button', { name: '전체 초기화' }).click();
+  await page.getByRole('button', { name: '전체 해제' }).click();
   await page.getByRole('button', { name: '저장하기', exact: true }).click();
   await page.getByRole('button', { name: '비선호 카테고리 설정' }).click();
   await expect(page.getByRole('button', { name: '식품', exact: true })).toHaveAttribute(
