@@ -2276,6 +2276,10 @@ textarea:focus-visible,
   color: var(--accent-strong);
 }
 
+.ai-chat-card .primary.compact {
+  box-shadow: none;
+}
+
 .primary,
 .dialog-actions .danger {
   background: var(--accent);
