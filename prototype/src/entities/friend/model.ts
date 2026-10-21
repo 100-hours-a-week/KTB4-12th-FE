@@ -6,6 +6,19 @@ export type Friend = {
   birth: string | null;
 };
 
+export type FriendRequest = {
+  requestId: number;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELED';
+  requesterId: number;
+  requesterName: string;
+  receiverId: number;
+  receiverName: string;
+  createdAt: string;
+};
+
+export type FriendRequestDirection = 'received' | 'sent';
+export type FriendRequestAction = 'accept' | 'reject' | 'cancel';
+
 const friendNames = [
   '김민지',
   '이준호',

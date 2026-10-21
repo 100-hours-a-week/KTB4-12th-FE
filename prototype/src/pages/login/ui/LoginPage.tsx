@@ -1,3 +1,4 @@
+import { EyeOpenIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 
 import { KeyboardInput } from '../../../mobile';
@@ -20,6 +21,7 @@ export function LoginPage({
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const emailInvalid = Boolean(email) && !isValidEmailFormat(email);
@@ -51,56 +53,68 @@ export function LoginPage({
       </div>
       <p className="brand-message">선물을 더 쉽게, 마음을 더 가깝게</p>
       <h2 className="login-title">로그인</h2>
-      <FormField label="이메일">
-        <KeyboardInput
-          value={email}
-          onChange={(event) => {
-            setEmail(event.target.value);
-            setError('');
-          }}
-          placeholder="가입한 이메일 주소를 입력해 주세요"
-          maxLength={EMAIL_MAX_LENGTH}
-          aria-invalid={emailInvalid}
-          aria-describedby={emailInvalid ? 'login-email-error' : undefined}
-        />
-        {emailInvalid ? (
-          <small id="login-email-error" className="field-error" role="alert">
-            {EMAIL_FORMAT_ERROR}
-          </small>
-        ) : null}
-      </FormField>
-      <FormField label="비밀번호">
-        <KeyboardInput
-          type="password"
-          value={password}
-          onChange={(event) => {
-            setPassword(event.target.value);
-            setError('');
-          }}
-          placeholder="영문, 숫자, 특수문자 포함 8~64자"
-          maxLength={PASSWORD_MAX_LENGTH}
-          aria-invalid={passwordInvalid}
-          aria-describedby={passwordInvalid ? 'login-password-error' : undefined}
-        />
-        {passwordInvalid ? (
-          <small id="login-password-error" className="field-error" role="alert">
-            {PASSWORD_FORMAT_ERROR}
-          </small>
-        ) : null}
-      </FormField>
-      {error ? (
-        <p className="login-error" role="alert">
-          {error}
-        </p>
-      ) : null}
-      <button
-        type="button"
-        className="primary signup-submit"
-        disabled={submitting || !ready}
-        onClick={submit}
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
       >
-        {submitting ? '로그인 중' : '로그인'}
-      </button>
+        <FormField label="이메일">
+          <KeyboardInput
+            value={email}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              setError('');
+            }}
+            placeholder="가입한 이메일 주소를 입력해 주세요"
+            maxLength={EMAIL_MAX_LENGTH}
+            aria-invalid={emailInvalid}
+            aria-describedby={emailInvalid ? 'login-email-error' : undefined}
+          />
+          {emailInvalid ? (
+            <small id="login-email-error" className="field-error" role="alert">
+              {EMAIL_FORMAT_ERROR}
+            </small>
+          ) : null}
+        </FormField>
+        <FormField label="비밀번호">
+          <div className="input-with-icon">
+            <KeyboardInput
+              aria-label="비밀번호"
+              type={passwordVisible ? 'text' : 'password'}
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setError('');
+              }}
+              placeholder="영문, 숫자, 특수문자 포함 8~64자"
+              maxLength={PASSWORD_MAX_LENGTH}
+              aria-invalid={passwordInvalid}
+              aria-describedby={passwordInvalid ? 'login-password-error' : undefined}
+            />
+            <button
+              type="button"
+              aria-label={passwordVisible ? '비밀번호 숨기기' : '비밀번호 보기'}
+              onClick={() => setPasswordVisible((value) => !value)}
+            >
+              <EyeOpenIcon aria-hidden="true" />
+            </button>
+          </div>
+          {passwordInvalid ? (
+            <small id="login-password-error" className="field-error" role="alert">
+              {PASSWORD_FORMAT_ERROR}
+            </small>
+          ) : null}
+        </FormField>
+        {error ? (
+          <p className="login-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <button type="submit" className="primary signup-submit" disabled={submitting || !ready}>
+          {submitting ? '로그인 중' : '로그인'}
+        </button>
+      </form>
       <button type="button" className="text-action" onClick={onSignup}>
         회원가입
       </button>

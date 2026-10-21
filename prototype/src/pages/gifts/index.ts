@@ -1,1 +1,1 @@
-export { CompletePage, GiftsPage, ProductPage } from './ui/GiftBrowsePages';
+export { GiftsPage, ProductPage } from './ui/GiftBrowsePages';

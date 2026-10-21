@@ -2,12 +2,18 @@ export type QaScenario =
   | 'friend-list-error'
   | 'friend-search-error'
   | 'friend-add-error'
+  | 'friend-requests'
   | 'product-list-error'
   | 'product-no-image'
   | 'product-detail-error'
   | 'product-sold-out'
   | 'dislike-category-load-error'
-  | 'dislike-category-save-error';
+  | 'dislike-category-save-error'
+  | 'first-login'
+  | 'ai-profile-none'
+  | 'ai-profile-pending'
+  | 'ai-profile-completed'
+  | 'ai-profile-failed';
 
 const recoveredScenarios = new Set<QaScenario>();
 const attemptedScenarios = new Set<QaScenario>();
@@ -34,5 +40,13 @@ export function getQaInitialRoute(): 'gifts' | 'preferences' | null {
   const scenario = new URLSearchParams(window.location.search).get('qa') as QaScenario | null;
   if (scenario?.startsWith('product-')) return 'gifts';
   if (scenario?.startsWith('dislike-category-')) return 'preferences';
+  if (scenario?.startsWith('ai-profile-')) return 'gifts';
   return null;
+}
+
+export function getAiProfileQaStatus(): 'NONE' | 'PENDING' | 'COMPLETED' | 'FAILED' | null {
+  const scenario = new URLSearchParams(window.location.search).get('qa');
+  if (!scenario?.startsWith('ai-profile-')) return null;
+  return scenario.slice('ai-profile-'.length).toUpperCase() as
+    'NONE' | 'PENDING' | 'COMPLETED' | 'FAILED';
 }

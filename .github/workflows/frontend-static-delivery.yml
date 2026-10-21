@@ -1,0 +1,85 @@
+name: Frontend Static Delivery
+run-name: FE static delivery / ${{ inputs.version || github.event.workflow_run.head_sha }}
+on:
+  workflow_run:
+    workflows: [Frontend CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: S3에 발행된 버전 — 재빌드 없이 재배포·복귀
+        required: true
+        type: string
+      target_environment:
+        description: production도 스테이징 검증 후 승인 대기
+        type: choice
+        options: [staging, production]
+        default: staging
+      dry_run:
+        description: 검증만 수행
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# 운영 승인 대기 중에도 다른 릴리스가 같은 환경을 덮지 않도록 FE 전체 직렬화.
+concurrency:
+  group: frontend-static-delivery
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+      - id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$INPUT_VERSION"
+          if [[ "$GITHUB_EVENT_NAME" == workflow_run ]]; then VERSION="$(tr -d '[:space:]' < VERSION)"; fi
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+
+  staging:
+    needs: resolve
+    uses: ./.github/workflows/frontend-static-deliver.yml
+    with:
+      version: ${{ needs.resolve.outputs.version }}
+      target_environment: staging
+      dry_run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+    permissions:
+      contents: read
+      id-token: write
+      deployments: read
+
+  production:
+    needs: [resolve, staging]
+    if: >-
+      github.event_name == 'workflow_run' ||
+      inputs.target_environment == 'production'
+    uses: ./.github/workflows/frontend-static-deliver.yml
+    with:
+      version: ${{ needs.resolve.outputs.version }}
+      target_environment: production
+      dry_run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+    permissions:
+      contents: read
+      id-token: write
+      deployments: read

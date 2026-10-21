@@ -67,7 +67,7 @@ test('사용자가 비선호 카테고리를 변경하고 저장한다', async (
   await expect(page.getByRole('button', { name: '패션' })).toHaveAttribute('aria-pressed', 'true');
 
   await page.getByRole('button', { name: '저장하기' }).click();
-  await expect(page.getByRole('button', { name: '저장했어요' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '마이페이지' })).toBeVisible();
   await expect(page.getByRole('status')).toHaveText('비선호 카테고리를 저장했습니다.');
 });
 
@@ -88,11 +88,12 @@ test('사용자가 생일 공개에 동의하면 공개 상태로 변경된다',
 test('사용자가 받은 선물 목록을 조회한다', async ({ page }) => {
   await openMyPage(page);
 
-  await expect(page.getByRole('button', { name: /보낸 선물/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /보낸 선물/ })).toBeVisible();
   await page.getByRole('button', { name: '받은 선물 8건' }).click();
   await expect(page.getByRole('heading', { name: '받은 선물' })).toBeVisible();
-  await expect(page.locator('article.received-card').first()).toBeVisible();
-  await expect(page.getByRole('heading', { name: /선물 상세/ })).toHaveCount(0);
+  await expect(page.locator('.gift-history-card').first()).toBeVisible();
+  await page.locator('.gift-history-card').first().click();
+  await expect(page.getByRole('heading', { name: '받은 선물 상세' })).toBeVisible();
 });
 
 test('[QA 89, 90, 91] 마이페이지 정보를 확인하고 생년월일을 취소·저장한다', async ({ page }) => {

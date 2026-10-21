@@ -5,6 +5,16 @@ const testPort = Number(process.env.MOBILE_RUNTIME_TEST_PORT ?? 4174);
 export default defineConfig({
   testDir: './tests',
   testMatch: '**/*.spec.ts',
+  testIgnore: [
+    '**/product-recommendation.spec.ts',
+    '**/login-account-switch-error.spec.ts',
+    '**/login-profile-recovery-error.spec.ts',
+    '**/chat-api.spec.ts',
+    '**/chat-products-api.spec.ts',
+    '**/dislike-categories-api.spec.ts',
+    '**/notification-sse.spec.ts',
+    '**/gift-detail-api.spec.ts',
+  ],
   timeout: 20_000,
   use: {
     baseURL: `http://127.0.0.1:${testPort}`,

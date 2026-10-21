@@ -43,7 +43,7 @@ test('받은 선물 목록을 다음 커서까지 불러온다', async ({ page }
     .getByRole('button', { name: '마이' })
     .click();
   await page.getByRole('button', { name: '받은 선물 8건' }).click();
-  const cards = page.locator('.received-card');
+  const cards = page.locator('.gift-history-card');
   await expect(cards).toHaveCount(20);
   await loadAllPages(page, cards, [40, 43]);
   await expect(page.getByText('목록의 끝이에요')).toBeVisible();
@@ -142,13 +142,11 @@ test('모든 바텀시트는 배경 화면을 이동시키지 않는다', async 
   const expectStableAfter = async (openSheet: () => Promise<void>) => {
     const before = await backgroundPosition();
     await openSheet();
-    const sheet = page.getByTestId('bottom-sheet');
-    await expect(sheet).toBeVisible();
-    await expect(page.locator('.bug-report-fab')).toBeVisible();
+    await expect(page.locator('[data-testid="bottom-sheet"][data-state="open"]')).toBeVisible();
     const after = await backgroundPosition();
     expect(after.top).toBeCloseTo(before.top, 3);
     expect(after.screenScrollTop).toBe(before.screenScrollTop);
-    await expect(page.getByTestId('bottom-sheet')).toBeFocused();
+    await expect(page.locator('[data-testid="bottom-sheet"][data-state="open"]')).toBeFocused();
   };
 
   await page.goto('/');

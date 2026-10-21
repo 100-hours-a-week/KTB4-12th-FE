@@ -1,6 +1,8 @@
-import { type RefObject, useCallback, useEffect, useState } from 'react';
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useKeyboard } from '../../../mobile';
+import { SUNJALAL_BOT_IMAGE, SUNJALAL_REPORT_IMAGE } from '../../../shared/config/assets';
 import { Toast } from '../../../shared/ui';
 import { captureScreen } from '../captureScreen';
 import { formatErrorsAsText, getCollectedErrors } from '../errorCollector';
@@ -9,49 +11,36 @@ import { BugReportModal } from './BugReportModal';
 
 type BugReportWidgetProps = {
   route: string;
+  inline?: boolean;
   /** 캡처·토스트의 기준이 되는 앱 화면 요소. 생략하면 document.body를 캡처한다. */
   containerRef?: RefObject<HTMLElement | null>;
   /** true면 production 빌드에서도 위젯을 렌더링한다. */
   enabledInProduction?: boolean;
   /** true면 하단 탭바 위로 버튼을 띄운다. false면 화면 최하단 우측에 붙는다. */
   raised?: boolean;
+  /** 선물 탭에서 AI 챗봇과 버그 리포트를 하나의 메뉴로 묶는다. */
+  showAiAction?: boolean;
+  onOpenAi?: () => void;
 };
 
 export function BugReportWidget({
   route,
+  inline = false,
   containerRef,
   enabledInProduction = false,
   raised = false,
+  showAiAction = false,
+  onOpenAi,
 }: BugReportWidgetProps) {
   const enabled = import.meta.env.DEV || enabledInProduction;
   const keyboard = useKeyboard();
   const [open, setOpen] = useState(false);
+  const [modalHost, setModalHost] = useState<HTMLElement | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [screenshot, setScreenshot] = useState<Blob | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [screenContainer, setScreenContainer] = useState<HTMLElement | null>(null);
-  const [sheetContainer, setSheetContainer] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    const screen = containerRef?.current;
-    if (!screen) return;
-
-    const updateSheetContainer = () => {
-      setScreenContainer((current) => (current === screen ? current : screen));
-      setSheetContainer(
-        screen.querySelector<HTMLElement>('[data-testid="bottom-sheet"][data-state="open"]'),
-      );
-    };
-    const observer = new MutationObserver(updateSheetContainer);
-    updateSheetContainer();
-    observer.observe(screen, {
-      attributes: true,
-      attributeFilter: ['data-state'],
-      childList: true,
-      subtree: true,
-    });
-    return () => observer.disconnect();
-  }, [containerRef]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!toast) return;
@@ -59,15 +48,27 @@ export function BugReportWidget({
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  // 캡처는 모달을 열기 전에 끝낸다 — 모달이 스크린샷에 찍히면 안 된다.
+  useEffect(() => {
+    if (!showAiAction || !menuOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [menuOpen, showAiAction]);
+
+  // 모달을 먼저 열고 캡처 결과는 뒤늦게 채운다. 캡처 필터가 위젯/모달을 제외한다.
   const openReport = useCallback(async () => {
     keyboard.hide();
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setModalHost(containerRef?.current ?? document.body);
+    setOpen(true);
     setCapturing(true);
     const shot = await captureScreen(containerRef?.current ?? document.body);
     setScreenshot(shot);
     setCapturing(false);
-    setOpen(true);
   }, [keyboard, containerRef]);
 
   useEffect(() => {
@@ -81,6 +82,15 @@ export function BugReportWidget({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [enabled, open, capturing, openReport]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const handleOpenRequest = () => {
+      if (!open && !capturing) void openReport();
+    };
+    window.addEventListener('prototype:open-report', handleOpenRequest);
+    return () => window.removeEventListener('prototype:open-report', handleOpenRequest);
+  }, [capturing, enabled, open, openReport]);
 
   const handleSubmit = async (
     category: ReportCategory,
@@ -113,32 +123,89 @@ export function BugReportWidget({
 
   if (!enabled) return null;
 
-  const trigger = (
-    <button
-      type="button"
-      className={raised ? 'bug-report-fab raised' : 'bug-report-fab'}
-      style={sheetContainer ? { pointerEvents: 'auto' } : undefined}
-      data-bug-report-widget
-      aria-label="의견 남기기"
-      disabled={capturing}
-      onClick={() => void openReport()}
-    >
-      {capturing ? <span className="loading-dot" /> : '💬'}
-    </button>
-  );
-
   return (
     <>
-      {trigger}
-      {open ? (
-        <BugReportModal
-          screenshot={screenshot}
-          container={screenContainer}
-          onClose={() => setOpen(false)}
-          onSubmit={handleSubmit}
-        />
-      ) : null}
-      <Toast message={toast} container={screenContainer} />
+      <div className={inline ? 'feedback-inline' : undefined}>
+        {showAiAction ? (
+          <div
+            ref={menuRef}
+            className={raised ? 'floating-action-menu raised' : 'floating-action-menu'}
+            data-bug-report-widget
+          >
+            {menuOpen ? (
+              <div className="floating-action-options">
+                <button
+                  type="button"
+                  className="floating-action-option ai"
+                  aria-label="선잘알 봇 열기"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onOpenAi?.();
+                  }}
+                >
+                  <img src={SUNJALAL_BOT_IMAGE} alt="" draggable={false} />
+                  <span className="floating-action-label" aria-hidden="true">
+                    AI 선물 추천
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="floating-action-option report"
+                  aria-label="의견 남기기"
+                  disabled={capturing}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    void openReport();
+                  }}
+                >
+                  <img src={SUNJALAL_REPORT_IMAGE} alt="" draggable={false} />
+                  <span className="floating-action-label" aria-hidden="true">
+                    의견 보내기
+                  </span>
+                </button>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              className="floating-action-toggle"
+              aria-label={menuOpen ? '빠른 메뉴 닫기' : '선잘알 봇 및 의견 메뉴 열기'}
+              aria-expanded={menuOpen}
+              onClick={() => {
+                keyboard.hide();
+                setMenuOpen((openState) => !openState);
+              }}
+            >
+              {menuOpen ? '×' : <img src={SUNJALAL_BOT_IMAGE} alt="" draggable={false} />}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={`bug-report-fab${raised ? ' raised' : ''}${['login', 'signup', 'terms'].includes(route) ? ' auth' : ''}`}
+            data-bug-report-widget
+            aria-label="의견 남기기"
+            disabled={capturing}
+            onClick={() => void openReport()}
+          >
+            {capturing ? (
+              <span className="loading-dot" />
+            ) : (
+              <img src={SUNJALAL_REPORT_IMAGE} alt="" draggable={false} />
+            )}
+          </button>
+        )}
+      </div>
+      {open && modalHost
+        ? createPortal(
+            <BugReportModal
+              screenshot={screenshot}
+              onClose={() => setOpen(false)}
+              onSubmit={handleSubmit}
+            />,
+            modalHost,
+          )
+        : null}
+      <Toast message={toast} container={containerRef?.current} />
     </>
   );
 }

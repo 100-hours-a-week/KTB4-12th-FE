@@ -8,9 +8,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('[QA 75, 77, 79, 88] 친구를 먼저 선택해 선물을 완료하고 상태를 초기화한다', async ({
-  page,
-}) => {
+test('[QA 75, 77, 79, 88] 친구를 먼저 선택해 결제하고 보낸 선물로 이동한다', async ({ page }) => {
   const recipient = page.locator('.friend-card').filter({ hasText: '김민지' }).first();
   await recipient.getByRole('button', { name: '선물하기' }).click();
 
@@ -28,31 +26,15 @@ test('[QA 75, 77, 79, 88] 친구를 먼저 선택해 선물을 완료하고 상�
   await expect(page.getByRole('button', { name: /선물하기 64,000원/ })).toBeVisible();
   await page.getByRole('button', { name: /선물하기 64,000원/ }).click();
 
-  await expect(page.getByRole('heading', { name: '완료' })).toBeVisible();
-  await expect(page.locator('.summary-card')).toContainText('김민지');
-  await expect(page.locator('.summary-card')).toContainText('2개');
-  await expect(page.locator('.summary-card')).toContainText('64,000원');
+  const confirmDialog = page.getByRole('dialog', { name: /이 선물을 보낼까요/ });
+  await expect(confirmDialog).toBeVisible();
+  await confirmDialog.getByRole('button', { name: '선물 보내기' }).click();
 
-  await page.getByRole('button', { name: '친구 화면으로' }).click();
-  await expect(page.getByRole('heading', { name: '친구' })).toBeVisible();
-  await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'friends');
-});
-
-test('[QA 77] 선물 사전 검증 중 처리 중 상태를 표시한다', async ({ page }) => {
-  const recipient = page.locator('.friend-card').filter({ hasText: '김민지' }).first();
-  await recipient.getByRole('button', { name: '선물하기' }).click();
-  await page.locator('.product-card').nth(2).click();
-
-  await page.getByRole('button', { name: /선물하기/ }).click();
-
-  await expect(page.getByRole('heading', { name: '완료' })).toBeVisible();
-  await expect(page.getByText('선물을 전달하는 중', { exact: true })).toBeVisible();
-  await expect(page.locator('.loading-dot')).toBeVisible();
-  await expect(page.locator('.summary-card')).toHaveCount(0);
-  await expect(page.getByText(/선물이 전달됐어요/)).toHaveCount(0);
-
-  await expect(page.locator('.summary-card')).toBeVisible();
-  await expect(page.locator('.summary-card')).toContainText('김민지');
+  await expect(page.getByRole('heading', { name: '보낸 선물' })).toBeVisible();
+  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '완료' })).toHaveCount(0);
+  await expect(page.locator('.gift-history-item').first()).toContainText('김민지');
+  await expect(page.locator('.gift-history-item').first()).toContainText('결제 완료');
 });
 
 test('사용자가 상품을 검색하고 상세 화면에서 목록으로 돌아간다', async ({ page }) => {
@@ -153,7 +135,7 @@ test('상품 목록의 스크롤 영역을 다른 메인 탭과 공유하지 않
   await expect.poll(() => scroll.evaluate((element) => element.scrollTop)).toBe(0);
 });
 
-test('작은 실기기에서도 마이페이지에 불필요한 스크롤이 생기지 않는다', async ({ page }) => {
+test('작은 실기기에서도 마이페이지의 다섯 진입점을 탐색할 수 있다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 667 });
   await page
     .getByRole('navigation', { name: '하단 메뉴' })
@@ -161,11 +143,9 @@ test('작은 실기기에서도 마이페이지에 불필요한 스크롤이 생
     .click();
 
   await expect(page.locator('.mypage-page')).toBeVisible();
-  const size = await page.getByTestId('mobile-scroll').evaluate((element) => ({
-    clientHeight: element.clientHeight,
-    scrollHeight: element.scrollHeight,
-  }));
-  expect(size.scrollHeight).toBeLessThanOrEqual(size.clientHeight + 1);
+  await expect(page.locator('.settings-list .setting-row')).toHaveCount(5);
+  await page.getByRole('button', { name: /내 선물 취향/ }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('button', { name: /내 선물 취향/ })).toBeVisible();
   await expect(page.locator('.mypage-page')).toHaveCSS('padding-top', '0px');
 });
 
@@ -279,7 +259,7 @@ test('사용자가 상품 정렬 조건을 변경한다', async ({ page }) => {
   const popularSort = page.getByRole('radio', { name: '인기순' });
   const purchasedSort = page.getByRole('radio', { name: '구매순' });
 
-  await expect(page.getByRole('radio', { name: 'AI 추천순' })).toHaveCount(0);
+  await expect(page.getByRole('radio', { name: 'AI 추천순' })).toBeEnabled();
   await expect(popularSort).toHaveAttribute('aria-checked', 'true');
 
   await purchasedSort.click();
@@ -287,7 +267,7 @@ test('사용자가 상품 정렬 조건을 변경한다', async ({ page }) => {
   await expect(popularSort).toHaveAttribute('aria-checked', 'false');
 });
 
-test('[QA 76] 상품을 먼저 선택한 뒤 친구를 선택해 선물을 완료한다', async ({ page }) => {
+test('[QA 76] 상품을 먼저 선택한 뒤 친구를 선택해 결제한다', async ({ page }) => {
   await page
     .getByRole('navigation', { name: '하단 메뉴' })
     .getByRole('button', { name: '선물' })
@@ -300,52 +280,30 @@ test('[QA 76] 상품을 먼저 선택한 뒤 친구를 선택해 선물을 완�
   const recipient = sheet.locator('.friend-card').filter({ hasText: '김민지' }).first();
   await recipient.getByRole('button', { name: '선택' }).click();
 
-  await expect(page.getByRole('heading', { name: '완료' })).toBeVisible();
-  await expect(page.locator('.summary-card')).toContainText('김민지');
+  const confirmDialog = page.getByRole('dialog', { name: /이 선물을 보낼까요/ });
+  await confirmDialog.getByRole('button', { name: '선물 보내기' }).click();
+
+  await expect(page.getByRole('heading', { name: '보낸 선물' })).toBeVisible();
+  await expect(page.getByRole('status')).toHaveCount(0);
 });
 
-test('받는 사람 선택 바텀시트 위에서도 의견 남기기 버튼을 사용할 수 있다', async ({ page }) => {
-  test.setTimeout(30_000);
+test('대기 중인 받은 선물은 수락하고 보낸 선물은 취소한다', async ({ page }) => {
   await page
     .getByRole('navigation', { name: '하단 메뉴' })
-    .getByRole('button', { name: '선물' })
+    .getByRole('button', { name: '마이' })
     .click();
-  await page.locator('.product-card').first().click();
+  await page.getByRole('button', { name: /받은 선물/ }).click();
+  const received = page.locator('.gift-history-item').filter({ hasText: '받기 대기' }).first();
+  await received.getByRole('button', { name: '선물 받기' }).click();
+  await expect(received.getByRole('button', { name: '선물 받기' })).toHaveCount(0);
 
-  const feedbackFab = page.locator('.bug-report-fab');
-  const feedbackPosition = () =>
-    page.evaluate(() => {
-      const screen = document
-        .querySelector<HTMLElement>('[data-testid="device-screen"]')!
-        .getBoundingClientRect();
-      const fab = document.querySelector<HTMLElement>('.bug-report-fab')!.getBoundingClientRect();
-      return {
-        right: screen.right - fab.right,
-        bottom: screen.bottom - fab.bottom,
-        width: fab.width,
-        height: fab.height,
-      };
-    });
-  const beforeSheet = await feedbackPosition();
-
-  await page.getByRole('button', { name: /선물하기/ }).click();
-  const recipientSheet = page.getByRole('dialog', { name: '받는 사람 선택' });
-  await expect(recipientSheet).toBeVisible();
-
-  const withSheet = await feedbackPosition();
-  expect(withSheet.right).toBeCloseTo(beforeSheet.right, 0);
-  expect(withSheet.bottom).toBeCloseTo(beforeSheet.bottom, 0);
-  expect(withSheet.width).toBeCloseTo(beforeSheet.width, 0);
-  expect(withSheet.height).toBeCloseTo(beforeSheet.height, 0);
-
-  await feedbackFab.click();
-
-  const feedbackDialog = page.getByRole('dialog', { name: '의견 남기기' });
-  await expect(feedbackDialog).toBeVisible();
-  await expect(feedbackDialog.getByRole('textbox')).toBeFocused();
-  await expect(page.getByText('스크린샷 첨부')).toBeVisible();
-  await feedbackDialog.getByRole('button', { name: '취소' }).click();
-
-  await expect(feedbackDialog).toHaveCount(0);
-  await expect(recipientSheet).toBeVisible();
+  await page.getByRole('button', { name: '뒤로 가기' }).click();
+  await page.getByRole('button', { name: /보낸 선물/ }).click();
+  const sent = page.locator('.gift-history-item').filter({ hasText: '수락 대기' }).first();
+  await sent.getByRole('button', { name: '선물 취소' }).click();
+  await page
+    .getByRole('dialog', { name: '선물을 취소할까요?' })
+    .getByRole('button', { name: '취소하기' })
+    .click();
+  await expect(sent.getByRole('button', { name: '선물 취소' })).toHaveCount(0);
 });

@@ -15,7 +15,11 @@ export async function fetchProducts(
   query: string,
   sort: ProductSort,
   categoryIds: number[] = [],
-): Promise<CursorPage<Product>> {
+  recipientUserId?: number,
+): Promise<CursorPage<Product, ProductSort>> {
+  if (sort === 'AI_RECOMMENDED' && !recipientUserId) {
+    throw new ApiError('받는 사람을 먼저 선택해 주세요.', 400, { code: 'INVALID_REQUEST' });
+  }
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 220));
     if (shouldFailUntilRecovery('product-list-error')) {
@@ -32,7 +36,7 @@ export async function fetchProducts(
     const products = isQaScenario('product-no-image')
       ? filtered.map((product, index) => (index === 0 ? { ...product, thumbnailUrl: '' } : product))
       : filtered;
-    return mockPage(products, cursor);
+    return { ...mockPage(products, cursor), metadata: sort };
   }
   const data = await apiGet<{
     products: Product[];
@@ -41,13 +45,21 @@ export async function fetchProducts(
   }>('/products', {
     query: query.trim() || undefined,
     sort,
+    recipientUserId: recipientUserId ? String(recipientUserId) : undefined,
     categoryIds: categoryIds.length ? categoryIds.join(',') : undefined,
     cursor: cursor ?? undefined,
   });
-  return { items: data.products, pagination: data.pagination };
+  return {
+    metadata: data.appliedSort,
+    items: Array.isArray(data?.products) ? data.products : [],
+    pagination: data?.pagination ?? { nextCursor: null, hasNext: false },
+  };
 }
 
-export async function fetchProductDetail(productId: number): Promise<ProductDetail> {
+export async function fetchProductDetail(
+  productId: number,
+  signal?: AbortSignal,
+): Promise<ProductDetail> {
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 220));
     if (isQaScenario('product-detail-error')) {
@@ -55,7 +67,9 @@ export async function fetchProductDetail(productId: number): Promise<ProductDeta
         code: 'INTERNAL_SERVER_ERROR',
       });
     }
-    const product = mockProducts.find((item) => item.productId === productId) ?? mockProducts[0];
+    const product = mockProducts.find((item) => item.productId === productId);
+    if (!product)
+      throw new ApiError('상품을 찾을 수 없습니다.', 404, { code: 'PRODUCT_NOT_FOUND' });
     return {
       productId: product.productId,
       brandName: product.brandName,
@@ -70,7 +84,7 @@ export async function fetchProductDetail(productId: number): Promise<ProductDeta
       stockQuantity: isQaScenario('product-sold-out') ? 0 : 8,
     };
   }
-  const data = await apiGet<{ product: ProductDetail }>(`/products/${productId}`);
+  const data = await apiGet<{ product: ProductDetail }>(`/products/${productId}`, {}, { signal });
   return data.product;
 }
 
@@ -80,5 +94,10 @@ export async function fetchProductCategories(): Promise<ProductCategory[]> {
     return categoryTree;
   }
   const data = await apiGet<{ categories: ProductCategory[] }>('/products/categories');
-  return data.categories;
+  return Array.isArray(data?.categories)
+    ? data.categories.map((category) => ({
+        ...category,
+        children: Array.isArray(category.children) ? category.children : [],
+      }))
+    : [];
 }

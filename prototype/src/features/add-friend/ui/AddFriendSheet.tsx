@@ -1,15 +1,18 @@
-import { CheckIcon, Cross1Icon, MagnifyingGlassIcon, PlusIcon } from '@radix-ui/react-icons';
-import { useEffect, useState } from 'react';
+import { CheckIcon, Cross1Icon, MagnifyingGlassIcon } from '@radix-ui/react-icons';
+import { useEffect, useRef, useState } from 'react';
 
 import { addFriend } from '../../../entities/friend';
 import { type SearchedUser, searchUserByEmail } from '../../../entities/user';
 import { BottomSheet, KeyboardInput } from '../../../mobile';
+import { getSessionVersion } from '../../../shared/api/session';
+import { EMAIL_FORMAT_ERROR, isValidEmailFormat } from '../../../shared/lib/authValidation';
 
 type SearchState =
   | { status: 'idle' }
   | { status: 'searching' }
   | { status: 'found'; user: SearchedUser }
-  | { status: 'empty' };
+  | { status: 'empty' }
+  | { status: 'error'; message: string };
 
 type AddFriendSheetProps = {
   open: boolean;
@@ -31,40 +34,56 @@ export function AddFriendSheet({
   const [searchState, setSearchState] = useState<SearchState>({ status: 'idle' });
   const [addedUserIds, setAddedUserIds] = useState<number[]>([]);
   const [adding, setAdding] = useState(false);
-  const hasSearchQuery = query.trim().length > 0;
+  const searchVersion = useRef(0);
+  const hasValidEmail = isValidEmailFormat(query.trim());
 
   useEffect(() => {
     if (!open) {
+      searchVersion.current += 1;
       setEditing(false);
       setQuery('');
       setSearchState({ status: 'idle' });
+      setAddedUserIds([]);
     }
   }, [open]);
 
   const search = async () => {
     const email = query.trim();
     if (!email || searchState.status === 'searching') return;
+    if (!isValidEmailFormat(email)) {
+      setSearchState({ status: 'error', message: EMAIL_FORMAT_ERROR });
+      return;
+    }
     setSearchState({ status: 'searching' });
+    const version = ++searchVersion.current;
+    const sessionVersion = getSessionVersion();
     try {
       const user = await searchUserByEmail(email);
+      if (version !== searchVersion.current || sessionVersion !== getSessionVersion()) return;
       setSearchState(user ? { status: 'found', user } : { status: 'empty' });
     } catch (reason) {
-      setSearchState({ status: 'idle' });
-      onError(reason instanceof Error ? reason.message : '검색에 실패했습니다.');
+      if (version !== searchVersion.current || sessionVersion !== getSessionVersion()) return;
+      setSearchState({
+        status: 'error',
+        message: reason instanceof Error ? reason.message : '검색에 실패했습니다.',
+      });
     }
   };
 
   const add = async (user: SearchedUser) => {
-    if (adding) return;
+    if (adding || addedUserIds.includes(user.userId)) return;
     setAdding(true);
+    const version = getSessionVersion();
     try {
-      await addFriend(user.userId);
+      await addFriend(user.userId, user.name);
+      if (version !== getSessionVersion()) return;
       setAddedUserIds((current) => [...current, user.userId]);
       onAdded();
     } catch (reason) {
+      if (version !== getSessionVersion()) return;
       onError(reason instanceof Error ? reason.message : '친구 추가에 실패했습니다.');
     } finally {
-      setAdding(false);
+      if (version === getSessionVersion()) setAdding(false);
     }
   };
 
@@ -78,14 +97,26 @@ export function AddFriendSheet({
       >
         <Cross1Icon />
       </button>
-      <div className="friend-search-row">
+      <form
+        className="friend-search-row"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void search();
+        }}
+      >
         <MagnifyingGlassIcon />
         {editing ? (
           <KeyboardInput
             autoFocus
             aria-label="친구 이메일 검색"
+            aria-invalid={searchState.status === 'error'}
+            aria-describedby={searchState.status === 'error' ? 'friend-search-error' : undefined}
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              searchVersion.current += 1;
+              setQuery(event.target.value);
+              setSearchState({ status: 'idle' });
+            }}
             placeholder="이메일을 검색해 주세요"
           />
         ) : (
@@ -99,14 +130,19 @@ export function AddFriendSheet({
           </button>
         )}
         <button
-          type="button"
+          type="submit"
           className="search-action"
-          disabled={!hasSearchQuery || searchState.status === 'searching'}
-          onClick={search}
+          aria-busy={searchState.status === 'searching'}
+          disabled={!hasValidEmail || searchState.status === 'searching'}
         >
-          {searchState.status === 'searching' ? '검색 중' : '검색'}
+          <span>{searchState.status === 'searching' ? '검색 중…' : '검색'}</span>
         </button>
-      </div>
+      </form>
+      {searchState.status === 'error' ? (
+        <p id="friend-search-error" className="field-error friend-search-error" role="alert">
+          {searchState.message}
+        </p>
+      ) : null}
       <div className="friend-results">
         {searchState.status === 'found' ? (
           <article className="friend-result">
@@ -117,14 +153,28 @@ export function AddFriendSheet({
             {searchState.user.userId !== currentUserId ? (
               <button
                 type="button"
-                className="circle-action"
+                className="friend-request-action"
                 aria-label={`${searchState.user.name} ${
-                  addedUserIds.includes(searchState.user.userId) ? '추가됨' : '추가'
+                  addedUserIds.includes(searchState.user.userId)
+                    ? '요청 보냄'
+                    : adding
+                      ? '요청 중'
+                      : '친구 요청'
                 }`}
-                disabled={adding}
+                aria-busy={adding}
+                disabled={adding || addedUserIds.includes(searchState.user.userId)}
                 onClick={() => add(searchState.user)}
               >
-                {addedUserIds.includes(searchState.user.userId) ? <CheckIcon /> : <PlusIcon />}
+                {addedUserIds.includes(searchState.user.userId) ? (
+                  <>
+                    <CheckIcon aria-hidden="true" />
+                    요청 보냄
+                  </>
+                ) : adding ? (
+                  '요청 중…'
+                ) : (
+                  '친구 요청'
+                )}
               </button>
             ) : null}
           </article>

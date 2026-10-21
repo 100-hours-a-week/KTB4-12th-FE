@@ -1,5 +1,5 @@
 export type Pagination = { nextCursor: string | null; hasNext: boolean };
-export type CursorPage<T> = { items: T[]; pagination: Pagination };
+export type CursorPage<T, M = unknown> = { items: T[]; pagination: Pagination; metadata?: M };
 
 const MOCK_PAGE_SIZE = 20;
 
