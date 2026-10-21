@@ -242,6 +242,7 @@ export function GiftApp() {
       (storedProduct ? 'product' : (storedDetail?.route ?? getStoredMainTab()))
     );
   });
+  const previousRoute = useRef(route);
   useEffect(() => {
     try {
       if (route === 'ai-chat')
@@ -496,6 +497,11 @@ export function GiftApp() {
     if (notificationsEnabled) refreshProfile();
   }, [notificationsEnabled, sessionKey, refreshProfile]);
   useEffect(() => {
+    const enteringMyPage = route === 'mypage' && previousRoute.current !== 'mypage';
+    previousRoute.current = route;
+    if (notificationsEnabled && enteringMyPage) refreshProfile();
+  }, [notificationsEnabled, route, refreshProfile]);
+  useEffect(() => {
     if (!notificationsEnabled) return;
     let unreadTimer: number | undefined;
     const scheduleUnreadRefresh = () => {
@@ -510,6 +516,12 @@ export function GiftApp() {
       (notification) => {
         setNotificationBanner(notification);
         setNotificationRefreshKey((value) => value + 1);
+        if (
+          ['PAYMENT_COMPLETED', 'PAYMENT_CANCELED', 'GIFT_COMPLETED_REWARD'].includes(
+            notification.type,
+          )
+        )
+          refreshProfile();
         scheduleUnreadRefresh();
       },
       () => {
@@ -521,7 +533,7 @@ export function GiftApp() {
       unsubscribe();
       window.clearTimeout(unreadTimer);
     };
-  }, [notificationsEnabled, sessionKey, refreshUnread]);
+  }, [notificationsEnabled, sessionKey, refreshProfile, refreshUnread]);
   useEffect(() => {
     if (!notificationBanner || notificationBannerBusy) return;
     const timer = window.setTimeout(() => setNotificationBanner(null), 3000);
