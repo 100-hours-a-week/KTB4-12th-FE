@@ -3,12 +3,14 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import {
   acceptGift,
   cancelPayment,
+  fetchPaymentStatus,
   fetchReceivedGiftDetail,
   fetchReceivedGifts,
   fetchSentGiftDetail,
   fetchSentGifts,
   GiftDetailContent,
   GiftHistoryCard,
+  type PaymentStatusResult,
   type ReceivedGift,
   type SentGift,
 } from '../../../entities/gift';
@@ -218,6 +220,7 @@ function GiftListPage({
 
 type DetailPageProps = {
   giftId: number;
+  refreshKey?: number;
   onBack: () => void;
   onMessage: (message: string) => void;
   onChanged: () => void;
@@ -234,6 +237,7 @@ export function SentGiftDetailPage(props: DetailPageProps) {
 
 function GiftDetailPage({
   giftId,
+  refreshKey = 0,
   onBack,
   onMessage,
   onChanged,
@@ -242,6 +246,9 @@ function GiftDetailPage({
 }: DetailPageProps & { received: boolean }) {
   const [gift, setGift] = useState<ReceivedGift | SentGift | null>(null);
   const [loading, setLoading] = useState(true);
+  const [payment, setPayment] = useState<PaymentStatusResult | null>(null);
+  const [paymentError, setPaymentError] = useState('');
+  const loadVersion = useRef(0);
   const [error, setError] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -249,20 +256,42 @@ function GiftDetailPage({
   const cancellationKey = useRef<string | null>(null);
 
   const load = useCallback(async () => {
+    const version = ++loadVersion.current;
     setLoading(true);
     setError('');
+    setPayment(null);
+    setPaymentError('');
     try {
-      setGift(received ? await fetchReceivedGiftDetail(giftId) : await fetchSentGiftDetail(giftId));
+      const next = received
+        ? await fetchReceivedGiftDetail(giftId)
+        : await fetchSentGiftDetail(giftId);
+      if (version !== loadVersion.current) return;
+      setGift(next);
+      if (!received) {
+        try {
+          const status = await fetchPaymentStatus(next.orderId);
+          if (version === loadVersion.current) setPayment(status);
+        } catch (reason) {
+          if (version === loadVersion.current)
+            setPaymentError(
+              reason instanceof Error ? reason.message : '보상 정보를 불러오지 못했습니다.',
+            );
+        }
+      }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '선물 정보를 불러오지 못했습니다.');
+      if (version === loadVersion.current)
+        setError(reason instanceof Error ? reason.message : '선물 정보를 불러오지 못했습니다.');
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
   }, [giftId, received]);
 
   useEffect(() => {
     void load();
-  }, [load]);
+    return () => {
+      loadVersion.current += 1;
+    };
+  }, [load, refreshKey]);
 
   const accept = async () => {
     if (!gift || actionBusy) return;
@@ -316,6 +345,9 @@ function GiftDetailPage({
       {!loading && !error && gift ? (
         <div className="gift-detail-surface">
           <GiftDetailContent gift={gift} />
+          {!received ? (
+            <GiftRewardSummary payment={payment} error={paymentError} onRetry={() => void load()} />
+          ) : null}
           {waiting ? (
             <button
               type="button"
@@ -350,6 +382,74 @@ function GiftDetailPage({
           }}
           onConfirm={() => void cancel()}
         />
+      ) : null}
+    </section>
+  );
+}
+
+function GiftRewardSummary({
+  payment,
+  error,
+  onRetry,
+}: {
+  payment: PaymentStatusResult | null;
+  error: string;
+  onRetry: () => void;
+}) {
+  const paid = payment?.rewardAmount != null;
+  const restored = payment?.couponStatus === 'RESTORED';
+  const canceled = payment?.paymentStatus === 'CANCELED' || payment?.paymentStatus === 'DECLINED';
+  return (
+    <section className="gift-reward-summary" aria-label="선물 보상">
+      <div className="gift-reward-heading">
+        <h2>선물 보상</h2>
+        {payment ? (
+          <span>
+            {paid
+              ? '지급 완료'
+              : canceled
+                ? '미지급'
+                : payment.expectedRewardAmount != null
+                  ? '수락 대기'
+                  : '결과 확인 중'}
+          </span>
+        ) : null}
+      </div>
+      {error || !payment ? (
+        <p role="alert">{error || '보상 정보를 확인하지 못했습니다.'}</p>
+      ) : (
+        <>
+          <dl>
+            <dt>{restored ? '복구된 쿠폰' : paid ? '사용 쿠폰' : '적용 쿠폰'}</dt>
+            <dd>
+              {payment.couponMultiplier ? `${payment.couponMultiplier}배 쿠폰` : '쿠폰 미사용'}
+            </dd>
+            <dt>{paid ? '지급된 보상' : '수락 시 예상 보상'}</dt>
+            <dd className="gift-reward-amount">
+              {paid
+                ? `${payment.rewardAmount!.toLocaleString()} 크레딧`
+                : payment.expectedRewardAmount != null
+                  ? `${payment.expectedRewardAmount.toLocaleString()} 크레딧`
+                  : '—'}
+            </dd>
+          </dl>
+          <p>
+            {paid
+              ? '보낸 분에게 크레딧이 지급되었습니다.'
+              : restored
+                ? '사용한 쿠폰이 복구되었습니다. 보상은 지급되지 않았습니다.'
+                : canceled
+                  ? '취소된 선물에는 보상이 지급되지 않습니다.'
+                  : payment.expectedRewardAmount != null
+                    ? '상대방이 선물을 수락하면 지급됩니다.'
+                    : '결제 결과를 확인 중입니다. 보상은 아직 지급되지 않았습니다.'}
+          </p>
+        </>
+      )}
+      {error ? (
+        <button type="button" className="text-button" onClick={onRetry}>
+          보상 다시 조회
+        </button>
       ) : null}
     </section>
   );

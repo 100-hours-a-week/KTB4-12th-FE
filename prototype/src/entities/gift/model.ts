@@ -76,13 +76,28 @@ export type GiftPreflight = {
 
 export type PaymentResult = PaymentComplete | PaymentProcessing;
 
-export type PaymentComplete = {
+export type PaymentRequest = {
+  productId: number;
+  recipientUserId: number;
+  quantity: number;
+  expectedUnitPrice: number;
+  couponMultiplier?: 2 | 3 | null;
+};
+
+export type PaymentReward = {
+  couponMultiplier: 2 | 3 | null;
+  couponStatus: 'RESERVED' | 'USED' | 'RESTORED' | null;
+  expectedRewardAmount: number | null;
+  rewardAmount: number | null;
+};
+
+export type PaymentComplete = PaymentReward & {
   orderId: string;
   paymentKey: string;
   transactionKey: string;
   paymentStatus: 'COMPLETED';
   giftId: number;
-  giftStatus: 'WAITING_FOR_ACCEPTANCE';
+  giftStatus: GiftStatus;
   amount: number;
   balanceAfter: number;
   approvedAt: string;
@@ -96,7 +111,7 @@ export type PaymentProcessing = {
   retryAfterSeconds: number;
 };
 
-export type PaymentStatusResult = {
+export type PaymentStatusResult = PaymentReward & {
   orderId: string;
   paymentStatus: PaymentStatus;
   approvalResult: 'UNKNOWN' | 'APPROVED' | 'DECLINED' | null;

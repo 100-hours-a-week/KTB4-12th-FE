@@ -10,10 +10,15 @@ export {
   getMockGiftSummaryCounts,
   preflightGift,
 } from './api';
+export type { CouponInventory, CouponMultiplier } from './coupons';
+export { fetchCoupons } from './coupons';
 export type {
   GiftPreflight,
   GiftStatus,
+  PaymentComplete,
+  PaymentRequest,
   PaymentResult,
+  PaymentReward,
   PaymentStatusResult,
   ReceivedGift,
   SentGift,

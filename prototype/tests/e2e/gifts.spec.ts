@@ -8,7 +8,9 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('[QA 75, 77, 79, 88] 친구를 먼저 선택해 결제하고 보낸 선물로 이동한다', async ({ page }) => {
+test('[QA 75, 77, 79, 88] 친구를 먼저 선택해 결제하고 보낸 선물 상세에서 예상 보상을 확인한다', async ({
+  page,
+}) => {
   const recipient = page.locator('.friend-card').filter({ hasText: '김민지' }).first();
   await recipient.getByRole('button', { name: '선물하기' }).click();
 
@@ -30,11 +32,13 @@ test('[QA 75, 77, 79, 88] 친구를 먼저 선택해 결제하고 보낸 선물�
   await expect(confirmDialog).toBeVisible();
   await confirmDialog.getByRole('button', { name: '선물 보내기' }).click();
 
-  await expect(page.getByRole('heading', { name: '보낸 선물' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '보낸 선물 상세' })).toBeVisible();
   await expect(page.getByRole('status')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '완료' })).toHaveCount(0);
-  await expect(page.locator('.gift-history-item').first()).toContainText('김민지');
-  await expect(page.locator('.gift-history-item').first()).toContainText('결제 완료');
+  await expect(page.locator('.gift-detail-content')).toContainText('김민지');
+  await expect(page.locator('.gift-detail-content')).toContainText('결제 완료');
+  await expect(page.locator('.gift-reward-summary')).toContainText('50,000 크레딧');
+  await expect(page.locator('.gift-reward-heading')).toContainText('수락 대기');
 });
 
 test('사용자가 상품을 검색하고 상세 화면에서 목록으로 돌아간다', async ({ page }) => {
