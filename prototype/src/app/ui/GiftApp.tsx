@@ -25,7 +25,6 @@ import {
   removeFriend,
 } from '../../entities/friend';
 import {
-  createPayment,
   fetchPaymentStatus,
   getGiftConditionError,
   type GiftPreflight,
@@ -47,6 +46,11 @@ import {
   updateMe,
 } from '../../entities/user';
 import { AddFriendSheet } from '../../features/add-friend';
+import {
+  clearPendingCheckout,
+  getPendingCheckout,
+  GiftCheckoutSheet,
+} from '../../features/checkout-gift';
 import { EditBirthdaySheet } from '../../features/edit-birthday';
 import { OnboardingPreferenceSheet } from '../../features/edit-dislike-categories';
 import { ProductFilterSheet } from '../../features/filter-products';
@@ -212,14 +216,6 @@ function isRestorableRoute(route: Route): route is RestorableRoute {
   ].includes(route);
 }
 
-function makeIdempotencyKey() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
-    const random = (Math.random() * 16) | 0;
-    return (char === 'x' ? random : (random & 0x3) | 0x8).toString(16);
-  });
-}
-
 export function GiftApp() {
   const keyboard = useKeyboard();
   const { bottomInset } = useKeyboardInsets();
@@ -269,9 +265,12 @@ export function GiftApp() {
     const recipient = chatProductOrigin && userId ? loadChat(userId)?.recipient : null;
     return recipient ? { ...recipient, email: '' } : null;
   });
-  const [giftDialog, setGiftDialog] = useState<GiftDialog>(null);
+  const [giftDialog, setGiftDialog] = useState<GiftDialog>(() => {
+    const pending = getPendingCheckout();
+    return pending ? { kind: 'confirm', preflight: pending.preflight } : null;
+  });
+  const [hasPendingCheckout, setHasPendingCheckout] = useState(() => Boolean(getPendingCheckout()));
   const [giftBusy, setGiftBusy] = useState(false);
-  const idempotencyKey = useRef<string | null>(null);
   const [pendingPaymentOrderId, setPendingPaymentOrderId] = useState(() =>
     window.localStorage.getItem(PENDING_PAYMENT_STORAGE_KEY),
   );
@@ -362,7 +361,8 @@ export function GiftApp() {
     setSelectedGiftId(null);
     setGiftDialog(null);
     setGiftBusy(false);
-    idempotencyKey.current = null;
+    clearPendingCheckout();
+    setHasPendingCheckout(false);
     setPendingPaymentOrderId(null);
     window.localStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY);
     setQuantity(1);
@@ -523,8 +523,10 @@ export function GiftApp() {
           ['PAYMENT_COMPLETED', 'PAYMENT_CANCELED', 'GIFT_COMPLETED_REWARD'].includes(
             notification.type,
           )
-        )
+        ) {
           refreshProfile();
+          setGiftHistoryRefreshKey((value) => value + 1);
+        }
         scheduleUnreadRefresh();
       },
       () => {
@@ -598,6 +600,11 @@ export function GiftApp() {
   }, []);
 
   const beginGift = async (recipient = giftRecipient) => {
+    const pending = getPendingCheckout();
+    if (pending) {
+      setGiftDialog({ kind: 'confirm', preflight: pending.preflight });
+      return;
+    }
     if (!selectedProduct) return;
     if (!recipient) {
       setRecipientSelectionMode('gift');
@@ -626,59 +633,18 @@ export function GiftApp() {
     }
   };
 
-  const finalizeGift = async (preflight: GiftPreflight) => {
-    if (!selectedProduct || !giftRecipient) return;
-    idempotencyKey.current ??= makeIdempotencyKey();
-    const version = sessionVersion.current;
-    setGiftBusy(true);
-    try {
-      const result = await createPayment(
-        {
-          productId: selectedProduct.productId,
-          recipientUserId: giftRecipient.userId,
-          quantity,
-          expectedUnitPrice: preflight.product.unitPrice,
-        },
-        idempotencyKey.current,
-      );
-      if (version !== sessionVersion.current) return;
-      if ('approvalResult' in result) {
-        setPendingPaymentOrderId(result.orderId);
-        window.localStorage.setItem(PENDING_PAYMENT_STORAGE_KEY, result.orderId);
-        setToast('결제가 처리되고 있습니다.');
-      } else {
-        setPendingPaymentOrderId(null);
-        window.localStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY);
-      }
-      refreshProfile();
-      setGiftRecipient(null);
-      setGiftDialog(null);
-      idempotencyKey.current = null;
-      setSelectedProduct(null);
-      window.localStorage.removeItem(SELECTED_PRODUCT_STORAGE_KEY);
-      window.localStorage.setItem(
-        DETAIL_ROUTE_STORAGE_KEY,
-        JSON.stringify({ route: 'sent', returnRoute: 'mypage' }),
-      );
-      setHistory(['mypage']);
-      setGiftHistoryRefreshKey((value) => value + 1);
-      setRoute('sent');
-    } catch (reason) {
-      if (version !== sessionVersion.current) return;
-      const conditionError = reason instanceof ApiError ? getGiftConditionError(reason.code) : null;
-      if (conditionError) {
-        idempotencyKey.current = null;
-        setGiftDialog({ kind: 'conditions', ...conditionError });
-      } else {
-        setToast(
-          !(reason instanceof ApiError) || reason.code === 'PAYMENT_RESULT_UNCONFIRMED'
-            ? '결제 상태를 확인할 수 없습니다. 같은 결제를 다시 시도해 주세요.'
-            : reason.message,
-        );
-      }
-    } finally {
-      if (version === sessionVersion.current) setGiftBusy(false);
-    }
+  const completeCheckout = (giftId: number) => {
+    setGiftDialog(null);
+    setHasPendingCheckout(false);
+    setPendingPaymentOrderId(null);
+    window.localStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY);
+    setGiftRecipient(null);
+    refreshProfile();
+    setGiftHistoryRefreshKey((value) => value + 1);
+    setSelectedGiftId(giftId);
+    navigate('sent-detail', giftId);
+    setHistory(['mypage', 'sent']);
+    setToast('결제가 완료되었습니다.');
   };
 
   const login = async (email: string, password: string) => {
@@ -856,7 +822,6 @@ export function GiftApp() {
       /* In-memory navigation still preserves the return route. */
     }
     setQuantity(1);
-    idempotencyKey.current = null;
     navigate('product');
   };
 
@@ -872,7 +837,6 @@ export function GiftApp() {
       }}
       onClearRecipient={() => {
         setGiftRecipient(null);
-        idempotencyKey.current = null;
       }}
       action={route === 'gifts' ? notificationAction : undefined}
       onFilter={() => {
@@ -942,11 +906,9 @@ export function GiftApp() {
           quantity={quantity}
           action={notificationAction}
           onDecrease={() => {
-            idempotencyKey.current = null;
             setQuantity((value) => Math.max(1, value - 1));
           }}
           onIncrease={() => {
-            idempotencyKey.current = null;
             setQuantity((value) => Math.min(MAX_GIFT_QUANTITY, value + 1));
           }}
           onBack={goBack}
@@ -1039,7 +1001,12 @@ export function GiftApp() {
         <ReceivedGiftDetailPage
           giftId={selectedGiftId}
           onBack={goBack}
-          action={notificationAction}
+          action={
+            <div className="gift-detail-header-actions">
+              {renderReportWidget(true)}
+              {notificationAction}
+            </div>
+          }
           onMessage={setToast}
           onChanged={() => {
             setGiftHistoryRefreshKey((value) => value + 1);
@@ -1051,8 +1018,14 @@ export function GiftApp() {
       return (
         <SentGiftDetailPage
           giftId={selectedGiftId}
+          refreshKey={giftHistoryRefreshKey}
           onBack={goBack}
-          action={notificationAction}
+          action={
+            <div className="gift-detail-header-actions">
+              {renderReportWidget(true)}
+              {notificationAction}
+            </div>
+          }
           onMessage={setToast}
           onChanged={() => {
             setGiftHistoryRefreshKey((value) => value + 1);
@@ -1134,9 +1107,23 @@ export function GiftApp() {
         onDismiss={() => setNotificationBanner(null)}
       />
       <Toast message={toast} container={screenRef.current} />
+      {hasPendingCheckout && giftDialog?.kind !== 'confirm' && notificationsEnabled ? (
+        <div className="checkout-resume" role="status">
+          <span>확인이 필요한 결제가 있어요.</span>
+          <button
+            type="button"
+            onClick={() => {
+              const pending = getPendingCheckout();
+              if (pending) setGiftDialog({ kind: 'confirm', preflight: pending.preflight });
+            }}
+          >
+            같은 결제 확인
+          </button>
+        </div>
+      ) : null}
       {route === 'product' ? (
         <div className="product-feedback-dock">{renderReportWidget(true)}</div>
-      ) : route !== 'ai-chat' ? (
+      ) : !['ai-chat', 'sent-detail', 'received-detail'].includes(route) ? (
         renderReportWidget()
       ) : null}
       <AddFriendSheet
@@ -1178,7 +1165,6 @@ export function GiftApp() {
         onSelect={(friend) => {
           setGiftRecipient(friend);
           setRecipientSheetOpen(false);
-          idempotencyKey.current = null;
           if (recipientSelectionMode === 'gift') void beginGift(friend);
         }}
       />
@@ -1300,14 +1286,17 @@ export function GiftApp() {
         />
       ) : null}
       {giftDialog?.kind === 'confirm' ? (
-        <AppDialog
-          title={`${giftRecipient?.name ?? '받는 분'}님에게 이 선물을 보낼까요?`}
-          body="상품과 수량을 확인한 뒤 선물을 보내주세요."
-          cancelLabel="다시 선택하기"
-          confirmLabel="선물 보내기"
-          busy={giftBusy}
-          onCancel={() => setGiftDialog(null)}
-          onConfirm={() => void finalizeGift(giftDialog.preflight)}
+        <GiftCheckoutSheet
+          preflight={giftDialog.preflight}
+          productName={selectedProduct?.productName ?? '선택한 선물'}
+          imageUrl={selectedProduct?.thumbnailUrl ?? ''}
+          onClose={() => setGiftDialog(null)}
+          onComplete={completeCheckout}
+          onPendingChange={setHasPendingCheckout}
+          onConditionError={(code) => {
+            const condition = getGiftConditionError(code);
+            if (condition) setGiftDialog({ kind: 'conditions', ...condition });
+          }}
         />
       ) : null}
       {giftDialog?.kind === 'conditions' ? (
