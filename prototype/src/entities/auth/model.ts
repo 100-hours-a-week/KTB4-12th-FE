@@ -17,6 +17,7 @@ export type SignupRequest = {
   name: string;
   birth: string;
   email: string;
+  emailVerificationToken: string;
   password: string;
   termConsents: SignupTermConsent[];
 };

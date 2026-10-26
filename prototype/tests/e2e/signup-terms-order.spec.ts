@@ -53,6 +53,9 @@ test('선택 약관을 모든 필수 약관 뒤에 표시한다', async ({ page 
   await page.getByRole('button', { name: '선택 완료' }).click();
   await page.getByLabel('이메일').fill('terms-order@gift.local');
   await page.getByRole('button', { name: '중복확인' }).click();
+  await page.getByRole('button', { name: '인증번호 발송' }).click();
+  await page.getByLabel('이메일 인증번호').fill('123456');
+  await page.getByRole('button', { name: '인증 확인' }).click();
   await page.getByLabel('비밀번호', { exact: true }).fill('Test1234!');
   await page.getByRole('textbox', { name: '비밀번호 확인', exact: true }).fill('Test1234!');
   await page.getByRole('button', { name: '다음', exact: true }).click();

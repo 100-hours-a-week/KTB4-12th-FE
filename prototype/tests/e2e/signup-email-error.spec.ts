@@ -7,6 +7,129 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test('이메일 인증 API를 호출하고 발급 토큰을 회원가입 요청에 전달한다', async ({ page }) => {
+  const requests: Array<{
+    path: string;
+    body: unknown;
+    authorization: string | undefined;
+  }> = [];
+  const terms = [
+    {
+      termId: 1,
+      termCode: 'PRIVACY_COLLECTION_USE',
+      title: '개인정보 수집 및 이용 동의서',
+      version: 1,
+      isRequired: true,
+      content: '약관 본문',
+    },
+    {
+      termId: 2,
+      termCode: 'GIFT_HISTORY',
+      title: '선물 송수신 이력 정보 수집 및 이용 동의서',
+      version: 1,
+      isRequired: true,
+      content: '약관 본문',
+    },
+  ];
+  await page.route(
+    /\/auth\/(email-availability|email-verification-codes|email-verifications|terms|signup)(\?|$)/,
+    async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      requests.push({
+        path,
+        body: route.request().postDataJSON(),
+        authorization: route.request().headers().authorization,
+      });
+      if (path === '/auth/email-availability')
+        return route.fulfill({ json: { data: { available: true } } });
+      if (path === '/auth/email-verification-codes')
+        return route.fulfill({ json: { message: '이메일 인증번호를 발송했습니다.', data: {} } });
+      if (path === '/auth/email-verifications')
+        return route.fulfill({
+          json: {
+            message: '이메일 인증이 완료되었습니다.',
+            data: { emailVerificationToken: 'signup-token-123', expiresIn: 600 },
+          },
+        });
+      if (path === '/auth/terms') return route.fulfill({ json: { data: { terms } } });
+      return route.fulfill({ status: 201, json: { data: { userId: 42 } } });
+    },
+  );
+
+  await page.goto('/');
+  await page.getByRole('button', { name: '회원가입' }).click();
+  await page.getByLabel('이름').fill('테스트');
+  await page.getByRole('button', { name: '생년월일 선택' }).click();
+  await page.getByLabel('출생 연도').selectOption('1995');
+  await page.getByLabel('출생 월').selectOption('5');
+  await page.getByLabel('출생 일').selectOption('17');
+  await page.getByRole('button', { name: '선택 완료' }).click();
+  await page.getByLabel('이메일').fill('verified@gift.local');
+  await page.getByRole('button', { name: '중복확인' }).click();
+  await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: '인증번호 발송' }).click();
+  await page.getByLabel('이메일 인증번호').fill('123456');
+  await page.getByRole('button', { name: '인증 확인' }).click();
+  await expect(page.getByRole('status')).toHaveText('이메일 인증 완료');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Test1234!');
+  await page.getByRole('textbox', { name: '비밀번호 확인', exact: true }).fill('Test1234!');
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+  await page
+    .getByRole('checkbox', { name: '(필수) 개인정보 수집 및 이용 동의서', exact: true })
+    .check();
+  await page
+    .getByRole('checkbox', {
+      name: '(필수) 선물 송수신 이력 정보 수집 및 이용 동의서',
+      exact: true,
+    })
+    .check();
+  await page.getByRole('button', { name: '동의하고 회원가입' }).click();
+  await expect(page.getByRole('status')).toHaveText('회원가입이 완료됐어요. 로그인해 주세요.');
+
+  expect(requests.map(({ path }) => path).filter((path) => path !== '/auth/terms')).toEqual([
+    '/auth/email-availability',
+    '/auth/email-verification-codes',
+    '/auth/email-verifications',
+    '/auth/signup',
+  ]);
+  expect(requests.find(({ path }) => path === '/auth/email-verification-codes')?.body).toEqual({
+    email: 'verified@gift.local',
+  });
+  expect(requests.find(({ path }) => path === '/auth/email-verifications')?.body).toEqual({
+    email: 'verified@gift.local',
+    code: '123456',
+  });
+  expect(requests.find(({ path }) => path === '/auth/signup')?.body).toMatchObject({
+    emailVerificationToken: 'signup-token-123',
+  });
+  expect(requests.every(({ authorization }) => authorization == null)).toBe(true);
+});
+
+test('재발송 제한 응답의 Retry-After 시간을 사용한다', async ({ page }) => {
+  await page.route('**/auth/email-availability', async (route) =>
+    route.fulfill({ json: { data: { available: true } } }),
+  );
+  await page.route('**/auth/email-verification-codes', async (route) =>
+    route.fulfill({
+      status: 429,
+      headers: { 'Retry-After': '120' },
+      json: {
+        message: '잠시 후 다시 시도해 주세요.',
+        error: { code: 'TOO_MANY_REQUESTS' },
+      },
+    }),
+  );
+
+  await page.goto('/');
+  await page.getByRole('button', { name: '회원가입' }).click();
+  await page.getByLabel('이메일').fill('rate-limited@gift.local');
+  await page.getByRole('button', { name: '중복확인' }).click();
+  await page.getByRole('button', { name: '인증번호 발송' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText('잠시 후 다시 시도해 주세요.');
+  await expect(page.getByRole('button', { name: '재발송 120초' })).toBeDisabled();
+});
+
 test('이메일 중복 확인 중 서버 오류가 발생하면 완료 상태로 바뀌지 않는다', async ({ page }) => {
   await page.route('**/auth/email-availability', async (route) => {
     await route.fulfill({
@@ -63,7 +186,8 @@ for (const status of [200, 401]) {
     await page.getByLabel('이메일').fill('public-api@gift.local');
     await page.getByRole('button', { name: '중복확인' }).click();
     if (status === 200) {
-      await expect(page.getByRole('button', { name: '확인 완료' })).toBeVisible();
+      await expect(page.getByRole('button', { name: '중복확인' })).toBeVisible();
+      await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
     } else {
       await expect(page.getByRole('alert')).toHaveText('인증 오류');
     }
@@ -122,8 +246,8 @@ for (const result of ['available', 'unavailable', 'error'] as const) {
     await expect(page.getByRole('alert')).toHaveCount(0);
     await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
     await page.getByRole('button', { name: '중복확인' }).click();
-    await expect(page.getByRole('button', { name: '확인 완료' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '다음', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '중복확인' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
     expect(checkedEmails).toEqual(['first@gift.local', 'current@gift.local']);
   });
 }
@@ -165,7 +289,7 @@ test('이전 요청의 종료가 새 이메일의 확인 중 상태를 해제하
   );
   await expect(page.getByRole('button', { name: '확인 중', exact: true })).toBeDisabled();
   releaseCurrent();
-  await expect(page.getByRole('button', { name: '확인 완료' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '중복확인' })).toBeVisible();
 });
 
 test('가입 화면을 나간 후 도착한 응답은 가입 초안의 확인 상태를 바꾸지 않는다', async ({

@@ -25,6 +25,30 @@ export async function checkEmailAvailability(email: string): Promise<boolean> {
   return data.available;
 }
 
+export async function sendEmailVerificationCode(email: string): Promise<void> {
+  if (USE_MOCK_API) {
+    await delay();
+    return;
+  }
+  await apiPost('/auth/email-verification-codes', { email }, { authenticated: false });
+}
+
+export async function verifyEmailCode(
+  email: string,
+  code: string,
+): Promise<{ emailVerificationToken: string; expiresIn: number }> {
+  if (USE_MOCK_API) {
+    await delay();
+    return { emailVerificationToken: 'prototype-email-verification-token', expiresIn: 600 };
+  }
+  const result = await apiPost<{ emailVerificationToken: string; expiresIn?: number }>(
+    '/auth/email-verifications',
+    { email, code },
+    { authenticated: false },
+  );
+  return { ...result, expiresIn: result.expiresIn ?? 600 };
+}
+
 export async function signup(payload: SignupRequest): Promise<{ userId: number }> {
   if (USE_MOCK_API) {
     await delay(400);

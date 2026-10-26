@@ -57,6 +57,17 @@ test('약관 버전 충돌 시 가입하지 않고 서버 안내를 표시한다
       }),
     });
   });
+  await page.route('**/auth/email-verification-codes', async (route) => {
+    await route.fulfill({ json: { message: '이메일 인증번호를 발송했습니다.', data: {} } });
+  });
+  await page.route('**/auth/email-verifications', async (route) => {
+    await route.fulfill({
+      json: {
+        message: '이메일 인증이 완료되었습니다.',
+        data: { emailVerificationToken: 'verified-signup-token', expiresIn: 600 },
+      },
+    });
+  });
   await page.route('**/auth/terms', async (route) => {
     await route.fulfill({
       status: 200,
@@ -96,7 +107,10 @@ test('약관 버전 충돌 시 가입하지 않고 서버 안내를 표시한다
   await page.getByRole('button', { name: '선택 완료' }).click();
   await page.getByLabel('이메일').fill('stale-terms@gift.local');
   await page.getByRole('button', { name: '중복확인' }).click();
-  await expect(page.getByRole('button', { name: '확인 완료' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '중복확인' })).toBeVisible();
+  await page.getByRole('button', { name: '인증번호 발송' }).click();
+  await page.getByLabel('이메일 인증번호').fill('123456');
+  await page.getByRole('button', { name: '인증 확인' }).click();
   await page.getByLabel('비밀번호', { exact: true }).fill('Test1234!');
   await page.getByRole('textbox', { name: '비밀번호 확인', exact: true }).fill('Test1234!');
   await page.getByRole('button', { name: '다음', exact: true }).click();
@@ -117,6 +131,7 @@ test('약관 버전 충돌 시 가입하지 않고 서버 안내를 표시한다
   await expect(page.getByRole('button', { name: '동의하고 회원가입' })).toBeEnabled();
   expect(submittedBody).toMatchObject({
     email: 'stale-terms@gift.local',
+    emailVerificationToken: 'verified-signup-token',
     termConsents: [
       { termId: 1, version: 3, isAgreed: true },
       { termId: 2, version: 3, isAgreed: true },

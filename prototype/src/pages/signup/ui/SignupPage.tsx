@@ -1,8 +1,18 @@
-import { ArrowLeftIcon, CalendarIcon, EyeOpenIcon } from '@radix-ui/react-icons';
+import {
+  ArrowLeftIcon,
+  CalendarIcon,
+  EnvelopeClosedIcon,
+  EyeOpenIcon,
+} from '@radix-ui/react-icons';
 import { useEffect, useRef, useState } from 'react';
 
-import { checkEmailAvailability } from '../../../entities/auth';
+import {
+  checkEmailAvailability,
+  sendEmailVerificationCode,
+  verifyEmailCode,
+} from '../../../entities/auth';
 import { BottomSheet, KeyboardInput } from '../../../mobile';
+import { ApiError } from '../../../shared/api/client';
 import { BirthdayFields, FormField } from '../../../shared/ui';
 import {
   isValidSignupBirthday,
@@ -23,7 +33,10 @@ export type SignupDraft = {
   name: string;
   birthday: string;
   email: string;
-  emailVerified: boolean;
+  emailAvailable: boolean;
+  emailVerificationToken: string;
+  emailVerificationTokenExpiresAt: number | null;
+  emailVerificationSentAt: number | null;
   password: string;
   passwordConfirmation: string;
 };
@@ -42,49 +55,148 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
   const [pendingBirthday, setPendingBirthday] = useState(draft.birthday || '2000.01.01');
   const [emailChecking, setEmailChecking] = useState(false);
   const [emailError, setEmailError] = useState('');
-  const emailCheckVersion = useRef(0);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailVerifying, setEmailVerifying] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationError, setVerificationError] = useState('');
+  const [now, setNow] = useState(() => Date.now());
+  const [resendUntil, setResendUntil] = useState(() =>
+    draft.emailVerificationSentAt == null ? 0 : draft.emailVerificationSentAt + 60_000,
+  );
+  const emailRequestVersion = useRef(0);
   useEffect(
     () => () => {
-      emailCheckVersion.current += 1;
+      emailRequestVersion.current += 1;
     },
     [],
   );
+  const resendSeconds = Math.max(0, Math.ceil((resendUntil - now) / 1000));
+  const tokenExpiresAt = draft.emailVerificationTokenExpiresAt ?? 0;
+  const emailVerified = Boolean(draft.emailVerificationToken && tokenExpiresAt > now);
+  const codeSent = draft.emailVerificationSentAt != null;
+  const codeExpiresAt =
+    draft.emailVerificationSentAt == null ? 0 : draft.emailVerificationSentAt + 5 * 60_000;
+  const codeExpired = !emailVerified && codeExpiresAt > 0 && codeExpiresAt <= now;
+  const nextUpdateMs =
+    resendSeconds > 0 ? 1000 : emailVerified ? tokenExpiresAt - now : codeExpiresAt - now;
+  useEffect(() => {
+    if (nextUpdateMs <= 0) return;
+    const timeout = window.setTimeout(() => setNow(Date.now()), nextUpdateMs);
+    return () => window.clearTimeout(timeout);
+  }, [now, nextUpdateMs]);
   const update = <Key extends keyof SignupDraft>(field: Key, value: SignupDraft[Key]) =>
     onDraftChange((current) => ({ ...current, [field]: value }));
   const validName = isValidSignupName(draft.name);
   const validEmailFormat = isValidSignupEmail(draft.email);
+  const validVerificationCode = /^\d{6}$/.test(verificationCode);
   const validPassword = isValidSignupPassword(draft.password);
   const passwordMatches =
     Boolean(draft.passwordConfirmation) && draft.password === draft.passwordConfirmation;
   const nameInvalid = Boolean(draft.name) && !validName;
-  const emailFormatInvalid = Boolean(draft.email) && !validEmailFormat && !draft.emailVerified;
+  const emailFormatInvalid = Boolean(draft.email) && !validEmailFormat;
   const passwordInvalid = Boolean(draft.password) && !validPassword;
   const validBirthday = isValidSignupBirthday(draft.birthday);
   const birthdayInvalid = Boolean(draft.birthday) && !validBirthday;
   const pendingBirthdayInvalid = !isValidSignupBirthday(pendingBirthday);
-  const ready =
-    validName && validBirthday && draft.emailVerified && validPassword && passwordMatches;
+  const ready = validName && validBirthday && emailVerified && validPassword && passwordMatches;
 
   const checkEmail = async () => {
-    if (emailChecking) return;
-    const version = ++emailCheckVersion.current;
+    if (emailChecking || emailSending || emailVerifying) return;
+    const version = ++emailRequestVersion.current;
     setEmailChecking(true);
     setEmailError('');
     try {
       const available = await checkEmailAvailability(draft.email.trim());
-      if (version !== emailCheckVersion.current) return;
+      if (version !== emailRequestVersion.current) return;
+      onDraftChange((current) => ({
+        ...current,
+        emailAvailable: available,
+        ...(available
+          ? {}
+          : {
+              emailVerificationToken: '',
+              emailVerificationTokenExpiresAt: null,
+              emailVerificationSentAt: null,
+            }),
+      }));
       if (!available) {
         setEmailError('이미 사용 중인 이메일입니다.');
-        update('emailVerified', false);
-        return;
       }
-      update('emailVerified', true);
     } catch (reason) {
-      if (version !== emailCheckVersion.current) return;
+      if (version !== emailRequestVersion.current) return;
       setEmailError(reason instanceof Error ? reason.message : '중복 확인에 실패했습니다.');
-      update('emailVerified', false);
     } finally {
-      if (version === emailCheckVersion.current) setEmailChecking(false);
+      if (version === emailRequestVersion.current) setEmailChecking(false);
+    }
+  };
+
+  const sendVerificationCode = async () => {
+    if (
+      !draft.emailAvailable ||
+      emailSending ||
+      emailVerifying ||
+      emailVerified ||
+      resendSeconds > 0
+    )
+      return;
+    const version = ++emailRequestVersion.current;
+    setEmailSending(true);
+    setVerificationError('');
+    try {
+      await sendEmailVerificationCode(draft.email.trim());
+      if (version !== emailRequestVersion.current) return;
+      const sentAt = Date.now();
+      setNow(sentAt);
+      setResendUntil(sentAt + 60_000);
+      setVerificationCode('');
+      onDraftChange((current) => ({
+        ...current,
+        emailVerificationToken: '',
+        emailVerificationTokenExpiresAt: null,
+        emailVerificationSentAt: sentAt,
+      }));
+    } catch (reason) {
+      if (version !== emailRequestVersion.current) return;
+      if (reason instanceof ApiError && reason.status === 429) {
+        const retryAt = Date.now();
+        setNow(retryAt);
+        setResendUntil(retryAt + Math.max(1, reason.retryAfterSeconds ?? 60) * 1000);
+      }
+      setVerificationError(
+        reason instanceof Error
+          ? reason.message
+          : '인증번호 발송에 실패했습니다. 다시 시도해 주세요.',
+      );
+    } finally {
+      if (version === emailRequestVersion.current) setEmailSending(false);
+    }
+  };
+
+  const verifyCode = async () => {
+    if (!validVerificationCode || emailVerifying || emailVerified) return;
+    const version = ++emailRequestVersion.current;
+    setEmailVerifying(true);
+    setVerificationError('');
+    try {
+      const result = await verifyEmailCode(draft.email.trim(), verificationCode);
+      if (version !== emailRequestVersion.current) return;
+      const verifiedAt = Date.now();
+      setNow(verifiedAt);
+      onDraftChange((current) => ({
+        ...current,
+        emailVerificationToken: result.emailVerificationToken,
+        emailVerificationTokenExpiresAt: verifiedAt + result.expiresIn * 1000,
+      }));
+      setVerificationCode('');
+    } catch (reason) {
+      if (version !== emailRequestVersion.current) return;
+      setVerificationError(
+        reason instanceof Error
+          ? reason.message
+          : '인증번호 확인에 실패했습니다. 다시 시도해 주세요.',
+      );
+    } finally {
+      if (version === emailRequestVersion.current) setEmailVerifying(false);
     }
   };
 
@@ -140,18 +252,29 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
             </small>
           ) : null}
         </div>
-        <FormField label="이메일">
+        <div className="form-field">
+          <label htmlFor="signup-email">이메일</label>
           <div className="input-with-icon">
             <KeyboardInput
+              id="signup-email"
               value={draft.email}
               onChange={(event) => {
-                emailCheckVersion.current += 1;
+                emailRequestVersion.current += 1;
                 setEmailChecking(false);
+                setEmailSending(false);
+                setEmailVerifying(false);
                 setEmailError('');
+                setVerificationError('');
+                setVerificationCode('');
+                setNow(Date.now());
+                setResendUntil(0);
                 onDraftChange((current) => ({
                   ...current,
                   email: event.target.value,
-                  emailVerified: false,
+                  emailAvailable: false,
+                  emailVerificationToken: '',
+                  emailVerificationTokenExpiresAt: null,
+                  emailVerificationSentAt: null,
                 }));
               }}
               placeholder="가입에 사용할 이메일 주소를 입력해 주세요"
@@ -162,10 +285,10 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
             <button
               type="button"
               className="duplicate-check"
-              disabled={!validEmailFormat || emailChecking}
+              disabled={!validEmailFormat || emailChecking || emailSending || emailVerifying}
               onClick={checkEmail}
             >
-              {draft.emailVerified ? '확인 완료' : emailChecking ? '확인 중' : '중복확인'}
+              {emailChecking ? '확인 중' : '중복확인'}
             </button>
           </div>
           {emailFormatInvalid ? (
@@ -173,7 +296,7 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
               {SIGNUP_EMAIL_ERROR}
             </small>
           ) : null}
-          {draft.emailVerified ? (
+          {draft.emailAvailable ? (
             <small className="field-success">사용할 수 있는 이메일입니다.</small>
           ) : null}
           {emailError ? (
@@ -181,7 +304,83 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
               {emailError}
             </small>
           ) : null}
-        </FormField>
+          {draft.emailAvailable ? (
+            <div className="email-verification">
+              {emailVerified ? (
+                <p className="email-verification-success" role="status">
+                  이메일 인증 완료
+                </p>
+              ) : (
+                <>
+                  <div className="email-verification-controls">
+                    <button
+                      type="button"
+                      className="email-verification-send"
+                      disabled={emailSending || emailVerifying || resendSeconds > 0}
+                      onClick={sendVerificationCode}
+                    >
+                      {emailSending
+                        ? '발송 중…'
+                        : resendSeconds > 0
+                          ? `재발송 ${resendSeconds}초`
+                          : codeSent
+                            ? '인증번호 재발송'
+                            : '인증번호 발송'}
+                    </button>
+                    <div className="email-verification-code">
+                      <KeyboardInput
+                        aria-label="이메일 인증번호"
+                        inputMode="numeric"
+                        value={verificationCode}
+                        onChange={(event) => {
+                          setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6));
+                          setVerificationError('');
+                        }}
+                        placeholder="인증번호 6자리"
+                        maxLength={6}
+                        disabled={!codeSent || emailSending || emailVerifying}
+                        aria-invalid={Boolean(verificationError)}
+                        aria-describedby={
+                          verificationError ? 'signup-email-verification-error' : undefined
+                        }
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="email-verification-confirm"
+                      disabled={!validVerificationCode || emailVerifying || emailSending}
+                      onClick={verifyCode}
+                    >
+                      {emailVerifying ? '확인 중…' : '인증 확인'}
+                    </button>
+                  </div>
+                  <div className="email-verification-note">
+                    <span className="email-verification-note-copy">
+                      <EnvelopeClosedIcon aria-hidden="true" />
+                      <span>
+                        {codeExpired
+                          ? '인증번호가 만료됐어요. 다시 발송해 주세요.'
+                          : codeSent
+                            ? '인증번호를 이메일로 보냈어요. 5분 안에 입력해 주세요.'
+                            : '인증번호를 이메일로 발송해 인증을 완료해 주세요.'}
+                      </span>
+                    </span>
+                    {resendSeconds > 0 ? (
+                      <span className="email-verification-countdown">
+                        재발송까지 {resendSeconds}초
+                      </span>
+                    ) : null}
+                  </div>
+                </>
+              )}
+              {verificationError ? (
+                <small id="signup-email-verification-error" className="field-error" role="alert">
+                  {verificationError}
+                </small>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
         <FormField label="비밀번호">
           <div className="input-with-icon">
             <KeyboardInput
