@@ -11,6 +11,7 @@ export class ApiError extends Error {
   code: string | null;
   details: ApiErrorDetails | null;
   traceId: string | null;
+  retryAfterSeconds: number | null = null;
 
   constructor(
     message: string,
@@ -174,11 +175,14 @@ async function requestResponse(
   if (!response.ok) {
     if (response.status === 500 && responseBody.error?.traceId)
       console.error('API 오류 traceId:', responseBody.error.traceId);
-    throw new ApiError(
+    const error = new ApiError(
       responseBody.message ?? '일시적인 오류가 발생했습니다. 다시 시도해 주세요.',
       response.status,
       responseBody.error,
     );
+    const retryAfter = response.headers.get('Retry-After');
+    if (retryAfter && /^\d+$/.test(retryAfter)) error.retryAfterSeconds = Number(retryAfter);
+    throw error;
   }
   return response;
 }

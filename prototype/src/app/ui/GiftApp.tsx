@@ -115,7 +115,10 @@ const emptySignupDraft: SignupDraft = {
   name: '',
   birthday: '',
   email: '',
-  emailVerified: false,
+  emailAvailable: false,
+  emailVerificationToken: '',
+  emailVerificationTokenExpiresAt: null,
+  emailVerificationSentAt: null,
   password: '',
   passwordConfirmation: '',
 };
@@ -772,6 +775,7 @@ export function GiftApp() {
       name: signupDraft.name.trim(),
       birth: signupDraft.birthday.replaceAll('.', '-'),
       email: signupDraft.email.trim(),
+      emailVerificationToken: signupDraft.emailVerificationToken,
       password: signupDraft.password,
       termConsents: consents,
     });
