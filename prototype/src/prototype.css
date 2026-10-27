@@ -3598,3 +3598,316 @@ textarea:focus-visible,
   top: 100%;
   bottom: auto;
 }
+
+/* Roulette event: header and hero share one continuous illustration. */
+.page.roulette-event-page {
+  min-height: 100%;
+  padding: 60px 0 calc(var(--app-safe-area-height) + 24px);
+  background: #ff7867;
+  color: #302321;
+}
+.roulette-event-banner {
+  position: relative;
+  isolation: isolate;
+  padding: 0 20px;
+}
+.roulette-event-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: url('/assets/roulette/scene.webp') center bottom / 100% 100% no-repeat;
+  mask-image: linear-gradient(to bottom, #000 92%, transparent 100%);
+}
+.roulette-event-page > .screen-header {
+  grid-template-columns: 44px 1fr 66px;
+  margin: 0 0 12px;
+  padding: 0 20px;
+  background: #ff7867;
+}
+.roulette-event-page > .screen-header h1 {
+  font-size: 20px;
+}
+.roulette-event-page > .screen-header .header-action {
+  justify-content: flex-end;
+}
+.roulette-sound {
+  min-height: 44px;
+  padding: 0 9px;
+  border: 1px solid #e8d3bf;
+  border-radius: 22px;
+  background: #fff7eb;
+  color: #75452d;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.roulette-sound[aria-pressed='false'] {
+  background: #fffaf3;
+  color: #776b61;
+}
+.roulette-hero {
+  text-align: center;
+}
+.roulette-hero h2 {
+  font-size: clamp(30px, 8.8vw, 39px);
+  font-weight: 900;
+  letter-spacing: -1.7px;
+  line-height: 1.22;
+}
+.roulette-hero h2 span {
+  display: block;
+  color: #dd3f2d;
+  font-size: 1.2em;
+}
+.roulette-hero > p {
+  margin: 10px 0 0;
+  color: #74534c;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.roulette-stage {
+  position: relative;
+  isolation: isolate;
+  width: calc(100% + 40px);
+  margin: 0 -20px;
+  padding: 22px 17px 43px;
+}
+.roulette-assembly {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+}
+.roulette-disc {
+  border-radius: 50%;
+  box-shadow: inset 0 0 15px #d77a4540;
+  position: absolute;
+  inset: 10%;
+  width: 80%;
+  height: 80%;
+  transform-origin: center;
+  will-change: transform;
+}
+.roulette-frame,
+.roulette-hub {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.roulette-frame {
+  z-index: 1;
+  filter: drop-shadow(0 14px 10px #e6b68150);
+}
+.roulette-labels {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  will-change: transform;
+}
+.roulette-prize-label {
+  position: absolute;
+  width: 27%;
+  text-align: center;
+  transform: translate(-50%, -50%);
+  color: #b93428;
+  line-height: 1.12;
+  will-change: transform;
+}
+.roulette-prize-label:nth-child(even) {
+  color: #fff;
+}
+.roulette-prize-label strong {
+  display: block;
+  font-size: clamp(18px, 6vw, 28px);
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+.roulette-prize-label small {
+  display: block;
+  margin-top: 5px;
+  font-size: clamp(10px, 2.9vw, 13px);
+  font-weight: 750;
+  letter-spacing: -0.4px;
+}
+.roulette-hub-backplate {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.roulette-hub-backplate span {
+  width: 29%;
+  aspect-ratio: 1;
+  border: 1px solid #dab26b;
+  border-radius: 50%;
+  background: #f9d891;
+  box-shadow: 0 3px 8px rgb(59 45 33 / 18%);
+  transform: translateY(-6%);
+}
+.roulette-hub {
+  z-index: 3;
+  clip-path: circle(12% at 49.85% 48.3%);
+}
+.roulette-pointer {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  z-index: 4;
+  width: 54px;
+  height: 72px;
+  object-fit: contain;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 3px 2px rgb(76 34 18 / 30%));
+  pointer-events: none;
+}
+.roulette-event-content {
+  padding: 0 20px;
+}
+.roulette-spin {
+  width: 100%;
+  min-height: 62px;
+  margin-top: 14px;
+  border: 1px solid #ed7358;
+  border-bottom: 5px solid #c42f24;
+  border-radius: 32px;
+  background: #f34d3b;
+  color: white;
+  font-size: 20px;
+  font-weight: 850;
+  box-shadow: 0 7px 20px #d24c3738;
+}
+.roulette-spin:hover:not(:disabled) {
+  background: #e94131;
+}
+.roulette-spin:disabled {
+  background: #cf503b;
+  color: #fff;
+  cursor: wait;
+}
+.roulette-event-page .roulette-participation {
+  margin: 12px 0 16px;
+  color: #57251d;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.roulette-ticket {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 19px 16px;
+  border: 1px solid #f1e0d1;
+  border-radius: 18px;
+  background: #fffdf8;
+}
+.roulette-ticket > span {
+  padding-right: 16px;
+  border-right: 1px dashed #dcc399;
+  color: #cc4328;
+  font-size: 44px;
+  font-weight: 900;
+  letter-spacing: -4px;
+  line-height: 1.2;
+}
+.roulette-ticket h3 {
+  margin: 0 0 7px;
+  font-size: 15px;
+  letter-spacing: -0.6px;
+}
+.roulette-ticket p {
+  color: #715b50;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.roulette-rules-button {
+  display: block;
+  min-height: 44px;
+  margin: 12px auto 0;
+  padding: 0 12px;
+  background: transparent;
+  color: #542d25;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.roulette-event-page .roulette-disclaimer {
+  color: #57251d;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.roulette-error {
+  color: #6a1f15;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.roulette-rules {
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.9;
+}
+.roulette-rules li + li {
+  margin-top: 12px;
+}
+.roulette-result {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+.roulette-result img {
+  width: 74px;
+  height: 74px;
+}
+.roulette-result strong {
+  color: #c4432a;
+  font-size: 25px;
+  line-height: 1.3;
+}
+.roulette-result > span {
+  color: #715b50;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.roulette-result small {
+  font-size: 11px;
+}
+.roulette-confetti {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;
+}
+.roulette-confetti img {
+  position: absolute;
+  top: -40px;
+  left: var(--confetti-x);
+  width: 26px;
+  height: 26px;
+  animation: roulette-confetti-fall 2.2s var(--confetti-delay) ease-in forwards;
+}
+@keyframes roulette-confetti-fall {
+  to {
+    transform: translateY(1000px) rotate(540deg);
+    opacity: 0;
+  }
+}
+@media (max-width: 600px), (hover: none) and (pointer: coarse) {
+  .page.roulette-event-page {
+    padding-top: 0;
+  }
+  .roulette-event-page > .screen-header {
+    margin: 0 0 12px;
+    padding: 8px 20px 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .roulette-confetti {
+    display: none;
+  }
+}
