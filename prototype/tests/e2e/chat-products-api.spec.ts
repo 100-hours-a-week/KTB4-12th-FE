@@ -251,9 +251,12 @@ test('상품 상세에 내부 ID로 이동하고 새로고침·뒤로 가기 후
   await view.dispatchEvent('click');
   await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'product');
   await expect(page.locator('.product-detail')).toContainText('최신 상품 102');
-  expect(calls).toBeGreaterThanOrEqual(2);
+  await expect(page.locator('.product-description')).toContainText('상품 상세 설명');
+  expect(calls).toBe(2);
   await page.reload();
   await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'product');
+  await expect(page.locator('.product-description')).toContainText('상품 상세 설명');
+  expect(calls).toBe(3);
   await page.getByRole('button', { name: '뒤로 가기' }).dispatchEvent('click');
   await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'ai-chat');
   await expect(card(page, 102)).toContainText('최신 상품 102');

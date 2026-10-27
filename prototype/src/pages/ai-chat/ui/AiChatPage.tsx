@@ -12,7 +12,7 @@ import {
 import { createPortal } from 'react-dom';
 
 import { type ChatRecipient, loadChat } from '../../../entities/chat';
-import type { Product } from '../../../entities/product';
+import type { Product, ProductDetail } from '../../../entities/product';
 import { ChatSession } from '../../../features/chat';
 import { ChatProductCards, ChatProducts } from '../../../features/chat-product-cards';
 import { Carousel, KeyboardTextarea, useKeyboardInsets } from '../../../mobile';
@@ -37,7 +37,7 @@ export function AiChatPage({
   userId: number | null;
   recipient: ChatRecipient | null;
   onSelectRecipient: () => void;
-  onProduct: (product: Product, recipient: ChatRecipient) => void;
+  onProduct: (product: Product, recipient: ChatRecipient, detail: ProductDetail) => void;
   onBack: () => void;
 }) {
   const [stored] = useState(() => (userId ? loadChat(userId) : null));
@@ -126,7 +126,7 @@ function ChatPage({
   feedback?: ReactNode;
   userId: number;
   recipient: ChatRecipient;
-  onProduct: (product: Product, recipient: ChatRecipient) => void;
+  onProduct: (product: Product, recipient: ChatRecipient, detail: ProductDetail) => void;
   onBack: () => void;
 }) {
   const [chat] = useState(() => new ChatSession(userId, recipient));
@@ -146,10 +146,10 @@ function ChatPage({
   useEffect(() => {
     products.ensure(productIds ? productIds.split(',').map(Number) : []);
   }, [products, productIds]);
-  const viewProduct = (product: Product) => {
+  const viewProduct = (product: Product, detail: ProductDetail) => {
     chat.setScroll(scrollRef.current?.scrollTop ?? snapshot.scrollTop);
     chat.flush();
-    onProduct(product, snapshot.recipient);
+    onProduct(product, snapshot.recipient, detail);
   };
   const { bottomInset } = useKeyboardInsets();
   const [host, setHost] = useState<Element | null>(null);

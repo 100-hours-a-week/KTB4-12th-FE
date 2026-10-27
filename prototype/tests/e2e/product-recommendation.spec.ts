@@ -347,3 +347,38 @@ test('수신자 없는 AI 정렬은 목록 대신 선택 안내를 보여주고 
   await expect(page.locator('.product-card')).toHaveCount(1);
   await expect(page.locator('.browse-recipient-prompt')).not.toBeVisible();
 });
+
+test('일반 상품 상세는 StrictMode에서도 진입당 한 번 조회하고 재진입 시 최신 재고를 확인한다', async ({
+  page,
+}) => {
+  await setup(page, (route) => route.fulfill({ json: result([101], 'POPULAR') }));
+  let calls = 0;
+  await page.route('**/products/101', async (route) => {
+    calls++;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    return route.fulfill({
+      json: {
+        data: {
+          product: {
+            productId: 101,
+            brandName: '테스트 브랜드',
+            productName: '상품 101',
+            unitPrice: 32000,
+            images: [],
+            description: '상세 정보',
+            stockQuantity: calls === 1 ? 8 : 0,
+          },
+        },
+      },
+    });
+  });
+  await page.locator('.product-card').first().click();
+  await expect(page.locator('.product-description')).toContainText('상세 정보');
+  await expect(page.locator('.product-cta')).toBeEnabled();
+  expect(calls).toBe(1);
+  await page.getByRole('button', { name: '뒤로 가기' }).click();
+  await page.locator('.product-card').first().click();
+  await expect(page.locator('.product-detail')).toContainText('품절된 상품이에요');
+  await expect(page.locator('.product-cta')).toBeDisabled();
+  expect(calls).toBe(2);
+});
