@@ -37,7 +37,12 @@ import {
   type Notification,
   subscribeNotifications,
 } from '../../entities/notification';
-import { fetchProductCategories, type Product, type ProductCategory } from '../../entities/product';
+import {
+  fetchProductCategories,
+  type Product,
+  type ProductCategory,
+  type ProductDetail,
+} from '../../entities/product';
 import {
   completeOnboarding,
   fetchMe,
@@ -259,6 +264,7 @@ export function GiftApp() {
         : [],
   );
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(storedProduct);
+  const [selectedProductDetail, setSelectedProductDetail] = useState<ProductDetail | null>(null);
   const [selectedGiftId, setSelectedGiftId] = useState<number | null>(storedDetail?.giftId ?? null);
   const [giftRecipient, setGiftRecipient] = useState<SearchedUser | null>(() => {
     const userId = loadSession()?.user?.userId;
@@ -803,7 +809,8 @@ export function GiftApp() {
     route === 'login' || route === 'signup' || route === 'terms' ? undefined : (
       <NotificationButton count={unreadCount} onClick={() => setNotificationSheetOpen(true)} />
     );
-  const openProduct = (product: Product, recipient?: ChatRecipient) => {
+  const openProduct = (product: Product, recipient?: ChatRecipient, detail?: ProductDetail) => {
+    setSelectedProductDetail(detail ?? null);
     setSelectedProduct(product);
     window.localStorage.setItem(SELECTED_PRODUCT_STORAGE_KEY, JSON.stringify(product));
     setChatProductOrigin(!!recipient);
@@ -902,7 +909,9 @@ export function GiftApp() {
     if (route === 'product' && selectedProduct)
       return (
         <ProductPage
+          key={selectedProduct.productId}
           product={selectedProduct}
+          initialDetail={selectedProductDetail}
           quantity={quantity}
           action={notificationAction}
           onDecrease={() => {
