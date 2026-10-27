@@ -12,4 +12,5 @@ export type Route =
   | 'preferences'
   | 'gift-preference'
   | 'ai-chat'
-  | 'account';
+  | 'account'
+  | 'roulette-event';

@@ -43,6 +43,7 @@ import {
   type ProductCategory,
   type ProductDetail,
 } from '../../entities/product';
+import { attendRoulette } from '../../entities/roulette';
 import {
   completeOnboarding,
   fetchMe,
@@ -75,6 +76,10 @@ import { getQaInitialRoute } from '../../shared/config/qaScenario';
 import type { MainTabRoute, Route } from '../../shared/model/navigation';
 import { AppDialog, Toast } from '../../shared/ui';
 import { BottomNavigation } from '../../widgets/bottom-navigation';
+
+const RouletteEventPage = lazy(() =>
+  import('../../pages/roulette-event').then((m) => ({ default: m.RouletteEventPage })),
+);
 
 const FriendsPage = lazy(() =>
   import('../../pages/friends').then((m) => ({ default: m.FriendsPage })),
@@ -143,7 +148,8 @@ type RestorableRoute =
   | 'received-detail'
   | 'sent-detail'
   | 'preferences'
-  | 'gift-preference';
+  | 'gift-preference'
+  | 'roulette-event';
 type StoredDetailRoute = { route: RestorableRoute; returnRoute: MainTabRoute; giftId?: number };
 
 function getStoredMainTab(): MainTabRoute {
@@ -199,6 +205,7 @@ function getStoredDetailRoute(): StoredDetailRoute | null {
       'sent-detail',
       'preferences',
       'gift-preference',
+      'roulette-event',
     ];
     const tabs: MainTabRoute[] = ['friends', 'gifts', 'mypage'];
     if (!routes.includes(detail.route) || !tabs.includes(detail.returnRoute)) return null;
@@ -218,6 +225,7 @@ function isRestorableRoute(route: Route): route is RestorableRoute {
     'sent-detail',
     'preferences',
     'gift-preference',
+    'roulette-event',
   ].includes(route);
 }
 
@@ -233,6 +241,7 @@ export function GiftApp() {
   const [route, setRoute] = useState<Route>(() => {
     if (window.localStorage.getItem(AUTH_FLAG_KEY) === 'signed-out' || !loadSession())
       return 'login';
+    if (window.location.pathname === '/roulette-event') return 'roulette-event';
     try {
       if (
         sessionStorage.getItem('gift-chat-active') === String(loadSession()?.user?.userId ?? 'mock')
@@ -247,6 +256,24 @@ export function GiftApp() {
     );
   });
   const previousRoute = useRef(route);
+  useEffect(() => {
+    if (route === 'roulette-event') {
+      window.history.replaceState(
+        window.history.state,
+        '',
+        `/roulette-event${window.location.search}${window.location.hash}`,
+      );
+    } else if (
+      window.location.pathname === '/roulette-event' &&
+      !['login', 'signup', 'terms'].includes(route)
+    ) {
+      window.history.replaceState(
+        window.history.state,
+        '',
+        `/${window.location.search}${window.location.hash}`,
+      );
+    }
+  }, [route]);
   useEffect(() => {
     try {
       if (route === 'ai-chat')
@@ -503,6 +530,32 @@ export function GiftApp() {
   const notificationsEnabled =
     route !== 'login' && route !== 'signup' && route !== 'terms' && Boolean(loadSession());
   useEffect(() => {
+    if (!notificationsEnabled) return;
+    // 보상 장애가 로그인이나 앱 진입을 막지 않도록 화면에서 재시도한다.
+    const attend = () => {
+      if (document.visibilityState === 'visible') void attendRoulette().catch(() => undefined);
+    };
+    let visible = document.visibilityState === 'visible';
+    const onVisible = () => {
+      const next = document.visibilityState === 'visible';
+      if (next && !visible) attend();
+      visible = next;
+    };
+    const onPageHide = () => {
+      visible = false;
+    };
+    const timer = window.setTimeout(attend, 0);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', onVisible);
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', onVisible);
+      window.removeEventListener('pagehide', onPageHide);
+    };
+  }, [notificationsEnabled, sessionKey]);
+  useEffect(() => {
     if (notificationsEnabled) refreshProfile();
   }, [notificationsEnabled, sessionKey, refreshProfile]);
   useEffect(() => {
@@ -654,6 +707,7 @@ export function GiftApp() {
   };
 
   const login = async (email: string, password: string) => {
+    const openRoulette = window.location.pathname === '/roulette-event';
     const result = await apiLogin(email, password);
     resetSessionState();
     saveSession({
@@ -662,7 +716,12 @@ export function GiftApp() {
       expiresIn: result.expiresIn,
       user: result.user,
     });
-    setTabNow('friends');
+    if (openRoulette) {
+      setRoute('roulette-event');
+      setHistory(['mypage']);
+    } else {
+      setTabNow('friends');
+    }
     if (result.isFirstLogin) setOnboardingOpen(true);
   };
   const completeFriendRequest = async () => {
@@ -942,6 +1001,14 @@ export function GiftApp() {
           }}
         />
       );
+    if (route === 'roulette-event')
+      return (
+        <RouletteEventPage
+          key={`${sessionKey}:${loadSession()?.user?.userId ?? profile?.userId ?? 'loading'}`}
+          userId={loadSession()?.user?.userId ?? profile?.userId ?? null}
+          onBack={goBack}
+        />
+      );
     if (route === 'mypage')
       return (
         <MyPage
@@ -955,6 +1022,7 @@ export function GiftApp() {
           onSent={() => navigate('sent')}
           onPreferences={() => navigate('preferences')}
           onGiftPreference={() => navigate('gift-preference')}
+          onRouletteEvent={() => navigate('roulette-event')}
         />
       );
     if (route === 'account')
