@@ -7,7 +7,6 @@ const participation = {
   giftGranted: 3,
   used: 0,
   remaining: 8,
-  dailyRemaining: 1,
 };
 
 test.beforeEach(async ({ page }) => {
@@ -62,7 +61,7 @@ test('서버 참여권을 표시하고 반복 출석에도 잔액을 임의로 �
   });
   await page.goto('/roulette-event');
   await expect(page.getByText('남은 참여권 8장')).toBeVisible();
-  await expect(page.getByText('오늘 사용 0회 · 남은 참여 1회')).toBeVisible();
+  await expect(page.getByText(/오늘 사용/)).toHaveCount(0);
   await expect(page.getByRole('button', { name: '룰렛 추첨 준비 중' })).toBeDisabled();
   const before = attendance;
   await page.getByRole('button', { name: '참여권 새로고침' }).click();
@@ -106,7 +105,7 @@ test('이벤트 비활성 상태를 안내하고 가짜 참여권이나 결과�
   await expect(page.getByRole('button', { name: '룰렛 추첨 준비 중' })).toBeDisabled();
 });
 
-test('잔액과 당일 실행 한도를 서버 응답대로 각각 표시한다', async ({ page }) => {
+test('서버 잔액을 표시하고 오늘 사용 횟수는 표시하지 않는다', async ({ page }) => {
   await page.route('**/roulette/attendance', (route) =>
     route.fulfill({ json: { data: { ...participation, granted: false } } }),
   );
@@ -117,7 +116,6 @@ test('잔액과 당일 실행 한도를 서버 응답대로 각각 표시한다'
           ...participation,
           remaining: 5,
           used: 1,
-          dailyRemaining: 0,
           serverTime: '2026-10-26T10:00:00Z',
         },
       },
@@ -125,7 +123,7 @@ test('잔액과 당일 실행 한도를 서버 응답대로 각각 표시한다'
   );
   await page.goto('/roulette-event');
   await expect(page.getByText('남은 참여권 5장')).toBeVisible();
-  await expect(page.getByText('오늘 사용 1회 · 남은 참여 0회')).toBeVisible();
+  await expect(page.getByText(/오늘 사용/)).toHaveCount(0);
 });
 
 test('한국 시간 자정에 서버 기준으로 출석과 참여 현황을 다시 확인한다', async ({ page }) => {
@@ -143,7 +141,6 @@ test('한국 시간 자정에 서버 기준으로 출석과 참여 현황을 다
             ? {
                 ...participation,
                 used: 1,
-                dailyRemaining: 0,
                 serverTime: '2026-10-26T14:59:59Z',
               }
             : {
@@ -157,10 +154,10 @@ test('한국 시간 자정에 서버 기준으로 출석과 참여 현황을 다
     });
   });
   await page.goto('/roulette-event');
-  await expect(page.getByText('오늘 사용 1회 · 남은 참여 0회')).toBeVisible();
+  await expect(page.getByText(/오늘 사용/)).toHaveCount(0);
   await page.clock.fastForward(2100);
   await expect(page.getByText('남은 참여권 9장')).toBeVisible();
-  await expect(page.getByText('오늘 사용 0회 · 남은 참여 1회')).toBeVisible();
+  await expect(page.getByText(/오늘 사용/)).toHaveCount(0);
 });
 
 test('인증된 앱 첫 접속과 탭 복귀에서 출석을 확인한다', async ({ page }) => {
@@ -321,7 +318,6 @@ test.describe('서버 추첨', () => {
               ...board,
               remaining: 7,
               used: 1,
-              dailyRemaining: 0,
               serverTime: '2026-10-26T10:00:00Z',
             },
           },
@@ -335,7 +331,7 @@ test.describe('서버 추첨', () => {
     await expect(page.locator('.roulette-disc')).toHaveAttribute('style', /rotate\(2821\.5deg\)/);
     await page.getByRole('button', { name: '확인', exact: true }).click();
     await expect(page.getByText('남은 참여권 7장')).toBeVisible();
-    await expect(page.getByRole('button', { name: '오늘 참여 완료' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '행운 돌리기', exact: true })).toBeEnabled();
     expect(calls).toBe(1);
     expect(await page.evaluate((key) => sessionStorage.getItem(key), pendingKey)).toBeNull();
     await page.getByRole('button', { name: '이벤트 이용안내' }).click();
@@ -363,7 +359,6 @@ test.describe('서버 추첨', () => {
             ...board,
             remaining: 7,
             used: 1,
-            dailyRemaining: 0,
             serverTime: '2026-10-26T10:00:00Z',
           },
         },
@@ -399,7 +394,7 @@ test.describe('서버 추첨', () => {
     expect(label!.x + label!.width / 2).toBeCloseTo(assembly!.x + assembly!.width / 2, 0);
     expect(label!.y).toBeLessThan(assembly!.y + assembly!.height / 2);
     await page.getByRole('button', { name: '확인', exact: true }).click();
-    await expect(page.getByRole('button', { name: '오늘 참여 완료' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '행운 돌리기', exact: true })).toBeEnabled();
   });
 
   test('기존 박스 칸은 꽝으로 처리하고 화면에 랜덤박스를 표시하지 않는다', async ({ page }) => {
@@ -431,10 +426,10 @@ test.describe('서버 추첨', () => {
     expect(label!.x + label!.width / 2).toBeCloseTo(assembly!.x + assembly!.width / 2, 0);
     expect(label!.y).toBeLessThan(assembly!.y + assembly!.height / 2);
     await page.getByRole('button', { name: '확인', exact: true }).click();
-    await expect(page.getByRole('button', { name: '오늘 참여 완료' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '행운 돌리기', exact: true })).toBeEnabled();
   });
 
-  test('일일 제한 거절은 키를 정리하고 서버 상태를 다시 확인한다', async ({ page }) => {
+  test('참여권 부족 거절은 키를 정리하고 서버 상태를 다시 확인한다', async ({ page }) => {
     await page.route('**/roulette/spins', async (route) => {
       await page.route('**/roulette', (r) =>
         r.fulfill({
@@ -443,7 +438,7 @@ test.describe('서버 추첨', () => {
               ...participation,
               ...board,
               used: 1,
-              dailyRemaining: 0,
+              remaining: 0,
               serverTime: '2026-10-26T10:00:00Z',
             },
           },
@@ -452,15 +447,15 @@ test.describe('서버 추첨', () => {
       await route.fulfill({
         status: 409,
         json: {
-          message: '오늘 이미 참여했어요.',
-          error: { code: 'ROULETTE_DAILY_LIMIT_EXCEEDED' },
+          message: '사용 가능한 참여권이 없어요.',
+          error: { code: 'ROULETTE_TICKET_NOT_AVAILABLE' },
         },
       });
     });
     await page.goto('/roulette-event');
     await page.getByRole('button', { name: '행운 돌리기', exact: true }).click();
-    await expect(page.getByRole('alert')).toHaveText('오늘 이미 참여했어요.');
-    await expect(page.getByRole('button', { name: '오늘 참여 완료' })).toBeDisabled();
+    await expect(page.getByRole('alert')).toHaveText('사용 가능한 참여권이 없어요.');
+    await expect(page.getByRole('button', { name: '참여권이 없어요' })).toBeDisabled();
     expect(await page.evaluate((key) => sessionStorage.getItem(key), pendingKey)).toBeNull();
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
@@ -603,7 +598,7 @@ test.describe('서버 추첨', () => {
       'roulette-test-token',
     );
     await page.getByRole('button', { name: '확인', exact: true }).click();
-    await expect(page.getByRole('button', { name: '오늘 참여 완료' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '행운 돌리기', exact: true })).toBeEnabled();
   });
 
   test('전날 결과를 복구해도 오늘 서버 잔액과 참여 한도를 덮어쓰지 않는다', async ({ page }) => {

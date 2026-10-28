@@ -21,7 +21,6 @@ export function RouletteEventPage({
     pending,
     boardReady,
     geometry,
-    lastSpinDate,
     wheel,
     labels,
     spinning,
@@ -128,17 +127,15 @@ export function RouletteEventPage({
               ? '결과 다시 확인'
               : !boardReady
                 ? '룰렛 추첨 준비 중'
-                : tickets.status?.dailyRemaining === 0 || tickets.status?.date === lastSpinDate
-                  ? '오늘 참여 완료'
-                  : tickets.status?.remaining === 0
-                    ? '참여권이 없어요'
-                    : '행운 돌리기'}
+                : tickets.status?.remaining === 0
+                  ? '참여권이 없어요'
+                  : '행운 돌리기'}
         </button>
         <p className="roulette-participation" role="status">
           {pending
             ? '미확정 결과가 있어요. 같은 요청으로 결과를 확인해 주세요.'
             : boardReady
-              ? '참여권 1장으로 하루 한 번 참여할 수 있어요.'
+              ? '참여권 1장으로 한 번씩, 보유한 만큼 참여할 수 있어요.'
               : '참여권은 모아 두고, 추첨이 열리면 사용할 수 있어요.'}
         </p>
         {error ? (
@@ -157,10 +154,6 @@ export function RouletteEventPage({
                   오늘 출석 지급 {tickets.status.attendanceGranted}장 · 선물 지급{' '}
                   {tickets.status.giftGranted}장
                 </p>
-                <p>
-                  오늘 사용 {tickets.status.used}회 · 남은 참여 {tickets.status.dailyRemaining}회
-                </p>
-                <p>기준일 {tickets.status.date} · 매일 한국 시간 00시에 참여 횟수가 초기화돼요.</p>
               </div>
             ) : null}
             {tickets.error ? <p role="alert">{tickets.error}</p> : null}
@@ -183,12 +176,12 @@ export function RouletteEventPage({
         <ul className="roulette-rules">
           <li>한국 시간 기준 매일 출석 참여권 1장을 지급해요.</li>
           <li>결제가 성공하고 선물 발송이 확정되면 보낸 사람에게 선물당 참여권 1장을 지급해요.</li>
-          <li>미사용 참여권은 이월되며, 룰렛 참여는 하루 전체 1회로 제한돼요.</li>
+          <li>미사용 참여권은 이월되며, 보유한 참여권만큼 참여할 수 있어요.</li>
           <li>전환 당일에 이미 출석 크레딧을 받았다면 참여권을 추가 지급하지 않아요.</li>
           {boardReady ? (
             <>
               <li>쿠폰은 선물 완료 보상에 1회 적용되며, 사용 만료 기한이 없어요.</li>
-              <li>꽝도 참여권 1장과 오늘 참여 횟수를 사용해요.</li>
+              <li>꽝도 참여권 1장을 사용해요.</li>
               {tickets.status?.segments?.map((segment) => (
                 <li key={segment.segmentId}>
                   {segment.segmentId + 1}번 칸 · {ROULETTE_REWARDS[segment.segmentId].value} ·{' '}

@@ -45,20 +45,13 @@ export function useRoulette({
       return true;
     }
   });
-  const [lastSpinDate, setLastSpinDate] = useState<string | null>(null);
   const boardReady = hasRouletteBoard(status);
   const currentGeometry = rouletteGeometry(
     boardReady ? status!.segments!.map((segment) => segment.probability) : [1, 1, 1, 1, 1, 1],
   );
   const [spinGeometry, setSpinGeometry] = useState<RouletteGeometry | null>(null);
   const geometry = spinGeometry ?? currentGeometry;
-  const canSpin =
-    userId !== null &&
-    (pending ||
-      (boardReady &&
-        status!.remaining > 0 &&
-        status!.dailyRemaining > 0 &&
-        status!.date !== lastSpinDate));
+  const canSpin = userId !== null && (pending || (boardReady && status!.remaining > 0));
 
   useEffect(() => {
     mounted.current = true;
@@ -122,7 +115,6 @@ export function useRoulette({
       }
       if (!isCurrent()) return;
       const reward = rouletteResult(response);
-      setLastSpinDate(response.date);
       void refresh();
       const from = rotation.current;
       const target = nextRouletteRotation(from, reward.index, activeGeometry);
@@ -176,9 +168,7 @@ export function useRoulette({
       if (!isCurrent()) return;
       const rejected =
         reason instanceof ApiError &&
-        (reason.code === 'ROULETTE_TICKET_NOT_AVAILABLE' ||
-          reason.code === 'ROULETTE_DAILY_LIMIT_EXCEEDED' ||
-          reason.code === 'INVALID_REQUEST');
+        (reason.code === 'ROULETTE_TICKET_NOT_AVAILABLE' || reason.code === 'INVALID_REQUEST');
       if (rejected && userId !== null) {
         try {
           clearPendingSpin(userId);
@@ -230,7 +220,6 @@ export function useRoulette({
     pending,
     boardReady,
     geometry,
-    lastSpinDate,
     wheel,
     labels,
     spinning,
