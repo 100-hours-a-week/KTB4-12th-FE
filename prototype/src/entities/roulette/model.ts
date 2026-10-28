@@ -5,7 +5,6 @@ export type RouletteParticipation = {
   giftGranted: number;
   used: number;
   remaining: number;
-  dailyRemaining: number;
 };
 
 export type RouletteSegment = {
