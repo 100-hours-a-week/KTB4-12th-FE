@@ -1,12 +1,9 @@
-import { apiPatch, apiStream, USE_MOCK_API } from '../../shared/api/client';
+import { apiStream, USE_MOCK_API } from '../../shared/api/client';
 import { getSessionVersion, loadSession } from '../../shared/api/session';
 import type { Notification } from './api';
 
-function parseNotification(
-  frame: string,
-): { notification: Notification; deliveryId: string | null } | null {
+function parseNotification(frame: string): Notification | null {
   const lines = frame.split(/\r?\n/);
-  if (!lines.includes('event:notification') && !lines.includes('event: notification')) return null;
   try {
     const value = JSON.parse(
       lines
@@ -27,14 +24,7 @@ function parseNotification(
       !(value.referenceId === null || Number.isSafeInteger(value.referenceId))
     )
       return null;
-    const deliveryId = lines
-      .find((line) => line.startsWith('id:'))
-      ?.slice(3)
-      .trim();
-    return {
-      notification: value,
-      deliveryId: deliveryId && /^[1-9][0-9]*$/.test(deliveryId) ? deliveryId : null,
-    };
+    return value;
   } catch {
     return null;
   }
@@ -87,17 +77,24 @@ export function subscribeNotifications(
           buffer += decoder.decode(value, { stream: true });
           let boundary: RegExpExecArray | null;
           while ((boundary = /\r?\n\r?\n/.exec(buffer))) {
-            const event = parseNotification(buffer.slice(0, boundary.index));
+            const frame = buffer.slice(0, boundary.index);
             buffer = buffer.slice(boundary.index + boundary[0].length);
-            if (!active() || !event) continue;
-            const { notification, deliveryId } = event;
+            if (!active()) continue;
+            const eventType = frame
+              .split(/\r?\n/)
+              .find((line) => line.startsWith('event:'))
+              ?.slice(6)
+              .trim();
+            if (eventType === 'resync') {
+              onConnected();
+              continue;
+            }
+            if (eventType !== 'notification') continue;
+            const notification = parseNotification(frame);
+            if (!notification) continue;
             if (!notification.isRead && !seen.has(notification.notificationId)) {
               onNotification(notification);
               seen.add(notification.notificationId);
-            }
-            // ACK 응답이 유실되어 재수신한 이벤트도 다시 확인한다.
-            if (deliveryId && active()) {
-              void apiPatch(`/notifications/events/${deliveryId}/ack`).catch(() => undefined);
             }
           }
         }
@@ -106,9 +103,8 @@ export function subscribeNotifications(
         reader.releaseLock();
       }
     } catch {
-      // Network failures reconnect; authentication failures use the shared session handling.
+      return;
     } finally {
-      // A stopped connection must not schedule a retry over its replacement.
       if (controller === connection) {
         controller = null;
         if (canConnect()) retryTimer = window.setTimeout(() => void connect(), 3000);
