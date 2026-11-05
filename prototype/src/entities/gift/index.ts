@@ -3,6 +3,7 @@ export {
   cancelPayment,
   createPayment,
   fetchPaymentStatus,
+  fetchPendingPayments,
   fetchReceivedGiftDetail,
   fetchReceivedGifts,
   fetchSentGiftDetail,
@@ -20,6 +21,7 @@ export type {
   PaymentResult,
   PaymentReward,
   PaymentStatusResult,
+  PendingPaymentOrder,
   ReceivedGift,
   SentGift,
 } from './model';

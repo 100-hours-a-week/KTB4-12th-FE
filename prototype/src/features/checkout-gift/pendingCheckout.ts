@@ -10,6 +10,9 @@ export type PendingCheckout = {
   productName: string;
   imageUrl: string;
   orderId: string | null;
+  statusUrl?: string | null;
+  approvalResult?: 'UNKNOWN' | 'APPROVED';
+  autoCheckUntil?: number | null;
 };
 
 export function getPendingCheckout(): PendingCheckout | null {

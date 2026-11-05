@@ -14,6 +14,7 @@ import { BottomSheet } from '../../../mobile';
 import { ApiError } from '../../../shared/api/client';
 import { loadSession } from '../../../shared/api/session';
 import { ProductImage } from '../../../shared/ui';
+import { getPaymentStatusMessage } from '../paymentStatusMessage';
 import { clearPendingCheckout, getPendingCheckout, savePendingCheckout } from '../pendingCheckout';
 
 type Props = {
@@ -35,10 +36,21 @@ export function GiftCheckoutSheet(props: Props) {
   const [loading, setLoading] = useState(true);
   const [couponError, setCouponError] = useState('');
   const [error, setError] = useState('');
+  const [statusNotice, setStatusNotice] = useState(() =>
+    attempt?.approvalResult === 'APPROVED'
+      ? '결제 승인은 확인됐어요. 주문 처리를 마무리하고 있습니다.'
+      : attempt?.approvalResult === 'UNKNOWN'
+        ? '결제 승인 여부를 확인하고 있어요.'
+        : '',
+  );
   const [busy, setBusy] = useState(false);
+  const [automaticChecksDone, setAutomaticChecksDone] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const active = useRef(true);
   const sending = useRef(false);
+  const checkPaymentStatusRef = useRef<(current: NonNullable<typeof attempt>) => Promise<void>>(
+    async () => undefined,
+  );
   const preflight = attempt?.preflight ?? props.preflight;
   const productName = attempt?.productName ?? props.productName;
   const imageUrl = attempt?.imageUrl ?? props.imageUrl;
@@ -81,7 +93,68 @@ export function GiftCheckoutSheet(props: Props) {
     setReloadKey((key) => key + 1);
   };
 
+  const checkPaymentStatus = async (current: NonNullable<typeof attempt>) => {
+    if (sending.current) return;
+    sending.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await fetchPaymentStatus(current.orderId!, current.statusUrl);
+      if (!active.current) return;
+      setStatusNotice(getPaymentStatusMessage(result));
+      if (result.paymentStatus === 'COMPLETED' && result.giftId != null) {
+        clearPendingCheckout();
+        props.onPendingChange(false);
+        props.onComplete(result.giftId);
+      } else if (
+        result.paymentStatus === 'DECLINED' ||
+        result.paymentStatus === 'CANCELED' ||
+        (result.paymentStatus === 'FAILED' &&
+          result.failureCode !== 'PAYMENT_RECONCILIATION_REQUIRED')
+      ) {
+        release();
+        setError(getPaymentStatusMessage(result));
+      }
+    } catch (reason) {
+      if (!active.current) return;
+      setError(
+        reason instanceof Error
+          ? `${reason.message} 결제 요청은 다시 보내지 않았어요.`
+          : '결제 상태를 확인하지 못했어요. 결제 요청은 다시 보내지 않았어요.',
+      );
+    } finally {
+      sending.current = false;
+      if (active.current) setBusy(false);
+    }
+  };
+  useEffect(() => {
+    checkPaymentStatusRef.current = checkPaymentStatus;
+  });
+
+  useEffect(() => {
+    if (!attempt?.orderId) return;
+    const currentAttempt = attempt;
+    const autoCheckUntil = currentAttempt.autoCheckUntil ?? Date.now() + 60_000;
+    if (Date.now() >= autoCheckUntil) {
+      const timer = window.setTimeout(() => setAutomaticChecksDone(true), 0);
+      return () => window.clearTimeout(timer);
+    }
+    const timer = window.setInterval(() => {
+      if (Date.now() >= autoCheckUntil) {
+        window.clearInterval(timer);
+        setAutomaticChecksDone(true);
+        return;
+      }
+      void checkPaymentStatusRef.current(currentAttempt);
+    }, 5_000);
+    return () => window.clearInterval(timer);
+  }, [attempt]);
+
   const submit = async () => {
+    if (attempt?.orderId) {
+      await checkPaymentStatus(attempt);
+      return;
+    }
     if (sending.current) return;
     sending.current = true;
     setBusy(true);
@@ -103,37 +176,29 @@ export function GiftCheckoutSheet(props: Props) {
           productName,
           imageUrl,
           orderId: null,
+          statusUrl: null,
+          approvalResult: undefined,
+          autoCheckUntil: null,
         };
         savePendingCheckout(current);
         setAttempt(current);
         props.onPendingChange(true);
       }
 
-      if (current.orderId) {
-        const result = await fetchPaymentStatus(current.orderId);
-        if (!active.current) return;
-        if (result.paymentStatus === 'COMPLETED' && result.giftId != null) {
-          clearPendingCheckout();
-          props.onPendingChange(false);
-          props.onComplete(result.giftId);
-        } else if (result.paymentStatus === 'DECLINED' || result.paymentStatus === 'CANCELED') {
-          release();
-          setError(
-            result.paymentStatus === 'DECLINED'
-              ? '결제가 승인되지 않았습니다.'
-              : '결제가 취소되었습니다.',
-          );
-        } else setError('결제 결과를 확인 중입니다. 잠시 후 같은 요청의 상태를 확인해 주세요.');
-        return;
-      }
-
       const result = await createPayment(current.input, current.key);
       if (!active.current) return;
       if ('approvalResult' in result) {
-        const pending = { ...current, orderId: result.orderId };
+        const pending = {
+          ...current,
+          orderId: result.orderId,
+          statusUrl: result.statusUrl,
+          approvalResult: result.approvalResult,
+          autoCheckUntil: Date.now() + 60_000,
+        };
         savePendingCheckout(pending);
         setAttempt(pending);
-        setError('결제 결과를 확인 중입니다. 잠시 후 같은 요청의 상태를 확인해 주세요.');
+        setStatusNotice(getPaymentStatusMessage(result));
+        setAutomaticChecksDone(false);
       } else {
         clearPendingCheckout();
         props.onPendingChange(false);
@@ -269,6 +334,18 @@ export function GiftCheckoutSheet(props: Props) {
         {attempt ? (
           <p className="checkout-note">결제 결과가 확정될 때까지 선택한 쿠폰을 유지합니다.</p>
         ) : null}
+        {statusNotice ? (
+          <p role="status" className="checkout-note">
+            {statusNotice}
+          </p>
+        ) : null}
+        {attempt?.orderId ? (
+          <p className="checkout-note">
+            {automaticChecksDone
+              ? '자동 확인을 마쳤어요. 아래 버튼으로 상태를 다시 확인할 수 있습니다.'
+              : '결제 요청을 다시 보내지 않고 5초 간격으로 최대 1분 상태를 확인합니다.'}
+          </p>
+        ) : null}
         {error ? (
           <p className="checkout-error" role="alert">
             {error}
@@ -281,12 +358,16 @@ export function GiftCheckoutSheet(props: Props) {
           onClick={() => void submit()}
         >
           {busy
-            ? '처리 중…'
-            : attempt
-              ? '같은 결제 결과 확인'
-              : couponError
-                ? '쿠폰 없이 선물 보내기'
-                : '선물 보내기'}
+            ? attempt?.orderId
+              ? '상태 확인 중…'
+              : '처리 중…'
+            : attempt?.orderId
+              ? '결제 상태 확인'
+              : attempt
+                ? '같은 결제 결과 확인'
+                : couponError
+                  ? '쿠폰 없이 선물 보내기'
+                  : '선물 보내기'}
         </button>
       </div>
     </BottomSheet>

@@ -4,7 +4,7 @@ import { PRODUCT_IMAGE } from '../../shared/config/assets';
 export const MAX_GIFT_QUANTITY = 10;
 
 export type GiftStatus = 'WAITING_FOR_ACCEPTANCE' | 'COMPLETED' | 'CANCELED';
-export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'DECLINED' | 'CANCELED';
+export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'DECLINED' | 'FAILED' | 'CANCELED';
 
 const GIFT_CONDITION_ERRORS = {
   GIFT_CONDITIONS_CHANGED: {
@@ -108,7 +108,13 @@ export type PaymentProcessing = {
   orderId: string;
   paymentStatus: 'PENDING';
   approvalResult: 'UNKNOWN' | 'APPROVED';
+  statusUrl: string;
   retryAfterSeconds: number;
+};
+
+export type PendingPaymentOrder = {
+  orderId: string;
+  paymentStatus: 'PENDING';
 };
 
 export type PaymentStatusResult = PaymentReward & {
