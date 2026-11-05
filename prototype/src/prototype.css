@@ -994,6 +994,36 @@ textarea:focus-visible,
   font-size: 13px;
   font-weight: 700;
 }
+.gift-cancellation-status {
+  display: grid;
+  gap: 6px;
+  margin: 0 20px 16px;
+  padding: 12px 14px;
+  border: 1px solid #f1d1c7;
+  border-radius: 12px;
+  background: #fff8f5;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.gift-history-item .gift-cancellation-status {
+  margin: 0;
+}
+.gift-cancellation-status strong,
+.gift-cancellation-status p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.gift-cancellation-status p {
+  color: var(--muted);
+  font-size: 11px;
+}
+.gift-cancellation-status .text-button {
+  justify-self: start;
+  min-height: 36px;
+  color: var(--accent-strong);
+  font-weight: 700;
+}
 .received-card,
 .gift-history-card {
   width: 100%;

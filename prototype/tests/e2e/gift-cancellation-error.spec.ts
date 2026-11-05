@@ -60,6 +60,30 @@ test('선물 취소 확인 시 결제 취소 API를 호출한다', async ({ page
       },
     }),
   );
+  await page.route(`**/payments/${orderId}`, (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          orderId,
+          paymentStatus: canceled ? 'CANCELED' : 'COMPLETED',
+          approvalResult: 'APPROVED',
+          failureCode: null,
+          cancellationId: null,
+          cancellationStatus: null,
+          cancellationFailureCode: null,
+          giftId: 501,
+          giftStatus: canceled ? 'CANCELED' : 'WAITING_FOR_ACCEPTANCE',
+          amount: 32000,
+          approvedAt: '2026-10-17T12:00:00+09:00',
+          canceledAt: canceled ? '2026-10-17T13:00:00+09:00' : null,
+          couponMultiplier: null,
+          couponStatus: null,
+          expectedRewardAmount: 50000,
+          rewardAmount: null,
+        },
+      },
+    }),
+  );
   await page.route(`**/payments/${orderId}/cancellations`, (route) => {
     canceled = true;
     return route.fulfill({
@@ -93,5 +117,5 @@ test('선물 취소 확인 시 결제 취소 API를 호출한다', async ({ page
   expect(request.method()).toBe('POST');
   expect(request.postData()).toBeNull();
   expect(request.headers()['idempotency-key']).toBeTruthy();
-  await expect(page.getByRole('status')).toHaveText('선물 결제를 취소했습니다.');
+  await expect(page.locator('.app-toast')).toHaveText('선물 결제를 취소했습니다.');
 });
