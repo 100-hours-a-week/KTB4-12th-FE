@@ -10,6 +10,7 @@ import { changeMockCoupon } from './coupons';
 import {
   type GiftPreflight,
   mockReceivedGifts,
+  type PaymentCancellationResult,
   type PaymentComplete,
   type PaymentRequest,
   type PaymentResult,
@@ -175,6 +176,9 @@ export async function fetchPaymentStatus(
       amount: gift?.totalPrice ?? 0,
       approvedAt: gift?.sentAt ?? null,
       canceledAt: null,
+      cancellationId: null,
+      cancellationStatus: null,
+      cancellationFailureCode: null,
       ...mockReward(orderId, gift),
     };
   }
@@ -229,7 +233,10 @@ export async function acceptGift(giftId: number) {
   }>(`/gifts/received/${giftId}/accept`);
 }
 
-export async function cancelPayment(orderId: string, idempotencyKey: string) {
+export async function cancelPayment(
+  orderId: string,
+  idempotencyKey: string,
+): Promise<PaymentCancellationResult> {
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 240));
     const gift = mockSentGifts.find((item) => item.orderId === orderId);
@@ -257,13 +264,11 @@ export async function cancelPayment(orderId: string, idempotencyKey: string) {
       canceledAt: new Date().toISOString(),
     };
   }
-  return apiPostWithHeaders<{
-    orderId: string;
-    paymentStatus: 'CANCELED';
-    giftId: number;
-    giftStatus: 'CANCELED';
-    canceledAt: string;
-  }>(`/payments/${orderId}/cancellations`, undefined, { 'Idempotency-Key': idempotencyKey });
+  return apiPostWithHeaders<PaymentCancellationResult>(
+    `/payments/${orderId}/cancellations`,
+    undefined,
+    { 'Idempotency-Key': idempotencyKey },
+  );
 }
 
 function mockProductPrice(productId: number) {

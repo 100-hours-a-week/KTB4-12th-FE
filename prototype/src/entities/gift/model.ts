@@ -5,6 +5,7 @@ export const MAX_GIFT_QUANTITY = 10;
 
 export type GiftStatus = 'WAITING_FOR_ACCEPTANCE' | 'COMPLETED' | 'CANCELED';
 export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'DECLINED' | 'FAILED' | 'CANCELED';
+export type PaymentCancellationStatus = 'PENDING' | 'COMPLETED' | 'DECLINED' | 'FAILED';
 
 const GIFT_CONDITION_ERRORS = {
   GIFT_CONDITIONS_CHANGED: {
@@ -127,7 +128,28 @@ export type PaymentStatusResult = PaymentReward & {
   amount: number;
   approvedAt: string | null;
   canceledAt: string | null;
+  cancellationId: number | null;
+  cancellationStatus: PaymentCancellationStatus | null;
+  cancellationFailureCode: string | null;
 };
+
+export type PaymentCancellationResult =
+  | {
+      orderId: string;
+      paymentStatus: 'CANCELED';
+      giftId: number;
+      giftStatus: 'CANCELED';
+      canceledAt: string;
+    }
+  | {
+      orderId: string;
+      paymentStatus: PaymentStatus;
+      cancellationId: number;
+      cancellationStatus: 'PENDING';
+      cancellationFailureCode: string | null;
+      statusUrl: string;
+      retryAfterSeconds: number;
+    };
 
 export const mockReceivedGifts: ReceivedGift[] = Array.from({ length: 43 }, (_, index) => ({
   giftId: 410 + index,

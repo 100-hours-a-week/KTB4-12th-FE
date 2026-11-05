@@ -16,6 +16,8 @@ export { fetchCoupons } from './coupons';
 export type {
   GiftPreflight,
   GiftStatus,
+  PaymentCancellationResult,
+  PaymentCancellationStatus,
   PaymentComplete,
   PaymentRequest,
   PaymentResult,
