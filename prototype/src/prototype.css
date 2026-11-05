@@ -3519,10 +3519,64 @@ textarea:focus-visible,
   background: #fff5ef;
   font-size: 12px;
 }
+.checkout-resume-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.checkout-resume-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
 .checkout-resume button {
   min-height: 44px;
   color: var(--accent-strong);
   font-weight: 750;
+}
+.pending-payment-list {
+  display: grid;
+  gap: 14px;
+}
+.pending-payment-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #eee2dc;
+  border-radius: 14px;
+  background: #fffaf7;
+}
+.pending-payment-item > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.pending-payment-item strong {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.pending-payment-item span,
+.pending-payment-item p {
+  margin: 0;
+  color: #77716e;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.pending-payment-item p {
+  color: #a83b2b;
+}
+.pending-payment-item small {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f4e8e2;
+  color: #7e4b3f;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 .gift-reward-summary {
   padding: 22px 0;

@@ -14,6 +14,7 @@ import {
   type PaymentRequest,
   type PaymentResult,
   type PaymentStatusResult,
+  type PendingPaymentOrder,
   type ReceivedGift,
   type SentGift,
 } from './model';
@@ -157,7 +158,10 @@ export async function createPayment(
   });
 }
 
-export async function fetchPaymentStatus(orderId: string): Promise<PaymentStatusResult> {
+export async function fetchPaymentStatus(
+  orderId: string,
+  statusUrl?: string | null,
+): Promise<PaymentStatusResult> {
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 180));
     const gift = mockSentGifts.find((item) => item.orderId === orderId);
@@ -174,7 +178,22 @@ export async function fetchPaymentStatus(orderId: string): Promise<PaymentStatus
       ...mockReward(orderId, gift),
     };
   }
-  return apiGet<PaymentStatusResult>(`/payments/${orderId}`);
+  const expectedUrl = `/payments/${encodeURIComponent(orderId)}`;
+  return apiGet<PaymentStatusResult>(statusUrl === expectedUrl ? statusUrl : expectedUrl);
+}
+
+export async function fetchPendingPayments(): Promise<PendingPaymentOrder[]> {
+  if (USE_MOCK_API) return [];
+  const payments = await apiGet<PendingPaymentOrder[]>('/payments/pending');
+  return Array.isArray(payments)
+    ? payments.filter(
+        (payment): payment is PendingPaymentOrder =>
+          Boolean(payment) &&
+          typeof payment.orderId === 'string' &&
+          payment.orderId.length > 0 &&
+          payment.paymentStatus === 'PENDING',
+      )
+    : [];
 }
 
 export async function acceptGift(giftId: number) {

@@ -26,9 +26,12 @@ import {
 } from '../../entities/friend';
 import {
   fetchPaymentStatus,
+  fetchPendingPayments,
   getGiftConditionError,
   type GiftPreflight,
   MAX_GIFT_QUANTITY,
+  type PaymentStatusResult,
+  type PendingPaymentOrder,
   preflightGift,
 } from '../../entities/gift';
 import {
@@ -56,6 +59,7 @@ import {
   clearPendingCheckout,
   getPendingCheckout,
   GiftCheckoutSheet,
+  PendingPaymentsSheet,
 } from '../../features/checkout-gift';
 import { EditBirthdaySheet } from '../../features/edit-birthday';
 import { OnboardingPreferenceSheet } from '../../features/edit-dislike-categories';
@@ -303,6 +307,10 @@ export function GiftApp() {
     return pending ? { kind: 'confirm', preflight: pending.preflight } : null;
   });
   const [hasPendingCheckout, setHasPendingCheckout] = useState(() => Boolean(getPendingCheckout()));
+  const [pendingPaymentOrders, setPendingPaymentOrders] = useState<PendingPaymentOrder[]>([]);
+  const [pendingPaymentLoadError, setPendingPaymentLoadError] = useState('');
+  const [pendingPaymentsOpen, setPendingPaymentsOpen] = useState(false);
+  const [pendingPaymentRefreshKey, setPendingPaymentRefreshKey] = useState(0);
   const [giftBusy, setGiftBusy] = useState(false);
   const [pendingPaymentOrderId, setPendingPaymentOrderId] = useState(() =>
     window.localStorage.getItem(PENDING_PAYMENT_STORAGE_KEY),
@@ -396,6 +404,9 @@ export function GiftApp() {
     setGiftBusy(false);
     clearPendingCheckout();
     setHasPendingCheckout(false);
+    setPendingPaymentOrders([]);
+    setPendingPaymentLoadError('');
+    setPendingPaymentsOpen(false);
     setPendingPaymentOrderId(null);
     window.localStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY);
     setQuantity(1);
@@ -529,6 +540,27 @@ export function GiftApp() {
   };
   const notificationsEnabled =
     route !== 'login' && route !== 'signup' && route !== 'terms' && Boolean(loadSession());
+  useEffect(() => {
+    if (!notificationsEnabled) return;
+    let active = true;
+    void fetchPendingPayments()
+      .then((orders) => {
+        if (!active) return;
+        setPendingPaymentLoadError('');
+        const localOrderId = getPendingCheckout()?.orderId;
+        setPendingPaymentOrders(
+          orders.filter(
+            (order) => order.orderId !== localOrderId && order.paymentStatus === 'PENDING',
+          ),
+        );
+      })
+      .catch(() => {
+        if (active) setPendingPaymentLoadError('미확정 결제 목록을 불러오지 못했어요.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [notificationsEnabled, sessionKey, pendingPaymentRefreshKey]);
   useEffect(() => {
     if (!notificationsEnabled) return;
     // 보상 장애가 로그인이나 앱 진입을 막지 않도록 화면에서 재시도한다.
@@ -705,6 +737,27 @@ export function GiftApp() {
     setHistory(['mypage', 'sent']);
     setToast('결제가 완료되었습니다.');
   };
+
+  const resolvePendingPayment = useCallback(
+    (orderId: string, payment: PaymentStatusResult) => {
+      setPendingPaymentOrders((orders) => orders.filter((order) => order.orderId !== orderId));
+      if (getPendingCheckout()?.orderId === orderId) {
+        clearPendingCheckout();
+        setHasPendingCheckout(false);
+        setGiftDialog(null);
+      }
+      setGiftHistoryRefreshKey((value) => value + 1);
+      refreshProfile();
+      setToast(
+        payment.paymentStatus === 'COMPLETED'
+          ? '미확정 결제가 완료되었습니다.'
+          : payment.paymentStatus === 'DECLINED'
+            ? '미확정 결제가 거절되었습니다.'
+            : '결제 상태가 확정되었습니다.',
+      );
+    },
+    [refreshProfile],
+  );
 
   const login = async (email: string, password: string) => {
     const openRoulette = window.location.pathname === '/roulette-event';
@@ -1184,18 +1237,44 @@ export function GiftApp() {
         onDismiss={() => setNotificationBanner(null)}
       />
       <Toast message={toast} container={screenRef.current} />
-      {hasPendingCheckout && giftDialog?.kind !== 'confirm' && notificationsEnabled ? (
+      {(hasPendingCheckout || pendingPaymentOrders.length > 0 || pendingPaymentLoadError) &&
+      giftDialog?.kind !== 'confirm' &&
+      !pendingPaymentsOpen &&
+      notificationsEnabled ? (
         <div className="checkout-resume" role="status">
-          <span>확인이 필요한 결제가 있어요.</span>
-          <button
-            type="button"
-            onClick={() => {
-              const pending = getPendingCheckout();
-              if (pending) setGiftDialog({ kind: 'confirm', preflight: pending.preflight });
-            }}
-          >
-            같은 결제 확인
-          </button>
+          <div className="checkout-resume-copy">
+            {hasPendingCheckout ? <span>확인이 필요한 결제가 있어요.</span> : null}
+            {pendingPaymentOrders.length ? (
+              <span>이전에 확인하지 못한 결제가 {pendingPaymentOrders.length}건 있어요.</span>
+            ) : null}
+            {pendingPaymentLoadError ? <span>{pendingPaymentLoadError}</span> : null}
+          </div>
+          <div className="checkout-resume-actions">
+            {hasPendingCheckout ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const pending = getPendingCheckout();
+                  if (pending) setGiftDialog({ kind: 'confirm', preflight: pending.preflight });
+                }}
+              >
+                같은 결제 확인
+              </button>
+            ) : null}
+            {pendingPaymentOrders.length ? (
+              <button type="button" onClick={() => setPendingPaymentsOpen(true)}>
+                미확정 결제 확인
+              </button>
+            ) : null}
+            {pendingPaymentLoadError ? (
+              <button
+                type="button"
+                onClick={() => setPendingPaymentRefreshKey((value) => value + 1)}
+              >
+                다시 조회
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
       {route === 'product' ? (
@@ -1387,6 +1466,13 @@ export function GiftApp() {
             setGiftDialog(null);
             setRoute('product');
           }}
+        />
+      ) : null}
+      {pendingPaymentsOpen ? (
+        <PendingPaymentsSheet
+          orders={pendingPaymentOrders}
+          onClose={() => setPendingPaymentsOpen(false)}
+          onResolve={resolvePendingPayment}
         />
       ) : null}
     </div>

@@ -100,6 +100,13 @@ export async function setupGiftErrorRoutes(page: Page, config: GiftErrorConfig) 
       }),
     }),
   );
+  await page.route('**/payments/pending', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: '미확정 결제 목록을 조회했습니다.', data: [] }),
+    }),
+  );
   await page.route(/\/payments$/, async (route) => {
     requests.push({
       body: route.request().postDataJSON(),

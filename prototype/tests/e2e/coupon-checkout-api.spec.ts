@@ -27,10 +27,13 @@ async function setup(page: Page, available = [2, 3]) {
     rejectRetry: false,
     delayPayment: 0,
     pending: false,
+    statusFailure: false,
+    pendingOrders: [] as { orderId: string; paymentStatus: 'PENDING' }[],
     paid: false,
     canceled: false,
     selected: null as number | null,
     couponCalls: 0,
+    statusCalls: 0,
     posts: [] as { body: Record<string, unknown>; key?: string }[],
     keys: new Set<string>(),
   };
@@ -53,6 +56,9 @@ async function setup(page: Page, available = [2, 3]) {
   );
   await page.route('**/notifications/events', (route) =>
     route.fulfill({ contentType: 'text/event-stream', body: ':keepalive\n\n' }),
+  );
+  await page.route('**/payments/pending', (route) =>
+    route.fulfill({ json: { data: state.pendingOrders } }),
   );
   await page.route('**/coupons', (route) => {
     state.couponCalls++;
@@ -100,19 +106,27 @@ async function setup(page: Page, available = [2, 3]) {
     rewardAmount: state.paid ? 50000 * (state.selected ?? 1) : null,
   });
   await page.route('**/gifts/sent/501', (route) => route.fulfill({ json: { data: gift() } }));
-  await page.route(`**/payments/${orderId}`, (route) =>
-    route.fulfill({
+  await page.route(`**/payments/${orderId}`, (route) => {
+    state.statusCalls++;
+    if (state.statusFailure)
+      return route.fulfill({
+        status: 503,
+        json: { message: '결제 상태 조회에 실패했습니다.', error: { code: 'SERVICE_UNAVAILABLE' } },
+      });
+    return route.fulfill({
       json: {
         data: {
           orderId,
           paymentStatus: state.pending ? 'PENDING' : state.canceled ? 'CANCELED' : 'COMPLETED',
+          approvalResult: state.pending ? 'UNKNOWN' : 'APPROVED',
+          failureCode: null,
           giftId: state.pending ? null : 501,
           giftStatus: gift().giftStatus,
           ...reward(),
         },
       },
-    }),
-  );
+    });
+  });
   await page.route(`**/payments/${orderId}/cancellations`, (route) => {
     state.canceled = true;
     if (state.selected && !state.available.includes(state.selected))
@@ -161,6 +175,7 @@ async function setup(page: Page, available = [2, 3]) {
             orderId,
             paymentStatus: 'PENDING',
             approvalResult: 'UNKNOWN',
+            statusUrl: `/payments/${orderId}`,
             retryAfterSeconds: 5,
           },
         },
@@ -299,11 +314,60 @@ test('202 응답 뒤에는 수동 상태 조회로 완료하고 결제 명령을
   const sheet = await checkout(page);
   await sheet.getByRole('radio', { name: /2배 쿠폰/ }).check();
   await sheet.getByRole('button', { name: '선물 보내기', exact: true }).click();
-  await expect(sheet).toContainText('결제 결과를 확인 중입니다.');
+  await expect(sheet).toContainText('결제 승인 여부를 확인하고 있어요.');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: '/private/tmp/pending-payment-checkout.png' });
   state.pending = false;
-  await sheet.getByRole('button', { name: '같은 결제 결과 확인' }).click();
+  await sheet.getByRole('button', { name: '결제 상태 확인' }).click();
   await expect(page.getByRole('heading', { name: '보낸 선물 상세' })).toBeVisible();
   expect(state.posts).toHaveLength(1);
+});
+
+test('202 결제는 5초 자동 조회로 완료하고 승인 명령은 다시 보내지 않는다', async ({ page }) => {
+  const state = await setup(page);
+  state.pending = true;
+  const sheet = await checkout(page);
+  await sheet.getByRole('button', { name: '선물 보내기', exact: true }).click();
+  await expect(sheet).toContainText('결제 승인 여부를 확인하고 있어요.');
+  state.pending = false;
+  await page.waitForTimeout(5_000);
+  await expect(page.getByRole('heading', { name: '보낸 선물 상세' })).toBeVisible();
+  expect(state.statusCalls).toBeGreaterThan(0);
+  expect(state.posts).toHaveLength(1);
+});
+
+test('202 후 상태 조회가 실패해도 승인 명령은 다시 보내지 않는다', async ({ page }) => {
+  const state = await setup(page);
+  state.pending = true;
+  const sheet = await checkout(page);
+  await sheet.getByRole('button', { name: '선물 보내기', exact: true }).click();
+  await expect(sheet).toContainText('결제 승인 여부를 확인하고 있어요.');
+  state.statusFailure = true;
+  await sheet.getByRole('button', { name: '결제 상태 확인' }).click();
+  await expect(sheet.getByRole('alert')).toContainText('결제 요청은 다시 보내지 않았어요.');
+  expect(state.posts).toHaveLength(1);
+});
+
+test('재로그인 후 서버의 미확정 주문을 복원하고 GET만으로 완료 상태를 확인한다', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  state.pending = true;
+  state.pendingOrders = [{ orderId, paymentStatus: 'PENDING' }];
+  await page.goto('/');
+  await page.getByRole('button', { name: '미확정 결제 확인' }).click();
+  const sheet = page.getByRole('dialog', { name: '결제 상태 확인' });
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toContainText('결제 승인 여부를 확인하고 있어요.');
+  await expect(sheet).toContainText(orderId);
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: '/private/tmp/pending-payment-restored.png' });
+  expect(state.posts).toHaveLength(0);
+  state.pending = false;
+  await page.waitForTimeout(5_000);
+  await expect(sheet).toContainText('결제가 완료됐어요.');
+  expect(state.posts).toHaveLength(0);
+  expect(state.statusCalls).toBeGreaterThan(0);
 });
 
 test('미수락 취소 후 서버가 확정한 쿠폰 복구와 보상 미지급을 표시한다', async ({ page }) => {
@@ -343,12 +407,12 @@ test('닫은 미확정 결제는 안내 버튼으로 복원하며 중복 클릭�
   state.pending = true;
   const sheet = await checkout(page);
   await sheet.getByRole('button', { name: '선물 보내기', exact: true }).click();
-  await expect(sheet).toContainText('결제 결과를 확인 중입니다.');
+  await expect(sheet).toContainText('결제 승인 여부를 확인하고 있어요.');
   await sheet.getByRole('button', { name: '결제 확인 닫기' }).click();
   await page.getByRole('button', { name: '같은 결제 확인', exact: true }).click();
   await expect(sheet.getByRole('radio', { name: '사용하지 않음' })).toBeDisabled();
   state.pending = false;
-  await sheet.getByRole('button', { name: '같은 결제 결과 확인' }).click();
+  await sheet.getByRole('button', { name: '결제 상태 확인' }).click();
   await expect(page.getByRole('heading', { name: '보낸 선물 상세' })).toBeVisible();
   expect(state.posts).toHaveLength(1);
 });
