@@ -38,6 +38,8 @@ export async function sendBugReport(payload: BugReportPayload): Promise<void> {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body,
+    }).catch(() => {
+      throw new Error('접수를 확인하지 못했어요. 다시 시도해 주세요.');
     });
   let response = await send(accessToken);
   // 만료된 토큰이어도 동일 ID와 본문으로 익명 접수를 한 번 시도한다.

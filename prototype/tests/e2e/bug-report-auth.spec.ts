@@ -124,3 +124,25 @@ test('UTF-8 10KB 초과 내용은 자르거나 전송하지 않는다', async ({
   expect(requests).toBe(0);
   await expect(page.getByRole('textbox')).toHaveValue('가'.repeat(4000));
 });
+
+test('네트워크 응답 유실은 성공으로 표시하지 않고 같은 ID로 수동 재시도한다', async ({ page }) => {
+  const bodies: Record<string, unknown>[] = [];
+  await page.route('**/bug-report', async (route) => {
+    const body = route.request().postDataJSON();
+    bodies.push(body);
+    if (bodies.length === 1) return route.abort('connectionreset');
+    await route.fulfill({ status: 202, json: { data: { reportId: body.reportId } } });
+  });
+  await page.goto('/');
+  await openReport(page);
+  await page.getByRole('textbox').fill('네트워크 오류 후 재시도');
+  await page.getByRole('button', { name: '전송', exact: true }).click();
+  await expect(page.getByText('접수를 확인하지 못했어요. 다시 시도해 주세요.')).toBeVisible();
+  await expect(page.getByRole('textbox')).toHaveValue('네트워크 오류 후 재시도');
+  await expect(page.getByText('의견이 접수됐어요. 감사합니다!')).toHaveCount(0);
+  expect(bodies).toHaveLength(1);
+  await page.getByRole('button', { name: '전송', exact: true }).click();
+  await expect(page.getByText('의견이 접수됐어요. 감사합니다!')).toBeVisible();
+  expect(bodies).toHaveLength(2);
+  expect(bodies[1]).toEqual(bodies[0]);
+});
