@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import type { ChatProduct } from '../../../entities/chat';
-import type { Product } from '../../../entities/product';
+import type { Product, ProductDetail } from '../../../entities/product';
 import { type CardState, ChatProducts, productImage } from '../model/ChatProducts';
 
 function CardImage({ src, name }: { src: string; name: string }) {
@@ -34,7 +34,7 @@ export function ChatProductCards({
   products: ChatProduct[];
   states: Record<number, CardState>;
   store: ChatProducts;
-  onProduct: (product: Product) => void;
+  onProduct: (product: Product, detail: ProductDetail) => void;
 }) {
   return (
     <div className="ai-chat-cards">
@@ -83,7 +83,8 @@ export function ChatProductCards({
                 disabled={!ready || ready.checking || ready.product.stockQuantity === 0}
                 onClick={() => {
                   void store.load(card.productId, true).then((product) => {
-                    if (product) onProduct(product);
+                    const latest = store.getSnapshot()[card.productId];
+                    if (product && latest?.status === 'ready') onProduct(product, latest.product);
                   });
                 }}
               >

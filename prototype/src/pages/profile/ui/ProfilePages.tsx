@@ -29,6 +29,7 @@ export function MyPage({
   onSent,
   onPreferences,
   onGiftPreference,
+  onRouletteEvent,
   action,
 }: {
   profile: MyProfile | null;
@@ -40,6 +41,7 @@ export function MyPage({
   onSent: () => void;
   onPreferences: () => void;
   onGiftPreference: () => void;
+  onRouletteEvent: () => void;
   action?: ReactNode;
 }) {
   return (
@@ -75,11 +77,13 @@ export function MyPage({
             />
             <SettingRow label="비선호 카테고리" value="설정" onClick={onPreferences} />
             <SettingRow label="내 선물 취향" value="작성" onClick={onGiftPreference} />
+            <SettingRow label="룰렛 이벤트" value="참여하기" onClick={onRouletteEvent} />
           </div>
         </>
       ) : (
         <div className="settings-list">
           <SettingRow label="내 정보 및 공개 설정" value="설정" onClick={onAccount} />
+          <SettingRow label="룰렛 이벤트" value="참여하기" onClick={onRouletteEvent} />
         </div>
       )}
     </section>

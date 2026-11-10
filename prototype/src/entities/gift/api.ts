@@ -1,11 +1,21 @@
-import { apiGet, apiPost, apiPostWithHeaders, USE_MOCK_API } from '../../shared/api/client';
+import {
+  ApiError,
+  apiGet,
+  apiPost,
+  apiPostWithHeaders,
+  USE_MOCK_API,
+} from '../../shared/api/client';
 import { type CursorPage, mockPage, type Pagination } from '../../shared/api/pagination';
+import { changeMockCoupon } from './coupons';
 import {
   type GiftPreflight,
   mockReceivedGifts,
+  type PaymentCancellationResult,
   type PaymentComplete,
+  type PaymentRequest,
   type PaymentResult,
   type PaymentStatusResult,
+  type PendingPaymentOrder,
   type ReceivedGift,
   type SentGift,
 } from './model';
@@ -85,18 +95,27 @@ export async function preflightGift(input: {
 }
 
 export async function createPayment(
-  input: {
-    productId: number;
-    recipientUserId: number;
-    quantity: number;
-    expectedUnitPrice: number;
-  },
+  input: PaymentRequest,
   idempotencyKey: string,
 ): Promise<PaymentResult> {
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 400));
+    const orders = readMockOrders();
+    const previous = orders[idempotencyKey];
+    if (previous) {
+      if (JSON.stringify(previous.input) !== JSON.stringify(input))
+        throw new ApiError('동일한 요청 키를 다른 요청에 사용할 수 없습니다.', 409, {
+          code: 'IDEMPOTENCY_KEY_CONFLICT',
+        });
+      if (previous.gift.paymentStatus === 'CANCELED')
+        throw new ApiError('현재 주문 상태에서는 결제를 완료할 수 없습니다.', 409, {
+          code: 'PAYMENT_STATE_CONFLICT',
+        });
+      return previous.result;
+    }
     const product = mockReceivedGifts.find((item) => item.product.productId === input.productId);
-    const unitPrice = product?.unitPrice ?? 32000;
+    const unitPrice = input.expectedUnitPrice;
+    if (input.couponMultiplier) changeMockCoupon(input.couponMultiplier, -1);
     const now = new Date().toISOString();
     const orderId = crypto.randomUUID();
     const giftId = Date.now();
@@ -112,8 +131,12 @@ export async function createPayment(
       balanceAfter: 500000 - unitPrice * input.quantity,
       approvedAt: now,
       giftExpiresAt,
+      couponMultiplier: input.couponMultiplier ?? null,
+      couponStatus: input.couponMultiplier ? 'USED' : null,
+      expectedRewardAmount: 50000 * (input.couponMultiplier ?? 1),
+      rewardAmount: null,
     };
-    mockSentGifts.unshift({
+    const gift: SentGift = {
       giftId,
       orderId,
       giftStatus: 'WAITING_FOR_ACCEPTANCE',
@@ -125,7 +148,10 @@ export async function createPayment(
       quantity: input.quantity,
       unitPrice,
       totalPrice: unitPrice * input.quantity,
-    });
+    };
+    mockSentGifts.unshift(gift);
+    orders[idempotencyKey] = { input, result, gift };
+    sessionStorage.setItem(MOCK_ORDERS_KEY, JSON.stringify(orders));
     return result;
   }
   return apiPostWithHeaders<PaymentResult>('/payments', input, {
@@ -133,7 +159,10 @@ export async function createPayment(
   });
 }
 
-export async function fetchPaymentStatus(orderId: string): Promise<PaymentStatusResult> {
+export async function fetchPaymentStatus(
+  orderId: string,
+  statusUrl?: string | null,
+): Promise<PaymentStatusResult> {
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 180));
     const gift = mockSentGifts.find((item) => item.orderId === orderId);
@@ -147,9 +176,28 @@ export async function fetchPaymentStatus(orderId: string): Promise<PaymentStatus
       amount: gift?.totalPrice ?? 0,
       approvedAt: gift?.sentAt ?? null,
       canceledAt: null,
+      cancellationId: null,
+      cancellationStatus: null,
+      cancellationFailureCode: null,
+      ...mockReward(orderId, gift),
     };
   }
-  return apiGet<PaymentStatusResult>(`/payments/${orderId}`);
+  const expectedUrl = `/payments/${encodeURIComponent(orderId)}`;
+  return apiGet<PaymentStatusResult>(statusUrl === expectedUrl ? statusUrl : expectedUrl);
+}
+
+export async function fetchPendingPayments(): Promise<PendingPaymentOrder[]> {
+  if (USE_MOCK_API) return [];
+  const payments = await apiGet<PendingPaymentOrder[]>('/payments/pending');
+  return Array.isArray(payments)
+    ? payments.filter(
+        (payment): payment is PendingPaymentOrder =>
+          Boolean(payment) &&
+          typeof payment.orderId === 'string' &&
+          payment.orderId.length > 0 &&
+          payment.paymentStatus === 'PENDING',
+      )
+    : [];
 }
 
 export async function acceptGift(giftId: number) {
@@ -157,10 +205,23 @@ export async function acceptGift(giftId: number) {
     await new Promise((resolve) => window.setTimeout(resolve, 240));
     const gift = mockReceivedGifts.find((item) => item.giftId === giftId);
     if (gift) gift.giftStatus = 'COMPLETED';
+    const orders = readMockOrders();
+    const stored = Object.values(orders).find((order) => order.gift.giftId === giftId);
+    const rewardAmount =
+      stored?.result.rewardAmount ?? 50000 * (stored?.input.couponMultiplier ?? 1);
+    if (stored) {
+      stored.gift.giftStatus = 'COMPLETED';
+      stored.result.giftStatus = 'COMPLETED';
+      stored.result.expectedRewardAmount = null;
+      stored.result.rewardAmount = rewardAmount;
+      sessionStorage.setItem(MOCK_ORDERS_KEY, JSON.stringify(orders));
+      const sent = mockSentGifts.find((item) => item.giftId === giftId);
+      if (sent) sent.giftStatus = 'COMPLETED';
+    }
     return {
       giftId,
       giftStatus: 'COMPLETED' as const,
-      rewardAmount: 100000,
+      rewardAmount,
       completedAt: new Date().toISOString(),
     };
   }
@@ -172,13 +233,28 @@ export async function acceptGift(giftId: number) {
   }>(`/gifts/received/${giftId}/accept`);
 }
 
-export async function cancelPayment(orderId: string, idempotencyKey: string) {
+export async function cancelPayment(
+  orderId: string,
+  idempotencyKey: string,
+): Promise<PaymentCancellationResult> {
   if (USE_MOCK_API) {
     await new Promise((resolve) => window.setTimeout(resolve, 240));
     const gift = mockSentGifts.find((item) => item.orderId === orderId);
     if (gift) {
       gift.giftStatus = 'CANCELED';
       gift.paymentStatus = 'CANCELED';
+    }
+    const orders = readMockOrders();
+    const stored = Object.values(orders).find((order) => order.result.orderId === orderId);
+    if (stored && stored.result.couponStatus === 'USED' && stored.input.couponMultiplier) {
+      changeMockCoupon(stored.input.couponMultiplier, 1);
+      stored.result.couponStatus = 'RESTORED';
+    }
+    if (stored) {
+      stored.gift.giftStatus = 'CANCELED';
+      stored.gift.paymentStatus = 'CANCELED';
+      stored.result.expectedRewardAmount = null;
+      sessionStorage.setItem(MOCK_ORDERS_KEY, JSON.stringify(orders));
     }
     return {
       orderId,
@@ -188,13 +264,11 @@ export async function cancelPayment(orderId: string, idempotencyKey: string) {
       canceledAt: new Date().toISOString(),
     };
   }
-  return apiPostWithHeaders<{
-    orderId: string;
-    paymentStatus: 'CANCELED';
-    giftId: number;
-    giftStatus: 'CANCELED';
-    canceledAt: string;
-  }>(`/payments/${orderId}/cancellations`, undefined, { 'Idempotency-Key': idempotencyKey });
+  return apiPostWithHeaders<PaymentCancellationResult>(
+    `/payments/${orderId}/cancellations`,
+    undefined,
+    { 'Idempotency-Key': idempotencyKey },
+  );
 }
 
 function mockProductPrice(productId: number) {
@@ -202,16 +276,43 @@ function mockProductPrice(productId: number) {
   return product?.unitPrice ?? 32000;
 }
 
-const mockSentGifts: SentGift[] = mockReceivedGifts.slice(0, 12).map((gift, index) => ({
-  giftId: gift.giftId,
-  orderId: gift.orderId,
-  giftStatus: gift.giftStatus,
-  expiresAt: gift.expiresAt,
-  paymentStatus: gift.giftStatus === 'CANCELED' ? 'CANCELED' : 'COMPLETED',
-  sentAt: gift.receivedAt,
-  recipient: { userId: 27 + index, name: index % 2 ? '박서연' : '김민지' },
-  product: gift.product,
-  quantity: gift.quantity,
-  unitPrice: gift.unitPrice,
-  totalPrice: gift.totalPrice,
-}));
+const MOCK_ORDERS_KEY = 'gift-mock-orders';
+type MockOrder = { input: PaymentRequest; result: PaymentComplete; gift: SentGift };
+function readMockOrders(): Record<string, MockOrder> {
+  return JSON.parse(sessionStorage.getItem(MOCK_ORDERS_KEY) ?? '{}') as Record<string, MockOrder>;
+}
+function mockReward(orderId: string, gift?: SentGift) {
+  const order = Object.values(readMockOrders()).find((item) => item.result.orderId === orderId);
+  if (order)
+    return {
+      couponMultiplier: order.result.couponMultiplier,
+      couponStatus: order.result.couponStatus,
+      expectedRewardAmount: order.result.expectedRewardAmount,
+      rewardAmount: order.result.rewardAmount,
+    };
+  return {
+    couponMultiplier: null,
+    couponStatus: null,
+    expectedRewardAmount: gift?.giftStatus === 'WAITING_FOR_ACCEPTANCE' ? 50000 : null,
+    rewardAmount: gift?.giftStatus === 'COMPLETED' ? 100000 : null,
+  };
+}
+
+const mockSentGifts: SentGift[] = [
+  ...Object.values(readMockOrders()).map((order) => order.gift),
+  ...mockReceivedGifts.slice(0, 12).map((gift, index) => ({
+    giftId: gift.giftId,
+    orderId: gift.orderId,
+    giftStatus: gift.giftStatus,
+    expiresAt: gift.expiresAt,
+    paymentStatus: (gift.giftStatus === 'CANCELED'
+      ? 'CANCELED'
+      : 'COMPLETED') as SentGift['paymentStatus'],
+    sentAt: gift.receivedAt,
+    recipient: { userId: 27 + index, name: index % 2 ? '박서연' : '김민지' },
+    product: gift.product,
+    quantity: gift.quantity,
+    unitPrice: gift.unitPrice,
+    totalPrice: gift.totalPrice,
+  })),
+];

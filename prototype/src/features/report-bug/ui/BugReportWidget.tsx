@@ -4,15 +4,13 @@ import { createPortal } from 'react-dom';
 import { useKeyboard } from '../../../mobile';
 import { SUNJALAL_BOT_IMAGE, SUNJALAL_REPORT_IMAGE } from '../../../shared/config/assets';
 import { Toast } from '../../../shared/ui';
-import { captureScreen } from '../captureScreen';
-import { formatErrorsAsText, getCollectedErrors } from '../errorCollector';
-import { type ReportCategory, sendBugReport } from '../sendBugReport';
+import { type BugReportPayload, type ReportCategory, sendBugReport } from '../sendBugReport';
 import { BugReportModal } from './BugReportModal';
 
 type BugReportWidgetProps = {
   route: string;
   inline?: boolean;
-  /** 캡처·토스트의 기준이 되는 앱 화면 요소. 생략하면 document.body를 캡처한다. */
+  /** 모달·토스트의 기준이 되는 앱 화면 요소. */
   containerRef?: RefObject<HTMLElement | null>;
   /** true면 production 빌드에서도 위젯을 렌더링한다. */
   enabledInProduction?: boolean;
@@ -36,8 +34,7 @@ export function BugReportWidget({
   const keyboard = useKeyboard();
   const [open, setOpen] = useState(false);
   const [modalHost, setModalHost] = useState<HTMLElement | null>(null);
-  const [capturing, setCapturing] = useState(false);
-  const [screenshot, setScreenshot] = useState<Blob | null>(null);
+  const pendingReport = useRef<BugReportPayload | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -59,16 +56,12 @@ export function BugReportWidget({
     return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, [menuOpen, showAiAction]);
 
-  // 모달을 먼저 열고 캡처 결과는 뒤늦게 채운다. 캡처 필터가 위젯/모달을 제외한다.
-  const openReport = useCallback(async () => {
+  const openReport = useCallback(() => {
     keyboard.hide();
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setModalHost(containerRef?.current ?? document.body);
+    pendingReport.current = null;
     setOpen(true);
-    setCapturing(true);
-    const shot = await captureScreen(containerRef?.current ?? document.body);
-    setScreenshot(shot);
-    setCapturing(false);
   }, [keyboard, containerRef]);
 
   useEffect(() => {
@@ -77,46 +70,47 @@ export function BugReportWidget({
       if (!(event.metaKey || event.ctrlKey) || !event.shiftKey) return;
       if (event.key.toLowerCase() !== 'b') return;
       event.preventDefault();
-      if (!open && !capturing) void openReport();
+      if (!open) void openReport();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [enabled, open, capturing, openReport]);
+  }, [enabled, open, openReport]);
 
   useEffect(() => {
     if (!enabled) return;
     const handleOpenRequest = () => {
-      if (!open && !capturing) void openReport();
+      if (!open) void openReport();
     };
     window.addEventListener('prototype:open-report', handleOpenRequest);
     return () => window.removeEventListener('prototype:open-report', handleOpenRequest);
-  }, [capturing, enabled, open, openReport]);
+  }, [enabled, open, openReport]);
 
-  const handleSubmit = async (
-    category: ReportCategory,
-    message: string,
-    includeScreenshot: boolean,
-  ): Promise<boolean> => {
-    try {
-      await sendBugReport({
+  const handleSubmit = async (category: ReportCategory, message: string): Promise<boolean> => {
+    if (
+      !pendingReport.current ||
+      pendingReport.current.category !== category ||
+      pendingReport.current.description !== message
+    ) {
+      pendingReport.current = {
+        reportId: crypto.randomUUID(),
+        description: message,
         category,
-        message,
-        screenshot: includeScreenshot ? screenshot : null,
-        errorsText: formatErrorsAsText(),
-        context: {
-          reportId: crypto.randomUUID(),
-          pageUrl: window.location.href,
-          route,
-          viewport: `${window.innerWidth} x ${window.innerHeight}`,
-          userAgent: navigator.userAgent,
-          reportedAt: new Date().toISOString(),
-          errorCount: getCollectedErrors().length,
-        },
-      });
-      setToast('소중한 의견 감사해요!');
+        pageUrl: window.location.href,
+        route,
+        viewport: `${window.innerWidth} x ${window.innerHeight}`,
+        userAgent: navigator.userAgent,
+        reportedAt: new Date().toISOString(),
+      };
+    }
+    try {
+      await sendBugReport(pendingReport.current);
+      pendingReport.current = null;
+      setToast('의견이 접수됐어요. 감사합니다!');
       return true;
     } catch (error) {
-      setToast(error instanceof Error ? error.message : '전송에 실패했어요. 다시 시도해 주세요.');
+      setToast(
+        error instanceof Error ? error.message : '접수를 확인하지 못했어요. 다시 시도해 주세요.',
+      );
       return false;
     }
   };
@@ -152,7 +146,6 @@ export function BugReportWidget({
                   type="button"
                   className="floating-action-option report"
                   aria-label="의견 남기기"
-                  disabled={capturing}
                   onClick={() => {
                     setMenuOpen(false);
                     void openReport();
@@ -184,24 +177,15 @@ export function BugReportWidget({
             className={`bug-report-fab${raised ? ' raised' : ''}${['login', 'signup', 'terms'].includes(route) ? ' auth' : ''}`}
             data-bug-report-widget
             aria-label="의견 남기기"
-            disabled={capturing}
             onClick={() => void openReport()}
           >
-            {capturing ? (
-              <span className="loading-dot" />
-            ) : (
-              <img src={SUNJALAL_REPORT_IMAGE} alt="" draggable={false} />
-            )}
+            <img src={SUNJALAL_REPORT_IMAGE} alt="" draggable={false} />
           </button>
         )}
       </div>
       {open && modalHost
         ? createPortal(
-            <BugReportModal
-              screenshot={screenshot}
-              onClose={() => setOpen(false)}
-              onSubmit={handleSubmit}
-            />,
+            <BugReportModal onClose={() => setOpen(false)} onSubmit={handleSubmit} />,
             modalHost,
           )
         : null}

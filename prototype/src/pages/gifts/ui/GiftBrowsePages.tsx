@@ -14,6 +14,7 @@ import {
   fetchProductDetail,
   fetchProducts,
   type Product,
+  type ProductDetail,
   type ProductSort,
 } from '../../../entities/product';
 import { KeyboardInput, useKeyboard, useScreenPortal } from '../../../mobile';
@@ -285,6 +286,7 @@ function AiProfileQaPanel({
 
 type ProductPageProps = {
   product: Product;
+  initialDetail?: ProductDetail | null;
   quantity: number;
   onDecrease: () => void;
   onIncrease: () => void;
@@ -295,6 +297,7 @@ type ProductPageProps = {
 
 export function ProductPage({
   product,
+  initialDetail,
   quantity,
   onDecrease,
   onIncrease,
@@ -302,12 +305,16 @@ export function ProductPage({
   onGift,
   action,
 }: ProductPageProps) {
-  const [detail, setDetail] = useState<Awaited<ReturnType<typeof fetchProductDetail>> | null>(null);
+  const [detail, setDetail] = useState<ProductDetail | null>(initialDetail ?? null);
+  const detailRequest = useRef<Promise<ProductDetail> | null>(null);
   const [detailError, setDetailError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    fetchProductDetail(product.productId)
+    if (initialDetail) return;
+    // StrictMode replays effects; share only this screen visit's in-flight request.
+    detailRequest.current ??= fetchProductDetail(product.productId);
+    detailRequest.current
       .then((result) => {
         if (!cancelled) setDetail(result);
       })
@@ -320,7 +327,7 @@ export function ProductPage({
     return () => {
       cancelled = true;
     };
-  }, [product.productId]);
+  }, [product.productId, initialDetail]);
 
   const price = detail?.unitPrice ?? product.price;
   const soldOut = detail !== null && detail.stockQuantity <= 0;

@@ -11,6 +11,7 @@ export class ApiError extends Error {
   code: string | null;
   details: ApiErrorDetails | null;
   traceId: string | null;
+  retryAfterSeconds: number | null = null;
 
   constructor(
     message: string,
@@ -38,12 +39,6 @@ function buildUrl(path: string, params: Record<string, string | undefined> = {})
     if (value) url.searchParams.set(key, value);
   });
   return url;
-}
-
-function isSessionExpired(session: { accessTokenExpiresAt: number | null }) {
-  return (
-    session.accessTokenExpiresAt != null && session.accessTokenExpiresAt <= Date.now() + 30_000
-  );
 }
 
 async function parseBody<T>(response: Response): Promise<ApiResponse<T>> {
@@ -75,11 +70,10 @@ async function fetchResponse(url: URL, options: RequestInit): Promise<Response> 
 
 // refresh token은 HttpOnly 쿠키(Path=/auth)로만 오가므로 credentials를 포함해 호출한다.
 // 응답 body에 refreshToken이 오는 서버라면 함께 갱신한다.
-async function refreshAccessToken(version: number, signal?: AbortSignal): Promise<string | null> {
+async function performTokenRefresh(version: number): Promise<string | null> {
   const session = loadSession();
   if (!session) return null;
   const response = await fetchResponse(buildUrl('/auth/refresh'), {
-    signal,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -89,9 +83,26 @@ async function refreshAccessToken(version: number, signal?: AbortSignal): Promis
     response,
   );
   if (version !== getSessionVersion()) return null;
-  if (!response.ok || !body.data) return null;
+  if (response.status === 401) return null;
+  if (!response.ok || !body.data?.accessToken)
+    throw new ApiError(
+      body.message ?? '로그인 갱신에 실패했어요. 다시 시도해 주세요.',
+      response.status,
+      body.error,
+    );
   updateSessionTokens(body.data.accessToken, body.data.refreshToken, body.data.expiresIn);
   return body.data.accessToken;
+}
+
+// One caller's cancellation must not cancel refresh for the other waiting requests.
+let refreshRequest: { version: number; promise: Promise<string | null> } | null = null;
+function refreshAccessToken(version: number): Promise<string | null> {
+  if (refreshRequest?.version === version) return refreshRequest.promise;
+  const promise = performTokenRefresh(version).finally(() => {
+    if (refreshRequest?.promise === promise) refreshRequest = null;
+  });
+  refreshRequest = { version, promise };
+  return promise;
 }
 
 // refreshToken 쿠키는 HttpOnly라 JS에서 지울 수 없다. 서버가 Set-Cookie로
@@ -127,6 +138,7 @@ async function requestResponse(
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const responseBody = response.ok ? {} : await parseBody<never>(response);
+  signal?.throwIfAborted();
 
   if (authenticated && version !== getSessionVersion())
     throw new ApiError('로그인 계정이 변경되어 이전 요청을 취소했습니다.', 0, {
@@ -139,13 +151,10 @@ async function requestResponse(
     if (allowRefresh && session) {
       const currentSession = loadSession();
       const newToken =
-        session.user &&
-        currentSession?.user?.userId === session.user.userId &&
-        currentSession.accessToken !== session.accessToken
+        currentSession && currentSession.accessToken !== session.accessToken
           ? currentSession.accessToken
-          : isSessionExpired(session)
-            ? await refreshAccessToken(version, signal)
-            : null;
+          : await refreshAccessToken(version);
+      signal?.throwIfAborted();
       if (version !== getSessionVersion())
         throw new ApiError('로그인 계정이 변경되어 이전 요청을 취소했습니다.', 0, {
           code: 'SESSION_CHANGED',
@@ -174,11 +183,14 @@ async function requestResponse(
   if (!response.ok) {
     if (response.status === 500 && responseBody.error?.traceId)
       console.error('API 오류 traceId:', responseBody.error.traceId);
-    throw new ApiError(
+    const error = new ApiError(
       responseBody.message ?? '일시적인 오류가 발생했습니다. 다시 시도해 주세요.',
       response.status,
       responseBody.error,
     );
+    const retryAfter = response.headers.get('Retry-After');
+    if (retryAfter && /^\d+$/.test(retryAfter)) error.retryAfterSeconds = Number(retryAfter);
+    throw error;
   }
   return response;
 }
@@ -290,6 +302,16 @@ export function apiPostWithHeaders<T>(
   path: string,
   body: unknown,
   extraHeaders: Record<string, string>,
+  options: { allowRefresh?: boolean; signal?: AbortSignal } = {},
 ): Promise<T> {
-  return request<T>('POST', path, body, {}, extraHeaders, false);
+  return request<T>(
+    'POST',
+    path,
+    body,
+    {},
+    extraHeaders,
+    options.allowRefresh ?? true,
+    true,
+    options.signal,
+  );
 }

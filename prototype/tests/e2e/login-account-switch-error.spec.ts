@@ -42,6 +42,9 @@ async function setup(page: Page, bProfileFails = false) {
     localStorage.setItem('authUser', JSON.stringify(user));
     localStorage.setItem('prototype-auth', 'signed-in');
   }, userA);
+  await page.route('**/auth/refresh', (route) =>
+    route.fulfill({ status: 401, json: { error: { code: 'INVALID_REFRESH_TOKEN' } } }),
+  );
   await page.route('**/users/me', async (route) => {
     if (route.request().method() === 'PATCH') return route.fulfill({ json: { data: {} } });
     state.profileCalls++;
@@ -104,7 +107,7 @@ async function reconnectNotifications(page: Page) {
   );
 }
 
-test('화면 이동은 프로필을 재조회하지 않고 저장과 새 로그인은 재조회한다', async ({ page }) => {
+test('마이페이지 재진입과 저장·새 로그인은 프로필을 재조회한다', async ({ page }) => {
   const { state, releaseA } = await setup(page);
   releaseA();
   const initialCalls = state.profileCalls;
@@ -113,12 +116,12 @@ test('화면 이동은 프로필을 재조회하지 않고 저장과 새 로그�
   }
   await page.getByRole('button', { name: '내 정보 관리' }).click();
   await expect(page.getByRole('switch', { name: '생일 공개' })).toBeVisible();
-  expect(state.profileCalls).toBe(initialCalls);
+  expect(state.profileCalls).toBe(initialCalls + 1);
   await changeBirthdayVisibility(page);
-  await expect.poll(() => state.profileCalls).toBe(initialCalls + 1);
+  await expect.poll(() => state.profileCalls).toBe(initialCalls + 2);
   await logout(page);
   await loginB(page);
-  await expect.poll(() => state.profileCalls).toBe(initialCalls + 2);
+  await expect.poll(() => state.profileCalls).toBe(initialCalls + 3);
 });
 async function loginB(page: Page) {
   await page.getByLabel('이메일').fill(userB.email);
@@ -325,13 +328,13 @@ test('AI 입력 초안을 다음 계정에 남기지 않는다', async ({ page }
       .click();
   };
   await openAi();
-  await page.getByPlaceholder('메시지를 입력하세요...').fill('계정 A의 선물 고민');
+  await page.getByRole('textbox', { name: '채팅 메시지', exact: true }).fill('계정 A의 선물 고민');
   await page.getByRole('button', { name: '뒤로 가기', exact: true }).click();
   await page.getByRole('button', { name: '내 정보 관리' }).click();
   await logout(page);
   await loginB(page);
   await openAi();
-  await expect(page.getByPlaceholder('메시지를 입력하세요...')).toHaveValue('');
+  await expect(page.getByRole('textbox', { name: '채팅 메시지', exact: true })).toHaveValue('');
 });
 
 test('계정 전환 후 늦게 도착한 알림 숫자는 무시한다', async ({ page }) => {

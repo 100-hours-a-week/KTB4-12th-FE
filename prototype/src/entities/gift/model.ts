@@ -4,7 +4,8 @@ import { PRODUCT_IMAGE } from '../../shared/config/assets';
 export const MAX_GIFT_QUANTITY = 10;
 
 export type GiftStatus = 'WAITING_FOR_ACCEPTANCE' | 'COMPLETED' | 'CANCELED';
-export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'DECLINED' | 'CANCELED';
+export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'DECLINED' | 'FAILED' | 'CANCELED';
+export type PaymentCancellationStatus = 'PENDING' | 'COMPLETED' | 'DECLINED' | 'FAILED';
 
 const GIFT_CONDITION_ERRORS = {
   GIFT_CONDITIONS_CHANGED: {
@@ -76,13 +77,28 @@ export type GiftPreflight = {
 
 export type PaymentResult = PaymentComplete | PaymentProcessing;
 
-export type PaymentComplete = {
+export type PaymentRequest = {
+  productId: number;
+  recipientUserId: number;
+  quantity: number;
+  expectedUnitPrice: number;
+  couponMultiplier?: 2 | 3 | null;
+};
+
+export type PaymentReward = {
+  couponMultiplier: 2 | 3 | null;
+  couponStatus: 'RESERVED' | 'USED' | 'RESTORED' | null;
+  expectedRewardAmount: number | null;
+  rewardAmount: number | null;
+};
+
+export type PaymentComplete = PaymentReward & {
   orderId: string;
   paymentKey: string;
   transactionKey: string;
   paymentStatus: 'COMPLETED';
   giftId: number;
-  giftStatus: 'WAITING_FOR_ACCEPTANCE';
+  giftStatus: GiftStatus;
   amount: number;
   balanceAfter: number;
   approvedAt: string;
@@ -93,10 +109,16 @@ export type PaymentProcessing = {
   orderId: string;
   paymentStatus: 'PENDING';
   approvalResult: 'UNKNOWN' | 'APPROVED';
+  statusUrl: string;
   retryAfterSeconds: number;
 };
 
-export type PaymentStatusResult = {
+export type PendingPaymentOrder = {
+  orderId: string;
+  paymentStatus: 'PENDING';
+};
+
+export type PaymentStatusResult = PaymentReward & {
   orderId: string;
   paymentStatus: PaymentStatus;
   approvalResult: 'UNKNOWN' | 'APPROVED' | 'DECLINED' | null;
@@ -106,7 +128,28 @@ export type PaymentStatusResult = {
   amount: number;
   approvedAt: string | null;
   canceledAt: string | null;
+  cancellationId: number | null;
+  cancellationStatus: PaymentCancellationStatus | null;
+  cancellationFailureCode: string | null;
 };
+
+export type PaymentCancellationResult =
+  | {
+      orderId: string;
+      paymentStatus: 'CANCELED';
+      giftId: number;
+      giftStatus: 'CANCELED';
+      canceledAt: string;
+    }
+  | {
+      orderId: string;
+      paymentStatus: PaymentStatus;
+      cancellationId: number;
+      cancellationStatus: 'PENDING';
+      cancellationFailureCode: string | null;
+      statusUrl: string;
+      retryAfterSeconds: number;
+    };
 
 export const mockReceivedGifts: ReceivedGift[] = Array.from({ length: 43 }, (_, index) => ({
   giftId: 410 + index,

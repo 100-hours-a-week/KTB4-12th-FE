@@ -10,6 +10,9 @@ async function fillSignupForm(page: Page) {
   await page.getByRole('button', { name: '선택 완료' }).click();
   await page.getByLabel('이메일').fill('new@gift.local');
   await page.getByRole('button', { name: '중복확인' }).click();
+  await page.getByRole('button', { name: '인증번호 발송' }).click();
+  await page.getByLabel('이메일 인증번호').fill('123456');
+  await page.getByRole('button', { name: '인증 확인' }).click();
   await page.getByLabel('비밀번호', { exact: true }).fill('Test1234!');
   await page.getByRole('textbox', { name: '비밀번호 확인', exact: true }).fill('Test1234!');
 }
@@ -89,6 +92,43 @@ test('비밀번호와 비밀번호 확인의 보기 상태를 각각 변경한�
   await page.getByRole('button', { name: '비밀번호 확인 보기', exact: true }).click();
   await expect(password).toHaveAttribute('type', 'text');
   await expect(confirmation).toHaveAttribute('type', 'text');
+});
+
+test('이메일 중복 확인만으로는 다음 단계가 열리지 않고 인증 후 열린다', async ({ page }) => {
+  const startedAt = new Date(2026, 9, 26, 12);
+  await page.clock.setFixedTime(startedAt);
+  await page.getByLabel('이름').fill('테스트');
+  await page.getByRole('button', { name: '생년월일 선택' }).click();
+  await page.getByLabel('출생 연도').selectOption('1995');
+  await page.getByLabel('출생 월').selectOption('5');
+  await page.getByLabel('출생 일').selectOption('17');
+  await page.getByRole('button', { name: '선택 완료' }).click();
+  await page.getByLabel('비밀번호', { exact: true }).fill('Test1234!');
+  await page.getByRole('textbox', { name: '비밀번호 확인', exact: true }).fill('Test1234!');
+  await page.getByLabel('이메일').fill('verification@gift.local');
+  await page.getByRole('button', { name: '중복확인' }).click();
+
+  await expect(page.getByText('사용할 수 있는 이메일입니다.')).toBeVisible();
+  await expect(page.getByRole('button', { name: '인증번호 발송' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
+
+  await page.getByRole('button', { name: '인증번호 발송' }).click();
+  await expect(page.getByRole('button', { name: /재발송 \d+초/ })).toBeDisabled();
+  await expect(page.getByText('재발송까지 60초')).toBeVisible();
+  await page.getByLabel('이메일 인증번호').fill('123456');
+  await page.getByRole('button', { name: '인증 확인' }).click();
+
+  await expect(page.getByRole('status')).toHaveText('이메일 인증 완료');
+  await expect(page.getByRole('button', { name: '다음', exact: true })).toBeEnabled();
+
+  await page.clock.setFixedTime(new Date(startedAt.getTime() + 11 * 60_000));
+  await expect(page.getByText('인증번호가 만료됐어요. 다시 발송해 주세요.')).toBeVisible();
+  await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
+
+  await page.getByLabel('이메일', { exact: true }).fill('changed@gift.local');
+  await expect(page.getByText('사용할 수 있는 이메일입니다.')).toHaveCount(0);
+  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
 });
 
 test('한 글자 이름도 유효한 회원가입 입력으로 허용한다', async ({ page }) => {

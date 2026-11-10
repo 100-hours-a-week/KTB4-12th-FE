@@ -7,6 +7,7 @@ const emptyReview = {
 const gift = (giftId: number) => ({
   giftId,
   receivedAt: '2026-10-01T12:00:00',
+  giftStatus: 'COMPLETED',
   sender: { userId: 2, name: `보낸 사람 ${giftId}` },
   product: { productId: giftId, name: `선물 ${giftId}`, brand: '테스트 브랜드' },
   quantity: 1,

@@ -17,6 +17,8 @@ export default defineConfig({
     '**/dislike-categories-api.spec.ts',
     '**/notification-sse.spec.ts',
     '**/gift-detail-api.spec.ts',
+    '**/coupon-checkout-api.spec.ts',
+    '**/roulette-api.spec.ts',
   ],
   timeout: 20_000,
   use: {

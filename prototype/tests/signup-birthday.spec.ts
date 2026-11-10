@@ -50,6 +50,9 @@ test('생년월일 선택에서 만 14세 미만을 차단하고 경계일은 �
   await page.getByLabel('이름').fill('테스트');
   await page.getByLabel('이메일').fill('birthday@gift.local');
   await page.getByRole('button', { name: '중복확인' }).click();
+  await page.getByRole('button', { name: '인증번호 발송' }).click();
+  await page.getByLabel('이메일 인증번호').fill('123456');
+  await page.getByRole('button', { name: '인증 확인' }).click();
   await page.getByLabel('비밀번호', { exact: true }).fill('Test1234!');
   await page.getByRole('textbox', { name: '비밀번호 확인', exact: true }).fill('Test1234!');
   await expect(page.getByRole('button', { name: '다음', exact: true })).toBeEnabled();

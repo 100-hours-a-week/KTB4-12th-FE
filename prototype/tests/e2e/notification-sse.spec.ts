@@ -11,9 +11,8 @@ const notification = {
   isRead: false,
 };
 
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(`
-    localStorage.clear();
+test.beforeEach(async ({ page, context }) => {
+  await context.addInitScript(`
     localStorage.setItem('prototype-auth', 'signed-in');
     localStorage.setItem('accessToken', 'test-token');
     const originalFetch = window.fetch.bind(window);
@@ -23,6 +22,12 @@ test.beforeEach(async ({ page }) => {
       if (!String(url).endsWith('/notifications/events')) return originalFetch(url, options);
       window.sseConnections++;
       window.sseAuthorization = options.headers.Authorization;
+      window.sseLastEventId = options.headers['Last-Event-ID'] ?? null;
+      if (window.rejectNextSse) {
+        window.rejectNextSse = false;
+        return new Response(JSON.stringify({message: '구독 실패', error: {code: 'INTERNAL_SERVER_ERROR'}}),
+          {status: 500, headers: {'Content-Type': 'application/json'}});
+      }
       const stream = new ReadableStream({ start(controller) {
         window.sendSse = (text) => controller.enqueue(new TextEncoder().encode(text));
         window.endSse = () => controller.close();
@@ -34,7 +39,7 @@ test.beforeEach(async ({ page }) => {
       return new Response(stream, {headers: {'Content-Type': 'text/event-stream'}});
     };
   `);
-  await page.route('**/users/me', (route) =>
+  await context.route('**/users/me', (route) =>
     route.fulfill({
       json: {
         data: {
@@ -48,10 +53,10 @@ test.beforeEach(async ({ page }) => {
       },
     }),
   );
-  await page.route('**/notifications/unread-count', (route) =>
+  await context.route('**/notifications/unread-count', (route) =>
     route.fulfill({ json: { data: { unreadCount: 1 } } }),
   );
-  await page.route(/\/notifications(?:\?.*)?$/, (route) =>
+  await context.route(/\/notifications(?:\?.*)?$/, (route) =>
     route.fulfill({
       json: {
         data: {
@@ -61,7 +66,7 @@ test.beforeEach(async ({ page }) => {
       },
     }),
   );
-  await page.route(/\/(friends|friend-requests\/received)(?:\?.*)?$/, (route) =>
+  await context.route(/\/(friends|friend-requests\/received)(?:\?.*)?$/, (route) =>
     route.fulfill({
       json: {
         data: {
@@ -202,7 +207,6 @@ test('빠른 pagehide/pageshow 전환에서 이전 연결의 재시도와 중복
   page,
 }) => {
   const frame = `id:31\nevent:notification\ndata:${JSON.stringify(notification)}\n\n`;
-  await page.route('**/notifications/events/31/ack', (route) => route.fulfill({ json: {} }));
   await page.evaluate(
     (frame) => (window as unknown as { sendSse: (frame: string) => void }).sendSse(frame),
     frame,
@@ -477,42 +481,165 @@ for (const source of ['banner', 'list'] as const) {
   });
 }
 
-test('ACK 실패 후 재수신은 배너를 반복하지 않고 ACK를 다시 보낸다', async ({ page }) => {
+test('중복 알림과 기존 delivery ID가 있어도 ACK 없이 배너는 한 번만 표시한다', async ({ page }) => {
   let acknowledgements = 0;
-  await page.route('**/notifications/events/9007199254740993/ack', (route) => {
+  await page.route('**/notifications/events/*/ack', (route) => {
     acknowledgements++;
-    expect(route.request().method()).toBe('PATCH');
-    return route.fulfill(
-      acknowledgements === 1
-        ? { status: 503, json: { message: '일시적 오류' } }
-        : { json: { data: {} } },
-    );
+    return route.fulfill({ json: {} });
   });
   const frame = `id:9007199254740993\nevent:notification\ndata:${JSON.stringify(notification)}\n\n`;
-  const send = async () =>
-    page.evaluate(
-      (part) => (window as unknown as { sendSse: (text: string) => void }).sendSse(part),
-      frame,
-    );
-  await send();
-  await expect.poll(() => acknowledgements).toBe(1);
+  await page.evaluate(
+    (text) => (window as unknown as { sendSse: (text: string) => void }).sendSse(text),
+    frame,
+  );
   await expect(page.locator('.notification-banner')).toContainText(notification.title);
   await page.getByRole('button', { name: '알림 배너 닫기' }).click();
-  await send();
-  await expect.poll(() => acknowledgements).toBe(2);
+  await page.evaluate(
+    (text) => (window as unknown as { sendSse: (text: string) => void }).sendSse(text),
+    frame +
+      `id:42\nevent:notification\ndata:invalid\n\nid:43\nevent:notification\ndata:${JSON.stringify({ ...notification, isRead: true })}\n\nevent:resync\ndata:resync\n\n`,
+  );
   await expect(page.locator('.notification-banner')).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(acknowledgements).toBe(0);
 });
 
-test('읽은 알림도 ACK하고 잘못된 프레임은 ACK하지 않는다', async ({ page }) => {
-  let acknowledgements = 0;
-  await page.route('**/notifications/events/42/ack', (route) => {
-    acknowledgements++;
-    return route.fulfill({ json: { data: {} } });
+for (const open of [false, true]) {
+  test(`resync는 연결을 유지하고 미읽음 개수와 ${open ? '열린' : '닫힌'} 목록을 처리한다`, async ({
+    page,
+  }) => {
+    await expect(page.locator('.notification-button span')).toHaveText('1');
+    if (open) {
+      await page.getByRole('button', { name: /알림 목록 열기/ }).click();
+      await expect(page.locator('.notification-card')).toHaveCount(1);
+    }
+    const connections = await page.evaluate('window.sseConnections');
+    let listRequests = 0;
+    let countRequests = 0;
+    await page.route('**/notifications/unread-count', (route) => {
+      countRequests++;
+      return route.fulfill({ json: { data: { unreadCount: 2 } } });
+    });
+    await page.route(/\/notifications(?:\?.*)?$/, (route) => {
+      listRequests++;
+      return route.fulfill({
+        json: {
+          data: {
+            items: [notification, { ...notification, notificationId: 51, title: '누락된 알림' }],
+            pagination: { nextCursor: null, hasNext: false },
+          },
+        },
+      });
+    });
+    await page.evaluate(
+      (text) => (window as unknown as { sendSse: (text: string) => void }).sendSse(text),
+      ':heartbeat\n\nevent: res',
+    );
+    await page.evaluate(
+      (text) => (window as unknown as { sendSse: (text: string) => void }).sendSse(text),
+      'ync\r\ndata: resync\r\n\r\n',
+    );
+    await expect(page.locator('.notification-button span')).toHaveText('2');
+    if (open) await expect(page.getByText('누락된 알림')).toBeVisible();
+    expect(listRequests).toBe(open ? 1 : 0);
+    expect(countRequests).toBe(1);
+    expect(await page.evaluate('window.sseConnections')).toBe(connections);
+    await expect(page.locator('.notification-banner')).toHaveCount(0);
+    if (!open) {
+      await page.getByRole('button', { name: /알림 목록 열기/ }).click();
+      await expect(page.getByText('누락된 알림')).toBeVisible();
+      expect(listRequests).toBe(1);
+    }
   });
-  await page.evaluate(
-    (part) => (window as unknown as { sendSse: (text: string) => void }).sendSse(part),
-    `id:42\nevent:notification\ndata:invalid\n\nid:42\nevent:notification\ndata:${JSON.stringify({ ...notification, isRead: true })}\n\n`,
+}
+
+test('사용자 채널 구독 실패 후 재접속하고 resync로 놓친 알림을 복구한다', async ({ page }) => {
+  await expect(page.locator('.notification-button span')).toHaveText('1');
+  await page.getByRole('button', { name: /알림 목록 열기/ }).click();
+  const list = page.getByRole('dialog', { name: '알림', exact: true });
+  await expect(list.locator('.notification-card')).toHaveCount(1);
+  const before = Number(await page.evaluate('window.sseConnections'));
+  await page.evaluate(() => {
+    (window as unknown as { rejectNextSse: boolean }).rejectNextSse = true;
+    (window as unknown as { endSse: () => void }).endSse();
+  });
+  await expect
+    .poll(() => page.evaluate('window.sseConnections'), { timeout: 8000 })
+    .toBe(before + 2);
+  const missed = { ...notification, notificationId: 80, title: '구독 실패 중 도착한 알림' };
+  await page.route('**/notifications/unread-count', (route) =>
+    route.fulfill({ json: { data: { unreadCount: 2 } } }),
   );
-  await expect.poll(() => acknowledgements).toBe(1);
+  await page.route(/\/notifications(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        data: { items: [missed, notification], pagination: { nextCursor: null, hasNext: false } },
+      },
+    }),
+  );
+  await page.evaluate(() =>
+    (window as unknown as { sendSse: (text: string) => void }).sendSse(
+      'event:connected\ndata:connected\n\nevent:resync\ndata:resync\n\n',
+    ),
+  );
+  await expect(list).toContainText(missed.title);
+  await expect(page.locator('.notification-button span')).toHaveText('2');
   await expect(page.locator('.notification-banner')).toHaveCount(0);
+  expect(await page.evaluate('window.sseConnections')).toBe(before + 2);
+  expect(await page.evaluate('window.sseLastEventId')).toBeNull();
+});
+
+test('Redis 재구독 뒤에도 notificationId 중복을 제거하고 새로운 알림만 표시한다', async ({
+  page,
+}) => {
+  const frame = `id:31\nevent:notification\ndata:${JSON.stringify(notification)}\n\n`;
+  await page.evaluate(
+    (text) => (window as unknown as { sendSse: (text: string) => void }).sendSse(text),
+    frame,
+  );
+  await expect(page.locator('.notification-banner')).toContainText(notification.title);
+  await page.getByRole('button', { name: '알림 배너 닫기' }).click();
+  await page.evaluate(
+    (text) => (window as unknown as { sendSse: (text: string) => void }).sendSse(text),
+    `event:resync\ndata:resync\n\n${frame}`,
+  );
+  await expect(page.locator('.notification-banner')).toHaveCount(0);
+  const next = { ...notification, notificationId: 32, title: '재구독 후 새 알림' };
+  await page.evaluate(
+    (text) => (window as unknown as { sendSse: (text: string) => void }).sendSse(text),
+    `id:32\nevent:notification\ndata:${JSON.stringify(next)}\n\n`,
+  );
+  await expect(page.locator('.notification-banner')).toContainText(next.title);
+});
+
+test('두 탭은 각각 수신하고 한 탭을 닫아도 다른 탭은 계속 수신한다', async ({ page, context }) => {
+  await context.addInitScript(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+  });
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  const other = await context.newPage();
+  await other.goto('/');
+  await other.waitForFunction('typeof window.sendSse === "function"');
+  const frame = `id:31\nevent:notification\ndata:${JSON.stringify(notification)}\n\n`;
+  for (const tab of [page, other]) {
+    await tab.evaluate(
+      (text) => (window as unknown as { sendSse: (text: string) => void }).sendSse(text),
+      frame,
+    );
+    await expect(tab.locator('.notification-banner')).toContainText(notification.title);
+    await tab.getByRole('button', { name: '알림 배너 닫기' }).click();
+    await expect(tab.locator('.notification-banner')).toHaveCount(0);
+  }
+  const connections = await other.evaluate('window.sseConnections');
+  await page.close();
+  const next = { ...notification, notificationId: 32, title: '남은 탭의 새 알림' };
+  await other.evaluate(
+    (text) => (window as unknown as { sendSse: (text: string) => void }).sendSse(text),
+    `id:32\nevent:notification\ndata:${JSON.stringify(next)}\n\n`,
+  );
+  await expect(other.locator('.notification-banner')).toContainText(next.title);
+  expect(await other.evaluate('window.sseConnections')).toBe(connections);
 });
