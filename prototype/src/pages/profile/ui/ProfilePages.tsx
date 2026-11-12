@@ -30,6 +30,10 @@ export function MyPage({
   onPreferences,
   onGiftPreference,
   onRouletteEvent,
+  pendingPaymentCount,
+  pendingPaymentLoadError,
+  onOpenPendingPayments,
+  onRetryPendingPayments,
   action,
 }: {
   profile: MyProfile | null;
@@ -42,8 +46,22 @@ export function MyPage({
   onPreferences: () => void;
   onGiftPreference: () => void;
   onRouletteEvent: () => void;
+  pendingPaymentCount: number;
+  pendingPaymentLoadError: string;
+  onOpenPendingPayments: () => void;
+  onRetryPendingPayments: () => void;
   action?: ReactNode;
 }) {
+  const pendingPaymentRow = pendingPaymentLoadError ? (
+    <SettingRow label="결제 상태 확인" value="다시 조회" onClick={onRetryPendingPayments} />
+  ) : pendingPaymentCount > 0 ? (
+    <SettingRow
+      label="미확정 결제"
+      value={`${pendingPaymentCount}건`}
+      onClick={onOpenPendingPayments}
+    />
+  ) : null;
+
   return (
     <section className="page mypage-page">
       <ScreenHeader title="마이페이지" action={action} />
@@ -75,6 +93,7 @@ export function MyPage({
               value={`${profile.giftSummary.sentCount}건`}
               onClick={onSent}
             />
+            {pendingPaymentRow}
             <SettingRow label="비선호 카테고리" value="설정" onClick={onPreferences} />
             <SettingRow label="내 선물 취향" value="작성" onClick={onGiftPreference} />
             <SettingRow label="룰렛 이벤트" value="참여하기" onClick={onRouletteEvent} />
@@ -84,6 +103,7 @@ export function MyPage({
         <div className="settings-list">
           <SettingRow label="내 정보 및 공개 설정" value="설정" onClick={onAccount} />
           <SettingRow label="룰렛 이벤트" value="참여하기" onClick={onRouletteEvent} />
+          {pendingPaymentRow}
         </div>
       )}
     </section>
