@@ -56,6 +56,11 @@ export function ProductFilterSheet({
       >
         <Cross1Icon />
       </button>
+      <p className="category-filter-summary" role="status">
+        {draftSelected.length
+          ? `${draftSelected.length}개 카테고리 선택`
+          : '원하는 카테고리를 선택해 주세요.'}
+      </p>
       <div className="sheet-category-list">
         <button
           type="button"
