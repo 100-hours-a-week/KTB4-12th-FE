@@ -31,7 +31,7 @@ for (const width of [320, 390, 1100]) {
     await notifications.getByRole('button', { name: '알림 닫기', exact: true }).click();
     await expect(notifications).toBeHidden();
     await page.getByRole('navigation').getByRole('button', { name: '마이', exact: true }).click();
-    await page.getByRole('button', { name: '내 정보 관리', exact: true }).click();
+    await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
     await expect(
       page.getByRole('heading', { name: '내 정보 및 공개 설정', exact: true }),
     ).toBeVisible();

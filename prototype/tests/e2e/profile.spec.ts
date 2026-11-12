@@ -28,7 +28,7 @@ test('마이페이지 탭으로 새로고침해도 사용자 정보를 조회한
 
 test('내 정보 관리 화면을 새로고침해도 화면과 프로필을 복원한다', async ({ page }) => {
   await openMyPage(page);
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await expect(page.getByRole('heading', { name: '내 정보 및 공개 설정' })).toBeVisible();
 
   await page.reload();
@@ -73,7 +73,7 @@ test('사용자가 비선호 카테고리를 변경하고 저장한다', async (
 
 test('사용자가 생일 공개에 동의하면 공개 상태로 변경된다', async ({ page }) => {
   await openMyPage(page);
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
 
   const birthdaySwitch = page.getByRole('switch', { name: /생일 공개/ });
   await expect(birthdaySwitch).toHaveAttribute('aria-checked', 'false');
@@ -100,7 +100,7 @@ test('[QA 89, 90, 91] 마이페이지 정보를 확인하고 생년월일을 취
   await openMyPage(page);
   await expect(page.getByText('email@email.com', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /^받은 선물 \d+건$/ })).toBeVisible();
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
 
   await page.getByRole('button', { name: /생년월일/ }).click();
   let sheet = page.getByRole('dialog', { name: '생년월일 수정' });
@@ -117,7 +117,7 @@ test('[QA 89, 90, 91] 마이페이지 정보를 확인하고 생년월일을 취
 
 test('[QA 93, 94, 95] 생일 공개 취소·동의·비공개를 검증한다', async ({ page }) => {
   await openMyPage(page);
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   const birthdaySwitch = page.getByRole('switch', { name: /생일 공개/ });
 
   await birthdaySwitch.click();
@@ -136,7 +136,7 @@ test('[QA 93, 94, 95] 생일 공개 취소·동의·비공개를 검증한다', 
 
 test('사용자가 로그아웃하면 로그인 화면으로 이동하고 인증 정보가 삭제된다', async ({ page }) => {
   await openMyPage(page);
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await page.getByRole('button', { name: '로그아웃' }).click();
 
   const logoutDialog = page.getByRole('dialog', { name: '로그아웃하시겠어요?' });

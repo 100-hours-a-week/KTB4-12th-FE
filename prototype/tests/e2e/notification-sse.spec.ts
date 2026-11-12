@@ -342,7 +342,7 @@ test('로그아웃 시 연결과 배너 정리', async ({ page }) => {
   );
   await page.evaluate('window.sseAborted = false');
   await page.getByRole('button', { name: '마이', exact: true }).click();
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: '로그아웃', exact: true }).click();
   await expect(page.locator('.notification-banner')).toHaveCount(0);

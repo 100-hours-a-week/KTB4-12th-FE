@@ -877,11 +877,6 @@ textarea:focus-visible,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.profile-card .primary {
-  box-shadow: none;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
 .settings-list {
   display: grid;
   gap: 10px;
@@ -3592,7 +3587,7 @@ textarea:focus-visible,
 }
 .mypage-page .profile-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px 8px;
   min-height: 0;
   padding: 20px 16px 0;
@@ -3614,15 +3609,6 @@ textarea:focus-visible,
   color: var(--muted);
   font-size: 12px;
   line-height: 1.5;
-}
-.mypage-page .profile-card .primary {
-  min-height: 44px;
-  padding: 0 10px;
-  border: 1px solid #efdfda;
-  border-radius: 10px;
-  background: #fff;
-  color: var(--ink);
-  font-size: 12px;
 }
 .mypage-page .profile-credit {
   grid-column: 1 / -1;
