@@ -60,6 +60,12 @@ export function MyPage({
       onClick={onOpenPendingPayments}
     />
   ) : null;
+  const pendingPaymentSection = pendingPaymentRow ? (
+    <section className="mypage-section" aria-labelledby="pending-payment-heading">
+      <h2 id="pending-payment-heading">결제 확인</h2>
+      <div className="mypage-menu-group">{pendingPaymentRow}</div>
+    </section>
+  ) : null;
 
   return (
     <section className="page mypage-page">
@@ -94,6 +100,7 @@ export function MyPage({
                 />
               </div>
             </section>
+            {pendingPaymentSection}
             <section className="mypage-section" aria-labelledby="gift-taste-heading">
               <h2 id="gift-taste-heading">나의 선물 취향</h2>
               <div className="mypage-menu-group">
@@ -114,7 +121,7 @@ export function MyPage({
         <div className="settings-list">
           <SettingRow label="내 정보 및 공개 설정" value="설정" onClick={onAccount} />
           <SettingRow label="룰렛 이벤트" value="참여하기" onClick={onRouletteEvent} />
-          {pendingPaymentRow}
+          {pendingPaymentSection}
         </div>
       )}
     </section>
