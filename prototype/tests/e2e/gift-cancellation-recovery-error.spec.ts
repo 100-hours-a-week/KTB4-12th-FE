@@ -271,7 +271,9 @@ test('409 CANCELLATION_IN_PROGRESS는 기존 취소 상태로 전환하고 추�
   expect(state.postCalls).toBe(1);
 });
 
-test('재진입 시 취소 상태를 복원하고 진행 중인 받은 선물 수락을 막는다', async ({ page }) => {
+test('재진입 시 발신자 취소 상태를 복원하고 받은 선물에는 결제자 상태 조회를 요구하지 않는다', async ({
+  page,
+}) => {
   const state = await setup(page, 'PENDING');
   const sentButton = page.getByRole('button', { name: /보낸 선물/ });
   await sentButton.click();
@@ -286,13 +288,31 @@ test('재진입 시 취소 상태를 복원하고 진행 중인 받은 선물 �
 
   await page.getByRole('button', { name: '뒤로 가기' }).click();
   await page.getByRole('button', { name: '뒤로 가기' }).click();
+  const statusCallsBeforeReceived = state.statusCalls;
   await page.getByRole('button', { name: /받은 선물/ }).click();
-  await expect(page.locator('.gift-cancellation-status')).toContainText(
-    '취소 결과가 아직 확정되지 않았어요.',
-  );
-  await expect(page.getByRole('button', { name: '선물 받기' })).toHaveCount(0);
+  await expect(page.locator('.gift-cancellation-status')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '선물 받기' })).toBeEnabled();
+  expect(state.statusCalls).toBe(statusCallsBeforeReceived);
+
+  await page.locator('.gift-history-card').first().click();
+  await expect(page.getByRole('heading', { name: '받은 선물 상세' })).toBeVisible();
+  await expect(page.locator('.gift-cancellation-status')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '선물 받기' })).toBeEnabled();
+  expect(state.statusCalls).toBe(statusCallsBeforeReceived);
   expect(state.acceptCalls).toBe(0);
   expect(state.postCalls).toBe(0);
+});
+
+test('받은 선물 상세는 결제 상태 조회 없이 수락 API를 호출한다', async ({ page }) => {
+  const state = await setup(page);
+  await page.getByRole('button', { name: /받은 선물/ }).click();
+  const statusCallsBeforeReceived = state.statusCalls;
+  await page.locator('.gift-history-card').first().click();
+
+  await expect(page.getByRole('heading', { name: '받은 선물 상세' })).toBeVisible();
+  await page.getByRole('button', { name: '선물 받기' }).click();
+  await expect.poll(() => state.acceptCalls).toBe(1);
+  expect(state.statusCalls).toBe(statusCallsBeforeReceived);
 });
 
 test('취소 거절이 확정된 뒤 다시 요청하면 새 멱등 키를 사용한다', async ({ page }) => {

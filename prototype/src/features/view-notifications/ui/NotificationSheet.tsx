@@ -1,3 +1,4 @@
+import { Cross1Icon } from '@radix-ui/react-icons';
 import { useCallback, useState } from 'react';
 
 import {
@@ -56,6 +57,14 @@ export function NotificationSheet({
 
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange} title="알림" snap={0.72}>
+      <button
+        type="button"
+        className="sheet-close"
+        aria-label="알림 닫기"
+        onClick={() => onOpenChange(false)}
+      >
+        <Cross1Icon aria-hidden="true" />
+      </button>
       <div className="notification-list">
         {list.items.map((notification) => (
           <button

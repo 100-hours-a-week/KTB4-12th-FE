@@ -89,6 +89,7 @@ export function TermsAgreementPage({
         </button>
         <strong>선잘알</strong>
       </header>
+      <p className="auth-step">회원가입 2 / 2 · 약관 확인</p>
       <h1>약관 동의</h1>
       <p className="terms-intro">필수 약관과 선택 동의를 구분하여 확인해 주세요.</p>
       {termsError ? (
