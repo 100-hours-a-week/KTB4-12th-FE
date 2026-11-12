@@ -43,6 +43,7 @@ async function setup(page: Page, available = [2, 3]) {
         data: {
           userId: 1,
           name: '홍길동',
+          birth: '2000-01-01',
           email: 'me@example.com',
           creditBalance: 468000,
           isBirthdayPublic: false,
@@ -351,14 +352,16 @@ test('202 후 상태 조회가 실패해도 승인 명령은 다시 보내지 �
   expect(state.posts).toHaveLength(1);
 });
 
-test('재로그인 후 서버의 미확정 주문을 복원하고 GET만으로 완료 상태를 확인한다', async ({
+test('마이페이지에서 서버의 미확정 주문을 확인하고 GET만으로 완료 상태를 조회한다', async ({
   page,
 }) => {
   const state = await setup(page);
   state.pending = true;
   state.pendingOrders = [{ orderId, paymentStatus: 'PENDING' }];
   await page.goto('/');
-  await page.getByRole('button', { name: '미확정 결제 확인' }).click();
+  await expect(page.getByRole('button', { name: /미확정 결제/ })).toHaveCount(0);
+  await page.getByRole('button', { name: '마이' }).click();
+  await page.getByRole('button', { name: /미확정 결제 1건/ }).click();
   const sheet = page.getByRole('dialog', { name: '결제 상태 확인' });
   await expect(sheet).toBeVisible();
   await expect(sheet).toContainText('결제 승인 여부를 확인하고 있어요.');

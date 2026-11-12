@@ -1076,6 +1076,10 @@ export function GiftApp() {
           onPreferences={() => navigate('preferences')}
           onGiftPreference={() => navigate('gift-preference')}
           onRouletteEvent={() => navigate('roulette-event')}
+          pendingPaymentCount={pendingPaymentOrders.length}
+          pendingPaymentLoadError={pendingPaymentLoadError}
+          onOpenPendingPayments={() => setPendingPaymentsOpen(true)}
+          onRetryPendingPayments={() => setPendingPaymentRefreshKey((value) => value + 1)}
         />
       );
     if (route === 'account')
@@ -1237,43 +1241,24 @@ export function GiftApp() {
         onDismiss={() => setNotificationBanner(null)}
       />
       <Toast message={toast} container={screenRef.current} />
-      {(hasPendingCheckout || pendingPaymentOrders.length > 0 || pendingPaymentLoadError) &&
+      {hasPendingCheckout &&
       giftDialog?.kind !== 'confirm' &&
       !pendingPaymentsOpen &&
       notificationsEnabled ? (
         <div className="checkout-resume" role="status">
           <div className="checkout-resume-copy">
-            {hasPendingCheckout ? <span>확인이 필요한 결제가 있어요.</span> : null}
-            {pendingPaymentOrders.length ? (
-              <span>이전에 확인하지 못한 결제가 {pendingPaymentOrders.length}건 있어요.</span>
-            ) : null}
-            {pendingPaymentLoadError ? <span>{pendingPaymentLoadError}</span> : null}
+            <span>확인이 필요한 결제가 있어요.</span>
           </div>
           <div className="checkout-resume-actions">
-            {hasPendingCheckout ? (
-              <button
-                type="button"
-                onClick={() => {
-                  const pending = getPendingCheckout();
-                  if (pending) setGiftDialog({ kind: 'confirm', preflight: pending.preflight });
-                }}
-              >
-                같은 결제 확인
-              </button>
-            ) : null}
-            {pendingPaymentOrders.length ? (
-              <button type="button" onClick={() => setPendingPaymentsOpen(true)}>
-                미확정 결제 확인
-              </button>
-            ) : null}
-            {pendingPaymentLoadError ? (
-              <button
-                type="button"
-                onClick={() => setPendingPaymentRefreshKey((value) => value + 1)}
-              >
-                다시 조회
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                const pending = getPendingCheckout();
+                if (pending) setGiftDialog({ kind: 'confirm', preflight: pending.preflight });
+              }}
+            >
+              같은 결제 확인
+            </button>
           </div>
         </div>
       ) : null}
