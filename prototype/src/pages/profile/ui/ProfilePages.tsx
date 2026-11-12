@@ -1,4 +1,3 @@
-import { GearIcon } from '@radix-ui/react-icons';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 
 import { fetchPreference, savePreference } from '../../../entities/preference';
@@ -56,9 +55,6 @@ export function MyPage({
               <span>{formatBirthdayLabel(profile.birth)}</span>
               <small>{profile.email}</small>
             </div>
-            <button type="button" className="primary compact" onClick={onAccount}>
-              <GearIcon /> 내 정보 관리
-            </button>
             <div className="profile-credit">
               <span>보유 크레딧</span>
               <strong>{`${(profile.creditBalance ?? 0).toLocaleString()} C`}</strong>

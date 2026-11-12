@@ -85,3 +85,9 @@ FSD 구조의 `pages`가 화면을, `features`가 필터·요청 등의 사용�
 ![친구](images/mobile-ui/friends.png)
 ![선물 탐색](images/mobile-ui/gifts.png)
 ![마이페이지](images/mobile-ui/mypage.png)
+
+## 중복 계정 관리 진입점 제거 — 2026-11-12
+
+프로필 카드의 “내 정보 관리” 버튼을 제거하고 하단 계정 설정의 “내 정보 및 공개 설정” 메뉴로 진입점을 통일했다. 사용하지 않는 아이콘·버튼 스타일을 제거하고 프로필 정보를 단일 열로 표시한다. 기존 계정 설정 콜백·라우팅·API는 유지한다. 관련 화면 이동 테스트를 하단 메뉴로 변경했다.
+
+![375px 긴 이메일 및 단일 계정 관리 진입점](images/mobile-ui/mypage-account-entry.png)
