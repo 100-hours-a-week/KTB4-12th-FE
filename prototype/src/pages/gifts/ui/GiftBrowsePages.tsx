@@ -113,6 +113,7 @@ export function GiftsPage({
           <KeyboardInput
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
+            aria-label="상품 검색"
             placeholder="상품명 또는 브랜드를 입력해 주세요."
             maxLength={PRODUCT_SEARCH_MAX_LENGTH}
           />
@@ -123,7 +124,8 @@ export function GiftsPage({
           aria-label={filterCount ? `필터, ${filterCount}개 선택됨` : '필터'}
           onClick={onFilter}
         >
-          <MixerHorizontalIcon />
+          <MixerHorizontalIcon aria-hidden="true" />
+          <span>필터</span>
           {filterCount ? <b>{filterCount}</b> : null}
         </button>
       </div>
@@ -155,7 +157,12 @@ export function GiftsPage({
         <>
           {recipientUserId ? (
             <div className="browse-recipient-row">
-              <span>{recipientName}님에게 줄 선물</span>
+              <div className="browse-recipient-identity">
+                <span className="browse-recipient-label">
+                  {sort === 'AI_RECOMMENDED' ? '맞춤 추천 대상' : '선물 받는 사람'}
+                </span>
+                <strong>{recipientName}님에게 줄 선물</strong>
+              </div>
               <DropdownMenu.Root
                 modal={false}
                 onOpenChange={(open) => {

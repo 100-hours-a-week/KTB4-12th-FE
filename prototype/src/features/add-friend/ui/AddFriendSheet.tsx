@@ -146,7 +146,7 @@ export function AddFriendSheet({
       <div className="friend-results">
         {searchState.status === 'found' ? (
           <article className="friend-result">
-            <div>
+            <div className="friend-identity">
               <strong>{searchState.user.name}</strong>
               <span>{searchState.user.email}</span>
             </div>

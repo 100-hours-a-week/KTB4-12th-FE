@@ -114,7 +114,7 @@ test('마이페이지 재진입과 저장·새 로그인은 프로필을 재조�
   for (const tab of ['친구', '마이']) {
     await page.getByRole('navigation').getByRole('button', { name: tab, exact: true }).click();
   }
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await expect(page.getByRole('switch', { name: '생일 공개' })).toBeVisible();
   expect(state.profileCalls).toBe(initialCalls + 1);
   await changeBirthdayVisibility(page);
@@ -171,7 +171,7 @@ for (const storedRefreshToken of [false, true]) {
         json: { data: {} },
       });
     });
-    await page.getByRole('button', { name: '내 정보 관리' }).click();
+    await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
     await logout(page);
     expect(logoutCalls).toBe(1);
     expect((await context.cookies()).filter((cookie) => cookie.name === 'refreshToken')).toEqual(
@@ -184,7 +184,7 @@ for (const storedRefreshToken of [false, true]) {
 test('B 프로필 조회가 실패해도 A를 본인으로 오인하지 않는다', async ({ page }) => {
   const { releaseA } = await setup(page, true);
   releaseA();
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await logout(page);
   await loginB(page);
   await searchA(page);
@@ -196,7 +196,7 @@ test('B 프로필 조회가 실패해도 A를 본인으로 오인하지 않는�
 test('계정 전환 뒤 도착한 A 프로필 응답이 B 프로필을 덮어쓰지 않는다', async ({ page }) => {
   const { state, releaseA } = await setup(page);
   state.holdA = true;
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await changeBirthdayVisibility(page);
   await expect.poll(() => state.heldA).toBeGreaterThan(0);
   await logout(page);
@@ -226,7 +226,7 @@ test('세션 만료 후 B로 로그인해도 이전 프로필이 남지 않는�
   const unauthorized = (route: Route) =>
     route.fulfill({ status: 401, json: { error: { code: 'UNAUTHORIZED' } } });
   await page.route('**/notifications/unread-count', unauthorized);
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await reconnectNotifications(page);
   await expect(page.getByRole('button', { name: '로그인', exact: true })).toBeVisible();
   await page.unroute('**/notifications/unread-count', unauthorized);
@@ -258,7 +258,7 @@ test('B 알림 조회 실패 시 A의 알림 숫자를 초기화한다', async (
   await page.route('**/notifications/unread-count', (route) =>
     route.fulfill({ json: { data: { unreadCount: 9 } } }),
   );
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await reconnectNotifications(page);
   await expect(page.locator('.notification-button span')).toHaveText('9');
   await logout(page);
@@ -285,7 +285,7 @@ test('이전 계정의 늦은 401은 B 세션을 종료하지 않는다', async 
       await route.fulfill({ status: 401, json: { error: { code: 'UNAUTHORIZED' } } });
     } else await route.fulfill({ json: { data: profile(userB) } });
   });
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await changeBirthdayVisibility(page);
   await expect.poll(() => held).toBe(true);
   await logout(page);
@@ -330,7 +330,7 @@ test('AI 입력 초안을 다음 계정에 남기지 않는다', async ({ page }
   await openAi();
   await page.getByRole('textbox', { name: '채팅 메시지', exact: true }).fill('계정 A의 선물 고민');
   await page.getByRole('button', { name: '뒤로 가기', exact: true }).click();
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await logout(page);
   await loginB(page);
   await openAi();
@@ -353,7 +353,7 @@ test('계정 전환 후 늦게 도착한 알림 숫자는 무시한다', async (
     }
     await route.fulfill({ json: { data: { unreadCount: isA ? 9 : 2 } } });
   });
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await reconnectNotifications(page);
   await expect.poll(() => held).toBe(true);
   await logout(page);
@@ -400,7 +400,7 @@ test('이전 계정의 토큰 갱신 응답은 새 계정 토큰을 덮어쓰지
       },
     });
   });
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await changeBirthdayVisibility(page);
   await expect.poll(() => held).toBe(true);
   await logout(page);
@@ -433,7 +433,7 @@ test('현재 계정의 만료된 토큰은 갱신하고 원래 요청을 재시�
   await page.route('**/auth/refresh', (route) =>
     route.fulfill({ json: { data: { accessToken: 'refreshed-a', expiresIn: 3600 } } }),
   );
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await expect(page.getByTestId('gift-app')).toHaveAttribute('data-route', 'account');
   await changeBirthdayVisibility(page);
   await expect
@@ -451,7 +451,7 @@ for (const relogin of [false, true]) {
     const { releaseA } = await setup(page);
     releaseA();
     if (relogin) {
-      await page.getByRole('button', { name: '내 정보 관리' }).click();
+      await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
       await logout(page);
       await loginB(page);
       await page.getByRole('navigation').getByRole('button', { name: '마이', exact: true }).click();

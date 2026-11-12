@@ -1,4 +1,3 @@
-import { GearIcon } from '@radix-ui/react-icons';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 
 import { fetchPreference, savePreference } from '../../../entities/preference';
@@ -73,29 +72,41 @@ export function MyPage({
               <strong>{profile.name}</strong>
               <span>{formatBirthdayLabel(profile.birth)}</span>
               <small>{profile.email}</small>
-              <span className="credit-balance">
-                보유 크레딧 {`${(profile.creditBalance ?? 0).toLocaleString()} C`}
-              </span>
             </div>
-            <button type="button" className="primary compact" onClick={onAccount}>
-              <GearIcon /> 내 정보 관리
-            </button>
+            <div className="profile-credit">
+              <span>보유 크레딧</span>
+              <strong>{`${(profile.creditBalance ?? 0).toLocaleString()} C`}</strong>
+            </div>
           </article>
           <div className="settings-list">
-            <SettingRow label="내 정보 및 공개 설정" value="설정" onClick={onAccount} />
-            <SettingRow
-              label="받은 선물"
-              value={`${profile.giftSummary.receivedCount}건`}
-              onClick={onReceived}
-            />
-            <SettingRow
-              label="보낸 선물"
-              value={`${profile.giftSummary.sentCount}건`}
-              onClick={onSent}
-            />
-            {pendingPaymentRow}
-            <SettingRow label="비선호 카테고리" value="설정" onClick={onPreferences} />
-            <SettingRow label="내 선물 취향" value="작성" onClick={onGiftPreference} />
+            <section className="mypage-section" aria-labelledby="gift-history-heading">
+              <h2 id="gift-history-heading">선물 내역</h2>
+              <div className="mypage-menu-group gift-history-shortcuts">
+                <SettingRow
+                  label="받은 선물"
+                  value={`${profile.giftSummary.receivedCount}건`}
+                  onClick={onReceived}
+                />
+                <SettingRow
+                  label="보낸 선물"
+                  value={`${profile.giftSummary.sentCount}건`}
+                  onClick={onSent}
+                />
+              </div>
+            </section>
+            <section className="mypage-section" aria-labelledby="gift-taste-heading">
+              <h2 id="gift-taste-heading">나의 선물 취향</h2>
+              <div className="mypage-menu-group">
+                <SettingRow label="내 선물 취향" value="작성" onClick={onGiftPreference} />
+                <SettingRow label="비선호 카테고리" value="설정" onClick={onPreferences} />
+              </div>
+            </section>
+            <section className="mypage-section" aria-labelledby="account-settings-heading">
+              <h2 id="account-settings-heading">계정 설정</h2>
+              <div className="mypage-menu-group">
+                <SettingRow label="내 정보 및 공개 설정" value="설정" onClick={onAccount} />
+              </div>
+            </section>
             <SettingRow label="룰렛 이벤트" value="참여하기" onClick={onRouletteEvent} />
           </div>
         </>
@@ -184,8 +195,8 @@ export function PreferencesPage({
     <section className="page preferences-page">
       <ScreenHeader title="비선호 카테고리" onBack={onBack} action={action} />
       <p className="preference-help">
-        선택한 카테고리는 친구들이 선물할 때<br />
-        경고로 표시돼요. (최대 {selection.maxSelectableCount}개)
+        선택한 카테고리는 친구들이 선물할 때 경고로 표시돼요. (최대 {selection.maxSelectableCount}
+        개)
       </p>
       <AsyncContentState
         loading={selection.loading}
@@ -299,6 +310,7 @@ export function GiftPreferencePage({
           <label className="preference-textarea">
             <KeyboardTextarea
               value={value}
+              aria-label="내 선물 취향"
               disabled={saving}
               placeholder="좋아하는 스타일, 색상, 필요한 물건을 자유롭게 적어주세요."
               onChange={(event) => setValue([...event.target.value].slice(0, 300).join(''))}

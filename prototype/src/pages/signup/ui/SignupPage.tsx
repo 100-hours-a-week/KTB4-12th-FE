@@ -206,8 +206,9 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
         <button type="button" aria-label="뒤로 가기" onClick={onBack}>
           <ArrowLeftIcon />
         </button>
-        <strong>회원가입</strong>
+        <h1>회원가입</h1>
       </header>
+      <p className="auth-step">회원가입 1 / 2 · 회원 정보</p>
       <form
         className="signup-form-body"
         onSubmit={(event) => {
@@ -257,6 +258,7 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
           <div className="input-with-icon">
             <KeyboardInput
               id="signup-email"
+              aria-label="이메일"
               value={draft.email}
               onChange={(event) => {
                 emailRequestVersion.current += 1;
@@ -385,6 +387,7 @@ export function SignupPage({ draft, onDraftChange, onBack, onComplete }: SignupP
           <div className="input-with-icon">
             <KeyboardInput
               type={passwordVisible ? 'text' : 'password'}
+              aria-label="비밀번호"
               value={draft.password}
               onChange={(event) => update('password', event.target.value)}
               placeholder="영문, 숫자, 특수문자 포함 8~64자"

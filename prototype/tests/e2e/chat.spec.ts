@@ -148,7 +148,7 @@ test('로그아웃은 대화 sessionStorage도 비운다', async ({ page }) => {
     .getByRole('navigation', { name: '하단 메뉴' })
     .getByRole('button', { name: '마이' })
     .click();
-  await page.getByRole('button', { name: '내 정보 관리' }).click();
+  await page.getByRole('button', { name: '내 정보 및 공개 설정 설정', exact: true }).click();
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: '로그아웃', exact: true }).click();
   await expect(page.getByRole('button', { name: '로그인', exact: true })).toBeVisible();
