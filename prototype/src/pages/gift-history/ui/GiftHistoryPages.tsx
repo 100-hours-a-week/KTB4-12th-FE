@@ -241,28 +241,12 @@ export function ReceivedGiftsPage({
   const acceptInFlight = useRef(false);
   const loader = useCallback((cursor: string | null) => fetchReceivedGifts(cursor), []);
   const list = useCursorList(loader, `received-${refreshKey}-${actionRefreshKey}`);
-  const orderIds = list.items
-    .filter((gift) => gift.giftStatus === 'WAITING_FOR_ACCEPTANCE')
-    .map((gift) => gift.orderId);
-  const cancellation = usePaymentCancellationStatuses(orderIds);
-  const refreshedCancellations = useRef(new Set<string>());
-
-  useEffect(() => {
-    const completed = list.items.some((gift) => {
-      const orderId = gift.orderId;
-      if (cancellation.checks[orderId]?.cancellationStatus !== 'COMPLETED') return false;
-      if (refreshedCancellations.current.has(orderId)) return false;
-      refreshedCancellations.current.add(orderId);
-      return true;
-    });
-    if (completed) setActionRefreshKey((value) => value + 1);
-  }, [cancellation.checks, list.items]);
 
   const accept = async (gift: ReceivedGift) => {
     if (
       acceptInFlight.current ||
       busyGiftId != null ||
-      !cancellationActionAllowed(cancellation.checks[gift.orderId])
+      gift.giftStatus !== 'WAITING_FOR_ACCEPTANCE'
     )
       return;
     acceptInFlight.current = true;
@@ -292,31 +276,15 @@ export function ReceivedGiftsPage({
       cursor={list}
       renderAction={(gift) => {
         if (!('sender' in gift) || gift.giftStatus !== 'WAITING_FOR_ACCEPTANCE') return null;
-        const check = cancellation.checks[gift.orderId];
-        const notice = check ? (
-          <CancellationStatusNotice
-            check={check}
-            onRefresh={() => void cancellation.refresh(gift.orderId)}
-          />
-        ) : null;
-        if (check?.cancellationStatus === 'PENDING' || check?.cancellationStatus === 'COMPLETED')
-          return notice;
         return (
-          <>
-            {notice}
-            <button
-              type="button"
-              className="primary gift-history-action"
-              disabled={busyGiftId === gift.giftId || !cancellationActionAllowed(check)}
-              onClick={() => void accept(gift)}
-            >
-              {busyGiftId === gift.giftId
-                ? '처리 중'
-                : cancellationActionAllowed(check)
-                  ? '선물 받기'
-                  : '취소 상태 확인 중'}
-            </button>
-          </>
+          <button
+            type="button"
+            className="primary gift-history-action"
+            disabled={busyGiftId === gift.giftId}
+            onClick={() => void accept(gift)}
+          >
+            {busyGiftId === gift.giftId ? '처리 중' : '선물 받기'}
+          </button>
         );
       }}
     />
@@ -568,7 +536,9 @@ function GiftDetailPage({
   const actionInFlight = useRef(false);
   const completedCancellationNotified = useRef<string | null>(null);
   const cancellationKey = useRef<string | null>(null);
-  const cancellation = usePaymentCancellationStatuses(gift?.orderId ? [gift.orderId] : []);
+  const cancellation = usePaymentCancellationStatuses(
+    !received && gift?.orderId ? [gift.orderId] : [],
+  );
   const cancellationCheck = gift ? cancellation.checks[gift.orderId] : undefined;
   const payment = cancellationCheck?.data ?? null;
   const paymentError = cancellationCheck?.error ?? '';
@@ -600,7 +570,7 @@ function GiftDetailPage({
   }, [load, refreshKey]);
 
   useEffect(() => {
-    if (!orderId || !cancellationCheck?.checked) return;
+    if (received || !orderId || !cancellationCheck?.checked) return;
     if (cancellationCheck.cancellationStatus === 'COMPLETED') {
       if (completedCancellationNotified.current !== orderId) {
         completedCancellationNotified.current = orderId;
@@ -613,14 +583,21 @@ function GiftDetailPage({
       cancellationCheck.cancellationStatus === 'FAILED'
     )
       cancellationKey.current = null;
-  }, [cancellationCheck?.cancellationStatus, cancellationCheck?.checked, onChanged, orderId]);
+  }, [
+    cancellationCheck?.cancellationStatus,
+    cancellationCheck?.checked,
+    onChanged,
+    orderId,
+    received,
+  ]);
 
   const accept = async () => {
     if (
       !gift ||
+      !received ||
+      gift.giftStatus !== 'WAITING_FOR_ACCEPTANCE' ||
       actionInFlight.current ||
-      actionBusy ||
-      !cancellationActionAllowed(cancellationCheck)
+      actionBusy
     )
       return;
     actionInFlight.current = true;
@@ -727,7 +704,8 @@ function GiftDetailPage({
       {!loading && !error && gift ? (
         <div className="gift-detail-surface">
           <GiftDetailContent gift={displayedGift!} />
-          {cancellationCheck &&
+          {!received &&
+          cancellationCheck &&
           (cancellationCheck.cancellationStatus ||
             cancellationCheck.error ||
             cancellationCheck.checking) ? (
@@ -745,11 +723,11 @@ function GiftDetailPage({
               onRetry={() => void cancellation.refresh(gift.orderId)}
             />
           ) : null}
-          {waiting && !cancellationPending && !cancellationCompleted ? (
+          {waiting && (received || (!cancellationPending && !cancellationCompleted)) ? (
             <button
               type="button"
               className={received ? 'primary gift-detail-action' : 'secondary gift-detail-action'}
-              disabled={actionBusy || !cancellationActionAllowed(cancellationCheck)}
+              disabled={actionBusy || (!received && !cancellationActionAllowed(cancellationCheck))}
               onClick={() => {
                 if (received) void accept();
                 else if (cancellationActionAllowed(cancellationCheck)) {
@@ -760,7 +738,7 @@ function GiftDetailPage({
             >
               {actionBusy
                 ? '처리 중'
-                : !cancellationActionAllowed(cancellationCheck)
+                : !received && !cancellationActionAllowed(cancellationCheck)
                   ? '취소 상태 확인 중'
                   : received
                     ? '선물 받기'
