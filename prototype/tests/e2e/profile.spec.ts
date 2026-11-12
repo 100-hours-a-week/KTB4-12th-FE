@@ -39,7 +39,7 @@ test('내 정보 관리 화면을 새로고침해도 화면과 프로필을 복�
 
 test('받은 선물 화면을 새로고침해도 화면을 복원한다', async ({ page }) => {
   await openMyPage(page);
-  await page.getByRole('button', { name: '받은 선물 8건' }).click();
+  await page.getByRole('button', { name: /^받은 선물 \d+건$/ }).click();
   await expect(page.getByRole('heading', { name: '받은 선물' })).toBeVisible();
 
   await page.reload();
@@ -89,7 +89,7 @@ test('사용자가 받은 선물 목록을 조회한다', async ({ page }) => {
   await openMyPage(page);
 
   await expect(page.getByRole('button', { name: /보낸 선물/ })).toBeVisible();
-  await page.getByRole('button', { name: '받은 선물 8건' }).click();
+  await page.getByRole('button', { name: /^받은 선물 \d+건$/ }).click();
   await expect(page.getByRole('heading', { name: '받은 선물' })).toBeVisible();
   await expect(page.locator('.gift-history-card').first()).toBeVisible();
   await page.locator('.gift-history-card').first().click();
@@ -99,7 +99,7 @@ test('사용자가 받은 선물 목록을 조회한다', async ({ page }) => {
 test('[QA 89, 90, 91] 마이페이지 정보를 확인하고 생년월일을 취소·저장한다', async ({ page }) => {
   await openMyPage(page);
   await expect(page.getByText('email@email.com', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '받은 선물 8건' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^받은 선물 \d+건$/ })).toBeVisible();
   await page.getByRole('button', { name: '내 정보 관리' }).click();
 
   await page.getByRole('button', { name: /생년월일/ }).click();

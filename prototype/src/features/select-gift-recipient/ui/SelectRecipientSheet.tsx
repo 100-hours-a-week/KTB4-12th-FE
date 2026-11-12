@@ -52,7 +52,7 @@ function RecipientList({ onSelect }: Pick<SelectRecipientSheetProps, 'onSelect'>
       <div className="friend-list">
         {list.items.map((friend) => (
           <article className="friend-card" key={friend.friendId}>
-            <div>
+            <div className="friend-identity">
               <strong>{friend.name}</strong>
               <small>
                 {friend.birth
