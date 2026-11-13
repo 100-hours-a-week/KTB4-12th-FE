@@ -3768,6 +3768,7 @@ textarea:focus-visible,
 }
 .primary:not(:disabled) {
   background: var(--accent-strong);
+  color: #fff;
 }
 .secondary {
   border: 1px solid #eae7eb;

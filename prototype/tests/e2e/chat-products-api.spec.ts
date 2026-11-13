@@ -108,6 +108,16 @@ test('AI 순서·이유와 최신 사진·가격을 표시하며 최종 턴/다�
   await page.goto('/');
   await expect(card(page, 102).first()).toContainText('최신 상품 102');
   await expect(card(page, 102).first()).toContainText('32,102원');
+  const productButton = card(page, 102)
+    .first()
+    .getByRole('button', { name: '상품 보기', exact: true });
+  await expect(productButton).toBeEnabled();
+  await expect(productButton).toHaveCSS('color', 'rgb(255, 255, 255)');
+  const buttonColors = await productButton.evaluate((button) => {
+    const style = getComputedStyle(button);
+    return { text: style.color, background: style.backgroundColor };
+  });
+  expect(buttonColors.text).not.toBe(buttonColors.background);
   await expect(card(page, 102).first()).toContainText('AI 추천 이유 <b>그대로</b>');
   await expect(card(page, 102).first().getByRole('img')).toHaveAttribute(
     'src',
